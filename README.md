@@ -80,7 +80,7 @@ Both workflow inputs must be repository-relative files present in the selected b
 
 ### Manual hosted validation
 
-`Compatibility Matrix #2` at commit `7ffe94b` already established the hosted success baseline with EnhancedFly 2.2.0 on Paper 1.20.1/build 196/Java 17 (`PASS`, `1 passed, 0 failed`, with both artifacts). The v0.4 Action-version upgrades and expanded failure evidence still require one new manual hosted run; local tests cannot prove runner behavior. Use a test repository or test branch that you control and that contains this workflow, the Matrix config, and a plugin JAR already present in the checkout. Build the JAR yourself or provide it legally; do not rely on an untracked local file or an automatically downloaded third-party plugin.
+The v0.4 workflow is hosted-validated at commit `c5fe4ef`. [`Compatibility Matrix #3`](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34687494718) passed with EnhancedFly 2.2.0 on Paper 1.20.1/build 196/Java 17, no deprecation warnings, the expected Summary, and both artifacts. [`Compatibility Matrix #4`](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34687590131) exercised the owned enable-failure fixture and retained the correct `PLUGIN_ENABLE_FAILED` stage, primary evidence, Summary, and both artifacts while the workflow failed as expected. The steps below reproduce those checks.
 
 1. Commit and push the v0.4 changes, both example configs, and both fixture JARs to a branch you control.
 2. In **Actions**, choose **Compatibility Matrix** and run the success case:

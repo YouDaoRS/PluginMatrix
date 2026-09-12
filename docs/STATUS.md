@@ -4,7 +4,7 @@
 
 ## 当前阶段
 
-当前处于 **v0.4 Configuration and Evidence Usability** 阶段，代码与离线验证已完成，等待一次 GitHub-hosted 手动回归：
+**v0.4 Configuration and Evidence Usability 已完成并闭环。**
 
 > 在不改变 Runtime Verifier、串行 Matrix 和手动 workflow 总体架构的前提下，降低首次配置成本，并让失败环境、阶段和证据位置直接可见。
 
@@ -105,7 +105,7 @@
 - 按 2026-09-12 官方稳定版本将受影响 Actions 更新为 [`checkout@v7`](https://github.com/actions/checkout/releases/tag/v7.0.1)、[`setup-python@v7`](https://github.com/actions/setup-python/releases/tag/v7.0.0)、[`setup-java@v6`](https://github.com/actions/setup-java/releases/tag/v6.0.1)、[`upload-artifact@v7`](https://github.com/actions/upload-artifact/releases/tag/v7.0.1)；四个 tag 的 `action.yml` 均声明 `using: node24`，未增加第三方 Action。
 - checkout、Python 3.11、Temurin Java 17、两个 artifact 名称和路径、`if: always()` 上传、Job Summary 及最终 exit-code 保留逻辑不变。
 - 新增静态测试，拒绝四个旧版本，固定当前版本、上传条件、`result.json`/`server.log` 路径和 embedded Python 语法。
-- 版本升级后的真实 GitHub-hosted 行为尚未远程执行；不将本地静态结果描述为 hosted 成功。
+- 版本升级后的真实 GitHub-hosted 成功与失败路径均已执行；两次运行的 warning annotations 均为 `0`，Node.js 20 与 `setup-java@v4` 弃用警告已消失。
 
 ### v0.4 Matrix 前置检查与配置诊断
 
@@ -139,7 +139,7 @@
 
 ## 当前验证结果
 
-GitHub-hosted 基线：
+GitHub-hosted v0.3.1 基线：
 
 - Workflow：`Compatibility Matrix #2`；
 - Commit：`7ffe94b`；
@@ -148,7 +148,12 @@ GitHub-hosted 基线：
 - Job Summary：`1 passed, 0 failed`；
 - Artifacts：`pluginmatrix-matrix-report`、`pluginmatrix-runtime-artifacts`。
 
-该结果验证了 v0.3.1 修复后的成功路径；v0.4 Action 版本和新增 Summary 内容仍需下一次手动 workflow 回归。
+GitHub-hosted v0.4 闭环验证（commit `c5fe4ef`）：
+
+- [`Compatibility Matrix #3`](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34687494718)：EnhancedFly 2.2.0 / Paper 1.20.1/build 196 / Java 17，结果 `PASS`，Summary 为 `1 passed, 0 failed`；warning annotations 为 `0`；`pluginmatrix-matrix-report` 与 `pluginmatrix-runtime-artifacts` 均存在、未过期且有非空内容。
+- [`Compatibility Matrix #4`](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34687590131)：项目自有 `PluginMatrixEnableFailure` fixture 在真实 Paper `onEnable()` 阶段失败；Matrix 正确报告 `PLUGIN_ENABLE_FAILED`、`plugin_enable`、指向 `server.log` 的 `primary_evidence` 和 `0 passed, 1 failed`；workflow 按预期以 exit code `1` 失败；warning annotations 为 `0`；两个 artifacts 均在失败后保留、未过期且有非空内容。
+
+这两次运行确认了 Action 升级、成功 Summary、失败 Summary、失败 evidence 和 `if: always()` artifact 上传，v0.4 hosted 验证已闭环。
 
 以下三个插件均在 Paper 1.20.1 / Paper build 196 / Java 17 上得到真实 `PASS`：
 
@@ -195,16 +200,15 @@ verifier 先在运行过程中生成 evidence，再由 evidence 归纳最终 ver
 ## 当前验证边界
 
 - v0.4 本地结构验证、离线测试和编译检查已完成；
-- v0.3.1 已有真实 hosted PASS 基线，但 v0.4 的 Action 主版本升级、增强后的失败 Summary 和失败 artifact 路径尚未在 GitHub-hosted runner 上复验；
-- 下一次手动运行应确认四个官方 Action 不再产生上述两条警告，成功 Summary 与两个 artifacts 保持正常，并至少用一次失败环境确认 stage/evidence 显示及 `if: always()` 上传；
-- 该远程验证不能由本地检查替代，当前未触发 workflow、上传文件或写入远程资源；
+- v0.4 已在 GitHub-hosted runner 上完成一次真实成功路径和一次真实 plugin enable 失败路径；
+- 两次 hosted 运行均确认弃用警告消失、Summary 正确和两个 artifacts 可用；
 - 人工步骤和输入示例见 README 的 `Manual hosted validation`。
 
 ## v0.5 推荐范围
 
 v0.5 应只做开源发布准备，不增加验证能力：
 
-- 完成 v0.4 hosted 成功与失败路径回归并记录 run/revision；
+- 保留 v0.4 hosted 成功与失败路径的 run/revision 记录；
 - 审核许可证、NOTICE/第三方说明、贡献指南、Code of Conduct、安全报告方式和 issue/PR 模板；
 - 核对 README 安装、最小示例、状态语义、支持范围与隐私/网络行为；
 - 校验干净 checkout 的打包元数据、sdist/wheel 构建和离线安装 smoke，但不发布到 PyPI、不创建 Release/Tag；
@@ -243,10 +247,10 @@ v0.5 应只做开源发布准备，不增加验证能力：
 - 当前手动 workflow 只支持 Java 17 配置，其他 Java 组合会在执行前失败；
 - preflight 会验证 Paper 版本格式和 `paper_build` 类型；某个 build 是否真实存在仍由该环境执行前的官方 Paper API 查询确认；
 - 输出目录可写性是在 preflight 时探测，之后仍可能因权限或磁盘状态变化而失败；
-- v0.4 workflow 静态检查已完成，但更新后的官方 Action 版本尚未直接执行 GitHub-hosted runner。
+- v0.4 workflow 已完成静态检查及 GitHub-hosted 成功/失败路径验证。
 
 ## 当前阶段结论
 
-**v0.4 Configuration and Evidence Usability 的实现、文档与离线回归已完成。**
+**v0.4 Configuration and Evidence Usability 的实现、文档、离线回归与 GitHub-hosted 成功/失败验证均已完成。**
 
-Runtime Verifier、串行 Matrix 和手动 workflow 架构未重做。已有 `Compatibility Matrix #2` 的 hosted PASS 基线；本 milestone 唯一未完成的外部证据是对升级后 Actions、增强 Summary 和失败 artifact 路径再执行一次 GitHub-hosted 手动回归。
+Runtime Verifier、串行 Matrix 和手动 workflow 架构未重做。`Compatibility Matrix #3` 与 `#4` 已分别证明升级后的成功路径和真实 plugin enable 失败路径，v0.4 没有剩余闭环项；下一会话可进入 v0.5 Open-Source Release Readiness。
