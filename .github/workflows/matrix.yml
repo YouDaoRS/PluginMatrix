@@ -171,31 +171,32 @@ jobs:
                           f"{type(exc).__name__}: {exc}\n"
                           "Check the uploaded runtime artifacts and setup errors above.\n"
                       )
-                  elif not isinstance(report, dict):
-                      output.write(
-                          "Matrix report has an unexpected format; expected a JSON object.\n"
-                          "Check the uploaded runtime artifacts and setup errors above.\n"
-                      )
                   else:
-                      plugin = report.get("plugin", {})
-                      stats = report.get("summary", {})
-                      if not isinstance(plugin, dict):
-                          plugin = {}
-                      if not isinstance(stats, dict):
-                          stats = {}
-                      output.write(f"**Plugin:** {plugin.get('plugin_name') or plugin.get('plugin_jar', 'unknown')}\n\n")
-                      output.write("| Environment | Verdict |\n|---|---|\n")
-                      environments = report.get("environments", [])
-                      if not isinstance(environments, list):
-                          environments = []
-                      for environment in environments:
-                          if isinstance(environment, dict):
-                              output.write(f"| `{environment.get('id')}` | `{environment.get('verdict')}` |\n")
-                      output.write(
-                          f"\n**Summary:** {stats.get('passed', 0)} passed, "
-                          f"{stats.get('failed', 0)} failed of {stats.get('total', 0)}\n\n"
-                      )
-                      output.write("Artifacts: `pluginmatrix-matrix-report`, `pluginmatrix-runtime-artifacts`\n")
+                      if not isinstance(report, dict):
+                          output.write(
+                              "Matrix report has an unexpected format; expected a JSON object.\n"
+                              "Check the uploaded runtime artifacts and setup errors above.\n"
+                          )
+                      else:
+                          plugin = report.get("plugin", {})
+                          stats = report.get("summary", {})
+                          if not isinstance(plugin, dict):
+                              plugin = {}
+                          if not isinstance(stats, dict):
+                              stats = {}
+                          output.write(f"**Plugin:** {plugin.get('plugin_name') or plugin.get('plugin_jar', 'unknown')}\n\n")
+                          output.write("| Environment | Verdict |\n|---|---|\n")
+                          environments = report.get("environments", [])
+                          if not isinstance(environments, list):
+                              environments = []
+                          for environment in environments:
+                              if isinstance(environment, dict):
+                                  output.write(f"| `{environment.get('id')}` | `{environment.get('verdict')}` |\n")
+                          output.write(
+                              f"\n**Summary:** {stats.get('passed', 0)} passed, "
+                              f"{stats.get('failed', 0)} failed of {stats.get('total', 0)}\n\n"
+                          )
+                          output.write("Artifacts: `pluginmatrix-matrix-report`, `pluginmatrix-runtime-artifacts`\n")
           PY
 
       - name: Preserve Matrix exit code

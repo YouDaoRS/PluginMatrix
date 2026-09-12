@@ -1,5 +1,6 @@
 import unittest
 from pathlib import Path
+from textwrap import dedent
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -50,3 +51,11 @@ class WorkflowTests(unittest.TestCase):
         config = json.loads((ROOT / "examples" / "ci-matrix.json").read_text(encoding="utf-8"))
         self.assertTrue(config["environments"])
         self.assertTrue(all(str(item["java"]) == "17" for item in config["environments"]))
+
+    def test_manual_matrix_job_summary_python_is_valid(self):
+        workflow = self.read("matrix.yml")
+        marker = "          python - <<'PY'\n"
+        scripts = workflow.split(marker)[1:]
+        self.assertGreaterEqual(len(scripts), 2)
+        summary_script = scripts[-1].split("          PY", 1)[0]
+        compile(dedent(summary_script), "matrix-job-summary", "exec")
