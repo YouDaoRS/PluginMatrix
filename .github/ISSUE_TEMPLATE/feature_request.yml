@@ -1,0 +1,32 @@
+name: Feature request
+description: Propose an improvement within PluginMatrix's Paper runtime-verification scope.
+title: "[Feature]: "
+body:
+  - type: input
+    id: problem
+    attributes:
+      label: Problem
+      description: What release-time compatibility question is difficult to answer today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe inputs, expected verdict or evidence, and how it fits the current Runtime Verifier or sequential Matrix architecture.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Explain any current workaround or smaller change that would solve the problem.
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope checks
+      options:
+        - label: This request is for Minecraft Paper plugin runtime verification.
+          required: true
+        - label: This request does not require publishing a third-party JAR without permission.
+          required: true

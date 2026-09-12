@@ -6,8 +6,8 @@
   "options": {
     "timeout": 120,
     "stability_window": 5,
-    "work_dir": "../.pluginmatrix/success-runs",
+    "work_dir": "../.pluginmatrix/runs",
     "cache_dir": "../.pluginmatrix/cache",
-    "report": "../.pluginmatrix/success-matrix-report.json"
+    "report": "../.pluginmatrix/matrix-report.json"
   }
 }

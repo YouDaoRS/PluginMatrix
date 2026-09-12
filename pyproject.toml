@@ -1,15 +1,43 @@
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "pluginmatrix"
-version = "0.4.0"
 description = "Real Paper server runtime verification for Minecraft plugins"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
+dynamic = ["version"]
+keywords = ["minecraft", "paper", "plugin", "compatibility", "testing"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Topic :: Software Development :: Testing",
+]
+
+[project.urls]
+Homepage = "https://github.com/YouDaoRS/PluginMatrix"
+Repository = "https://github.com/YouDaoRS/PluginMatrix"
+Issues = "https://github.com/YouDaoRS/PluginMatrix/issues"
+Changelog = "https://github.com/YouDaoRS/PluginMatrix/blob/main/CHANGELOG.md"
+
+[project.optional-dependencies]
+release = ["build>=1,<2", "setuptools>=77", "wheel>=0.40"]
 
 [project.scripts]
 pluginmatrix = "pluginmatrix.cli:main"
 
+[tool.setuptools.dynamic]
+version = {attr = "pluginmatrix.__version__"}
+
 [tool.setuptools.packages.find]
 include = ["pluginmatrix*"]
+exclude = ["tests*"]

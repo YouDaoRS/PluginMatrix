@@ -1,95 +1,128 @@
 # PluginMatrix
 
-PluginMatrix is a small, configuration-light runtime verifier for Minecraft Paper plugins. It runs one plugin JAR in one real Paper/Java environment and produces a structured result plus the original `server.log`.
+PluginMatrix is an early-stage command-line verifier for Minecraft Paper plugin JARs. It prepares an isolated Paper/Java environment, starts a real Paper server, observes plugin discovery and lifecycle evidence, and writes a structured report alongside the original `server.log`.
 
-## Quick start
+It supports one environment with `test` and a sequential list of environments with `matrix`. It does not support Spigot, Folia, Fabric, Forge, Velocity, parallel Matrix execution, gameplay bots, or complete feature testing.
+
+## What `PASS` means
+
+`PASS` means that, for the exact Paper build and Java runtime recorded in the report:
+
+1. Paper reached its ready state.
+2. The runtime probe found the target through Paper's `PluginManager`.
+3. `Plugin#isEnabled()` was `true`.
+4. The server and plugin remained running during the configured stability window.
+
+It does **not** prove that commands, events, GUIs, databases, dependencies, performance, player behavior, or other Paper/Java versions work correctly.
+
+## Requirements and installation
+
+- Python 3.10 or newer.
+- A full JDK containing both `java` and `javac`; Java 17 is required for the included Paper 1.20.1 example.
+- Network access to the official Paper API and download host.
+- Network access required by Paper bootstrap on its first run, including Mojang runtime artifacts.
+- A Paper plugin JAR you are allowed to use. Dependencies must be supplied as local JARs explicitly.
+
+From a clean checkout:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python -m pip install .
+.\.venv\Scripts\pluginmatrix --version
+```
+
+On Linux or macOS, replace `.venv\Scripts\python` with `.venv/bin/python` and `.venv\Scripts\pluginmatrix` with `.venv/bin/pluginmatrix`.
+
+## Minimal single-environment verification
+
+The repository includes `ci-fixtures/PluginMatrixSmoke.jar`, a minimal project-owned fixture built from the adjacent Java source. It is legal to copy for this example and is not a production plugin.
 
 ```powershell
 python -m pluginmatrix test `
-  --plugin .\EnhancedFly.jar `
+  --plugin .\ci-fixtures\PluginMatrixSmoke.jar `
   --paper 1.20.1 `
+  --paper-build 196 `
   --java 17
 ```
 
-The first run downloads the latest stable Paper build for the requested version into `.pluginmatrix/cache`. Each run is isolated under `.pluginmatrix/runs`.
-For reproducible reruns, pin the resolved build:
-
-```powershell
-python -m pluginmatrix test --plugin .\EnhancedFly.jar --paper 1.20.1 --paper-build 196 --java 17
-```
+The first run downloads Paper into `.pluginmatrix/cache`. Each verification gets a unique `.pluginmatrix/runs/run-<timestamp>-<id>` directory. By default its structured runtime report is `result.json` in that directory; `server.log` is beside it. Use `--report path.json` to choose a runtime report path.
 
 Useful options:
 
 ```text
---dependency path.jar       Add a locally supplied dependency plugin
---timeout 120               Server readiness timeout in seconds
---stability-window 5        Seconds to observe after readiness
---report path.json          Write the structured report to a chosen path
+--dependency path.jar       Add a locally supplied dependency plugin; repeatable
+--timeout 120               Paper readiness timeout in seconds
+--stability-window 5        Observation time after Paper becomes ready
+--work-dir path             Root for isolated run directories
+--cache-dir path            Paper download and bootstrap cache
+--report path.json          Runtime JSON report path
 ```
 
-The process exits `0` only for `PASS`; every other verifier state exits `1`.
-
-The verifier currently proves server startup and plugin initialization, not complete gameplay compatibility. Paper's own bootstrap may need to download Mojang runtime artifacts on first launch; those downloads and their failures are retained in `server.log`.
+The single-environment command exits `0` only for `PASS`; every other verifier verdict exits `1`.
 
 ## Compatibility Matrix
 
-Run the same plugin JAR sequentially against several Paper/Java environments with a JSON config:
+Run the owned one-environment example, or copy it and add environments:
 
 ```powershell
-python -m pluginmatrix matrix .\matrix.json
+python -m pluginmatrix matrix .\examples\matrix.json
 ```
-
-Example `matrix.json`:
 
 ```json
 {
-  "plugin": ".\\EnhancedFly-2.2.0.jar",
+  "plugin": "../ci-fixtures/PluginMatrixSmoke.jar",
   "environments": [
-    { "paper": "1.19.4", "java": 17, "paper_build": 550 },
-    { "paper": "1.20.1", "java": 17, "paper_build": 196 },
-    { "paper": "1.20.4", "java": 17, "paper_build": 499 }
+    { "paper": "1.20.1", "java": 17, "paper_build": 196 }
   ],
   "options": {
     "timeout": 120,
     "stability_window": 5,
-    "work_dir": ".pluginmatrix/runs",
-    "cache_dir": ".pluginmatrix/cache",
-    "report": ".pluginmatrix/matrix-report.json"
+    "work_dir": "../.pluginmatrix/runs",
+    "cache_dir": "../.pluginmatrix/cache",
+    "report": "../.pluginmatrix/matrix-report.json"
   }
 }
 ```
 
-Paths in the config are resolved relative to the config file. Matrix exits with `0` when every environment passes, `1` when execution completes with one or more failed environments, `2` for configuration errors, and `3` for an unexpected PluginMatrix error.
+Every relative path in a Matrix config is resolved from the directory containing that config, not from the shell's current directory. Before downloading Paper or starting a server, Matrix validates the plugin, Java/JDK, duplicate environments, and output paths.
 
-Before starting any Paper server, Matrix checks the plugin JAR, each requested Java runtime, the required JDK `javac`, and whether the work, cache, and report locations can be created and written. Configuration errors include the field and current value, what was expected, and a concrete fix. Exact duplicate environments and output-path conflicts are rejected before execution. Paper availability is checked by the Runtime Verifier before that environment starts; an unavailable fixed build is reported as `ENVIRONMENT_INVALID` with guidance to correct or remove `paper_build`.
+Each environment keeps its own runtime `result.json`, `server.log`, and run directory. The unified Matrix Report defaults to `.pluginmatrix/matrix-report.json` relative to the config and references those artifacts without embedding the raw log. Matrix exits `0` when all environments pass, `1` after one or more environment failures, `2` for invalid configuration, and `3` for an internal PluginMatrix error.
 
-On failure, the CLI prints the failing environment, verdict, failure stage, reason, primary evidence, runtime report, `server.log`, and run directory. If failure happens before server launch, it explicitly says that `server.log` was not generated. The final line always identifies the unified Matrix Report path. The JSON report retains the v0.2/v0.3 fields and adds `config_source`, `preflight`, top-level `artifacts`, and per-environment `primary_evidence`/`artifact_availability` fields; it references original logs instead of embedding them.
+## Common failures
+
+- `Java ... did not resolve` or a major-version mismatch: install the requested JDK and correct `PATH`, or set `java` to its executable path. PluginMatrix does not install JDKs.
+- `javac ... was not found`: install a full JDK rather than a JRE and ensure its `java` and `javac` are available together.
+- Paper version or fixed build not found: correct `paper`/`paper_build`, or remove `paper_build` to select the latest stable build.
+- Paper API, download, or bootstrap network failure: confirm network access and retry; inspect the runtime report and original `server.log` before blaming the plugin.
+- `PLUGIN_LOAD_FAILED` or `PLUGIN_ENABLE_FAILED`: inspect `failure_stage`, `primary_evidence`, runtime `result.json`, and `server.log`; explicitly provide required local dependencies with `--dependency`.
+- Matrix path not found: remember that config paths are relative to the JSON file.
+
+Reports and logs can expose usernames, local paths, IP addresses, plugin configuration, and stack traces. Redact sensitive data before sharing them. Do not publish a third-party JAR without redistribution permission.
 
 ## GitHub Actions
 
-The repository includes two workflows. Their official JavaScript actions use Node.js 24-compatible current major versions (`checkout@v7`, `setup-python@v7`, `setup-java@v6`, and `upload-artifact@v7`):
+`CI` runs on pushes and pull requests and performs package installation, `compileall`, and the offline test suite. It does not download Paper or start a Minecraft server.
 
-- `CI` runs on `push` and `pull_request`. It installs the package, runs `compileall`, and executes the offline test suite. It does not download Paper or run real plugin servers.
-- `Compatibility Matrix` is manual (`workflow_dispatch`). Start it from the Actions tab, provide a repository-relative JSON config and a repository-relative plugin JAR, and use Java 17. The workflow copies the JAR into an isolated CI path, validates that every configured environment uses Java 17, then calls the existing `python -m pluginmatrix matrix` command.
+`Compatibility Matrix` is a manual `workflow_dispatch` workflow for real Paper verification on a GitHub-hosted Java 17 runner. In the Actions tab, provide:
 
-The manual workflow is intended for repositories or branches that contain the plugin artifact to test. This project does not automatically build arbitrary plugin projects, download JDKs, or manage third-party plugin dependencies. A missing config, plugin JAR, or unsupported Java value fails before Matrix execution with a clear setup error.
+- `config`: a repository-relative JSON file such as `examples/ci-matrix.json`.
+- `plugin_jar`: a repository-relative JAR such as `ci-fixtures/PluginMatrixSmoke.jar`.
 
-After a manual run, download `pluginmatrix-matrix-report` for the unified JSON report and `pluginmatrix-runtime-artifacts` for per-environment `result.json` and `server.log` files. The Job Summary reads the generated Matrix Report and shows each environment verdict, failure stage, primary evidence, totals, and artifact names. It does not recalculate verifier verdicts. A failed environment keeps the report and artifacts while the workflow exits with Matrix code `1`; configuration and internal errors retain codes `2` and `3`.
+The workflow does not build arbitrary plugins or download their dependencies. It runs the existing Matrix CLI, writes a Job Summary from the Matrix Report, and always attempts to upload `pluginmatrix-matrix-report` and `pluginmatrix-runtime-artifacts`.
 
-Both workflow inputs must be repository-relative files present in the selected branch. The `plugin` field inside the source config is replaced with the `plugin_jar` workflow input after the JAR is copied to `.ci/plugin.jar`; other config paths are rewritten to `.pluginmatrix` locations. If an input is missing, points outside the repository, or names an uncommitted local file, the setup error identifies the input, resolved expectation, and correction before Matrix runs.
+A successful workflow means every environment returned `PASS`. An expected failure workflow, such as `examples/ci-enable-failure-matrix.json` with `ci-fixtures/PluginMatrixEnableFailure.jar`, exits nonzero but should still retain both artifacts. Setup failures before Matrix starts may have no report or server log; use the setup error in the job log.
 
-### Manual hosted validation
+The v0.4 code was hosted-validated at commit `c5fe4ef`: Matrix #3 passed EnhancedFly 2.2.0 on Paper 1.20.1/build 196/Java 17, while Matrix #4 produced the expected `PLUGIN_ENABLE_FAILED` for the owned failure fixture. Both retained artifacts and had zero Action deprecation warnings. EnhancedFly's binary is no longer distributed here because the repository audit found no explicit redistribution license; the result remains historical evidence, not a public example.
 
-The v0.4 workflow is hosted-validated at commit `c5fe4ef`. [`Compatibility Matrix #3`](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34687494718) passed with EnhancedFly 2.2.0 on Paper 1.20.1/build 196/Java 17, no deprecation warnings, the expected Summary, and both artifacts. [`Compatibility Matrix #4`](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34687590131) exercised the owned enable-failure fixture and retained the correct `PLUGIN_ENABLE_FAILED` stage, primary evidence, Summary, and both artifacts while the workflow failed as expected. The steps below reproduce those checks.
+## Offline development checks
 
-1. Commit and push the v0.4 changes, both example configs, and both fixture JARs to a branch you control.
-2. In **Actions**, choose **Compatibility Matrix** and run the success case:
-   - `config`: `examples/ci-matrix.json`
-   - `plugin_jar`: `ci-fixtures/EnhancedFly-2.2.0.jar`
-3. Confirm `PASS`, `1 passed, 0 failed`, no Node.js 20/setup-java v4 warnings, and both downloadable artifacts.
-4. Run the owned runtime-failure case:
-   - `config`: `examples/ci-enable-failure-matrix.json`
-   - `plugin_jar`: `ci-fixtures/PluginMatrixEnableFailure.jar`
-5. Confirm workflow failure with `PLUGIN_ENABLE_FAILED`, stage `plugin_enable`, a `primary_evidence` server-log path, `0 passed, 1 failed`, and both downloadable artifacts. The fixture source is under `ci-fixtures/enable-failure`; it intentionally throws from `onEnable()` and is not a malformed-config test.
+```powershell
+python -m unittest discover -s tests -v
+python -m compileall pluginmatrix tests ci-fixtures/build_fixtures.py
+```
 
-Download `pluginmatrix-matrix-report` for `.pluginmatrix/matrix-report.json`, and `pluginmatrix-runtime-artifacts` for each environment's `result.json` and `server.log`. If config or JAR preparation fails before Matrix starts, the report/log artifacts may be empty; use the setup error in the job log and the Job Summary's missing-report message.
+Fixture source, build instructions, and checksums are documented in `ci-fixtures/README.md`. Packaging and clean-install checks are listed in `docs/RELEASE_CHECKLIST.md`.
+
+See `CONTRIBUTING.md` before contributing, `SECURITY.md` for vulnerability reporting, `CHANGELOG.md` for version history, and `THIRD_PARTY_NOTICES.md` plus `docs/THIRD_PARTY_REVIEW.md` for source and licensing boundaries.
+
+PluginMatrix is licensed under the Apache License 2.0. See `LICENSE`.

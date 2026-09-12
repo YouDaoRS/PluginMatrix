@@ -148,7 +148,19 @@ v0.4 keeps the Runtime Verifier, sequential Matrix runner, and manual workflow a
 
 The manual workflow still supports Java 17 only and still uploads the Matrix report and runtime artifacts with `if: always()`. These usability changes do not add automatic JDK management, Paper variants, Matrix parallelism, or gameplay testing.
 
-## 10. 非目标
+## 10. v0.5 Open-Source Release Readiness
+
+v0.5 只完善公开源码所需的项目边界，不增加运行时验证能力：
+
+- 提供根许可证、贡献、安全、行为准则、Issue/PR 模板、Changelog、版本策略和发布检查清单；
+- 从单一代码属性生成打包版本，并验证 sdist、wheel、全新环境安装和 CLI 入口；
+- 公开示例只使用带可审计源码、构建方法、用途和 hash 的项目原创 fixture；
+- 记录运行时下载、二进制 fixture 和只参考未复制项目的来源边界；
+- 保留 v0.4 hosted 成功/失败验证事实，但来源或再分发授权不清楚的第三方 JAR 不进入公开仓库。
+
+v0.5 不创建 Tag、GitHub Release、PyPI 发布或自动发布 workflow。是否正式发布仍由项目所有者在完成发布检查清单后单独决定。
+
+## 11. 非目标
 
 当前不做：
 
@@ -160,7 +172,7 @@ The manual workflow still supports Java 17 only and still uploads the Matrix rep
 - 性能测试、压力测试和分布式服务器测试；
 - 自动判断完整业务功能是否正确。
 
-## 11. 成功标准
+## 12. 成功标准
 
 第一阶段成立的证据不是功能数量，而是：
 
@@ -171,7 +183,7 @@ The manual workflow still supports Java 17 only and still uploads the Matrix rep
 - EnhancedFly 之外，至少有其他类型插件可以被验证；
 - 用户认为它比手写 Paper 启动和日志脚本更省事。
 
-## 12. 未来扩展原则
+## 13. 未来扩展原则
 
 未来的 CI 和行为测试都应建立在同一个可靠 Verifier 之上；Matrix v0.2 已是该 Verifier 的本地串行编排层。
 

@@ -1,0 +1,47 @@
+name: Bug report
+description: Report an incorrect verdict, crash, configuration problem, or workflow issue.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: Do not attach secrets, private server data, or a third-party plugin JAR you cannot legally redistribute.
+  - type: input
+    id: pluginmatrix_version
+    attributes:
+      label: PluginMatrix version
+      description: Output of `pluginmatrix --version` or `python -m pluginmatrix --version`.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Operating system, Python version, Java/JDK version, Minecraft/Paper version, and fixed Paper build if used.
+      placeholder: "OS: Windows 11\nPython: 3.11.9\nJava/JDK: 17.0.x\nPaper: 1.20.1 build 196"
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Result and evidence
+      description: Include the verdict, failure_stage, command or Matrix config, and redacted excerpts or links for the Matrix Report, runtime result, and server.log when available.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Give minimal steps and say whether the issue reproduces consistently.
+    validations:
+      required: true
+  - type: checkboxes
+    id: disclosure
+    attributes:
+      label: Disclosure checks
+      options:
+        - label: I removed secrets and sensitive personal or server data.
+          required: true
+        - label: I did not attach a third-party JAR unless I have redistribution permission.
+          required: true
+        - label: This is not a security vulnerability; security reports follow SECURITY.md.
+          required: true

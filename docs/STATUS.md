@@ -4,9 +4,9 @@
 
 ## 当前阶段
 
-**v0.4 Configuration and Evidence Usability 已完成并闭环。**
+**v0.5 Open-Source Release Readiness 已完成本地实现与离线闭环。**
 
-> 在不改变 Runtime Verifier、串行 Matrix 和手动 workflow 总体架构的前提下，降低首次配置成本，并让失败环境、阶段和证据位置直接可见。
+> 在不改变 Runtime Verifier、串行 Matrix 和手动 workflow 总体架构的前提下，使仓库具备公开源码、干净安装、外部贡献和可重复发布前检查的基础。
 
 当前实现是一个 Python CLI，要求 Python 3.10+，不依赖第三方运行时库。
 
@@ -18,6 +18,19 @@
 - 可通过 `pip install -e .` 安装；
 - 安装后提供 `pluginmatrix` 命令；
 - `--version`、`--help` 和基本参数校验。
+- v0.5 版本为 `0.5.0`，唯一字面版本维护在 `pluginmatrix.__version__`，打包元数据动态读取该属性；
+- `pyproject.toml` 已补齐 README、Apache-2.0 SPDX、Python 要求、描述、URL、classifiers、keywords 和 release-only 构建工具 extra；没有伪造 authors/maintainers 身份；
+- 已从隔离 checkout 构建 sdist/wheel、审计内容、在全新 venv 安装 wheel，并验证所有要求的 CLI 入口。
+
+### v0.5 开源治理与来源边界
+
+- 根许可证采用 Apache-2.0 官方原文，不填写未经确认的个人、邮箱、法律实体或版权声明；
+- 新增 `CONTRIBUTING.md`、`SECURITY.md`、`CODE_OF_CONDUCT.md`、`THIRD_PARTY_NOTICES.md`、Issue forms 和 Pull Request 模板；
+- 新增 `CHANGELOG.md`、`docs/VERSIONING.md` 与 `docs/RELEASE_CHECKLIST.md`；
+- 完成代码、文档、workflow、fixture、二进制与只参考项目的来源分类；继续明确排除 GPL-3.0 代码、workflow、测试、注释和文件结构复用；
+- `EnhancedFly-2.2.0.jar` 的 plugin metadata 虽指向同一 GitHub 账号，但仓库及可见源码 checkout 均没有 EnhancedFly 自身的明确许可证或再分发授权；v0.5 已将该 JAR 从公开仓库内容移除，历史 v0.4 hosted 结果仍保留为事实记录；
+- 新增项目原创 `PluginMatrixSmoke` 成功 fixture，与原 enable-failure fixture 一并保留源码、descriptor、统一构建脚本、用途和 SHA-256；两个 JAR 均不含 shaded dependency；
+- README 和所有可复制示例改用原创 fixture，说明 PASS 边界、系统/网络要求、相对路径、artifact 位置、常见故障、隐私风险和手动 workflow 成功/预期失败的区别。
 
 ### 插件预检
 
@@ -132,9 +145,9 @@
 - Runtime evidence 有离线 fake-server 测试；
 - 已覆盖正常启动、插件未发现、依赖缺失、load 失败、`onEnable` 异常、插件被 disable、Paper 启动失败、启动超时和网络/环境失败；
 - 新增配置字段/路径诊断、无效插件、Java/JDK、输出目录冲突、Paper 固定 build、artifact 引用、CLI 失败摘要、单环境 CLI、Job Summary 成功/失败/损坏报告和 Action 版本回归测试；
-- 当前测试套件共 51 项，全部通过；
+- 当前测试套件共 58 项，全部通过；
 - 已验证 `compileall`；
-- 已验证 editable install 和命令入口；
+- 已验证 editable install、隔离 sdist/wheel 构建、全新 wheel 安装和命令入口；
 - 已使用真实 Paper 服务器完成多插件 E2E。
 
 ## 当前验证结果
@@ -199,20 +212,22 @@ verifier 先在运行过程中生成 evidence，再由 evidence 归纳最终 ver
 
 ## 当前验证边界
 
-- v0.4 本地结构验证、离线测试和编译检查已完成；
+- v0.5 本地结构、来源、打包、干净安装、离线测试和编译检查已完成；
 - v0.4 已在 GitHub-hosted runner 上完成一次真实成功路径和一次真实 plugin enable 失败路径；
 - 两次 hosted 运行均确认弃用警告消失、Summary 正确和两个 artifacts 可用；
-- 人工步骤和输入示例见 README 的 `Manual hosted validation`。
+- v0.5 没有触发远程 workflow；真正发布前仍应使用新的原创 success fixture 与现有 failure fixture 各做一次 hosted smoke；
+- 人工步骤和输入示例见 README 与 `docs/RELEASE_CHECKLIST.md`。
 
-## v0.5 推荐范围
+## v0.5 本地验证结果
 
-v0.5 应只做开源发布准备，不增加验证能力：
-
-- 保留 v0.4 hosted 成功与失败路径的 run/revision 记录；
-- 审核许可证、NOTICE/第三方说明、贡献指南、Code of Conduct、安全报告方式和 issue/PR 模板；
-- 核对 README 安装、最小示例、状态语义、支持范围与隐私/网络行为；
-- 校验干净 checkout 的打包元数据、sdist/wheel 构建和离线安装 smoke，但不发布到 PyPI、不创建 Release/Tag；
-- 整理 changelog 与发布检查清单，继续排除 Marketplace、并行 Matrix、新服务端、Bot/Web UI 和自动 JDK 管理。
+- 完整离线测试：58/58 通过；
+- `python -m compileall pluginmatrix tests ci-fixtures/build_fixtures.py`：通过；
+- 隔离 checkout 构建：`pluginmatrix-0.5.0.tar.gz` 与 `pluginmatrix-0.5.0-py3-none-any.whl` 均成功；
+- archive 审计：sdist 67 entries、wheel 16 entries；无 `.pluginmatrix`、cache/runs、`__pycache__`、`.pyc`、build/dist、虚拟环境、EnhancedFly 或 fixture JAR；
+- wheel metadata：名称、0.5.0、Python >=3.10、Apache-2.0、LICENSE 和项目 URL 均正确；
+- 全新 venv 从 wheel 安装后，`pluginmatrix --version`、`pluginmatrix --help`、`python -m pluginmatrix --version`、`test --help` 与 `matrix --help` 均通过；
+- 打包期间没有 setuptools license 弃用警告；临时验证目录位于系统临时目录，不进入工作树；
+- 本阶段没有下载/启动 Paper，没有触发远程 workflow，没有发布 PyPI、Release 或 Tag，也没有 commit/push。
 
 ## 尚未开始
 
@@ -251,6 +266,6 @@ v0.5 应只做开源发布准备，不增加验证能力：
 
 ## 当前阶段结论
 
-**v0.4 Configuration and Evidence Usability 的实现、文档、离线回归与 GitHub-hosted 成功/失败验证均已完成。**
+**v0.5 Open-Source Release Readiness 已达到可以公开源码的本地仓库状态，但尚未正式发布。**
 
-Runtime Verifier、串行 Matrix 和手动 workflow 架构未重做。`Compatibility Matrix #3` 与 `#4` 已分别证明升级后的成功路径和真实 plugin enable 失败路径，v0.4 没有剩余闭环项；下一会话可进入 v0.5 Open-Source Release Readiness。
+Runtime Verifier、串行 Matrix 和手动 workflow 架构未重做。公开前项目所有者仍应启用 GitHub private vulnerability reporting 并检查仓库首页的 Apache-2.0 检测结果；真正发布前还要执行原创 success/failure hosted smoke，并由所有者单独授权 Tag、GitHub Release 或 PyPI 发布。完成这些发布动作不属于 v0.5，也没有进入 v0.6。

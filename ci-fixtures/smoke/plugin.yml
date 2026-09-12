@@ -1,0 +1,4 @@
+name: PluginMatrixSmoke
+version: 1.0.0
+main: pluginmatrix.fixture.SmokePlugin
+api-version: '1.20'

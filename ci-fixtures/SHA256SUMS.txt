@@ -1,0 +1,2 @@
+74abba37f8073e881b10ce6482bad975a30a85e95b192d333bba71cb44470b64  PluginMatrixSmoke.jar
+f5bb60fe1b57593ba8e33aad50ccdf4f3027075568ee6de03c356f4bc1d5484c  PluginMatrixEnableFailure.jar

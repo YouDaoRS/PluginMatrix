@@ -1,0 +1,16 @@
+include README.md
+include CHANGELOG.md
+include CODE_OF_CONDUCT.md
+include CONTRIBUTING.md
+include SECURITY.md
+include THIRD_PARTY_NOTICES.md
+include pyproject.toml
+recursive-include docs *.md
+recursive-include examples *.json
+recursive-include ci-fixtures *.md *.py *.java *.yml *.txt
+recursive-include tests *.py
+exclude ci-fixtures/*.jar
+global-exclude __pycache__ *.py[cod] *.egg-info
+prune .pluginmatrix
+prune build
+prune dist

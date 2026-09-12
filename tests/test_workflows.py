@@ -18,6 +18,8 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("pull_request:", workflow)
         self.assertIn("python -m unittest discover -s tests -v", workflow)
         self.assertIn("python -m compileall pluginmatrix tests", workflow)
+        self.assertIn("ci-fixtures/build_fixtures.py", workflow)
+        self.assertIn('python -m pip install -e ".[release]"', workflow)
         self.assertNotIn("pluginmatrix matrix", workflow)
         self.assertNotIn("paper.jar", workflow)
 
@@ -68,8 +70,14 @@ class WorkflowTests(unittest.TestCase):
         import json
 
         config = json.loads((ROOT / "examples" / "ci-matrix.json").read_text(encoding="utf-8"))
+        self.assertEqual(config["plugin"], "../ci-fixtures/PluginMatrixSmoke.jar")
         self.assertTrue(config["environments"])
         self.assertTrue(all(str(item["java"]) == "17" for item in config["environments"]))
+
+    def test_owned_success_fixture_is_valid(self):
+        metadata, _ = inspect_plugin(ROOT / "ci-fixtures" / "PluginMatrixSmoke.jar")
+        self.assertEqual(metadata["plugin_name"], "PluginMatrixSmoke")
+        self.assertEqual(metadata["main_class_java_target"], "17")
 
     def test_owned_enable_failure_fixture_and_hosted_config_are_valid(self):
         import json
