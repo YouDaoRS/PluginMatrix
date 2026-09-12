@@ -27,7 +27,7 @@ def build_probe_plugin(
     java_major: int,
 ) -> Path:
     """Compile a tiny read-only Bukkit plugin against the exact Paper artifact."""
-    javac = _resolve_javac(java_executable)
+    javac = resolve_javac(java_executable)
     if not javac:
         raise RuntimeError("a JDK javac executable is required to build the runtime probe")
 
@@ -118,7 +118,7 @@ public final class RuntimeProbe extends JavaPlugin {{
         return jar_path
 
 
-def _resolve_javac(java_executable: str) -> str | None:
+def resolve_javac(java_executable: str) -> str | None:
     java_path = Path(java_executable)
     sibling = java_path.with_name("javac" + java_path.suffix) if java_path.exists() else None
     if sibling and sibling.is_file():

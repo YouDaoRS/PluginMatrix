@@ -4,7 +4,13 @@ import argparse
 from pathlib import Path
 
 from . import __version__
-from .matrix import MatrixConfigError, load_matrix_config, matrix_exit_code, run_matrix
+from .matrix import (
+    MatrixConfigError,
+    load_matrix_config,
+    matrix_exit_code,
+    run_matrix,
+    validate_matrix_preconditions,
+)
 from .runtime import verify, write_report
 
 
@@ -47,35 +53,72 @@ def _print_result(result) -> None:
     if result.reason:
         print(f"  Reason             {result.reason}")
     print(f"\nRESULT: {'PASS' if result.result == 'PASS' else 'FAIL'}")
-    print(f"Log: {result.log_path}")
     if result.report_path:
         print(f"Report: {result.report_path}")
+    if result.log_path:
+        print(f"Server log: {result.log_path}")
+    if result.workdir:
+        print(f"Run directory: {result.workdir}")
+
+
+def _print_matrix_result(report: dict, report_path: Path) -> None:
+    print("\nEnvironment                         Result")
+    for environment in report["environments"]:
+        print(f"{environment['id']:<35} {environment['verdict']}")
+    summary = report["summary"]
+    print(f"\nSummary: {summary['passed']} passed, {summary['failed']} failed")
+    failures = [environment for environment in report["environments"] if environment.get("verdict") != "PASS"]
+    if failures:
+        print("\nFailures")
+        for environment in failures:
+            print(f"  {environment.get('id', 'unknown environment')}")
+            print(f"    Verdict: {environment.get('verdict', 'UNKNOWN_FAILURE')}")
+            print(f"    Failure stage: {environment.get('failure_stage') or 'unknown'}")
+            if environment.get("reason"):
+                print(f"    Reason: {environment['reason']}")
+            artifacts = environment.get("artifacts") if isinstance(environment.get("artifacts"), dict) else {}
+            availability = (
+                environment.get("artifact_availability")
+                if isinstance(environment.get("artifact_availability"), dict)
+                else {}
+            )
+            primary = environment.get("primary_evidence")
+            if primary:
+                print(f"    Primary evidence: {primary}")
+            if artifacts.get("runtime_report"):
+                print(f"    Runtime report: {artifacts['runtime_report']}")
+            if artifacts.get("server_log") and availability.get("server_log", True):
+                print(f"    Server log: {artifacts['server_log']}")
+            elif artifacts.get("server_log"):
+                print("    Server log: not generated (failure occurred before server launch)")
+            if artifacts.get("run_dir"):
+                print(f"    Run directory: {artifacts['run_dir']}")
+    print(f"\nMatrix report: {report_path}")
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command == "matrix":
+        config = None
         try:
             config = load_matrix_config(args.config)
+            preflight = validate_matrix_preconditions(config)
             print("PluginMatrix Compatibility Matrix")
             print(f"\nPlugin: {config.plugin.name}")
 
             def progress(index, total, environment):
                 print(f"\n[{index}/{total}] Paper {environment.paper} / Java {environment.java}")
 
-            report = run_matrix(config, progress=progress)
-            print("\nEnvironment                         Result")
-            for environment in report["environments"]:
-                print(f"{environment['id']:<35} {environment['verdict']}")
-            summary = report["summary"]
-            print(f"\nSummary: {summary['passed']} passed, {summary['failed']} failed")
-            print(f"Matrix report: {config.report_path}")
+            report = run_matrix(config, progress=progress, preflight=preflight)
+            _print_matrix_result(report, config.report_path)
             return matrix_exit_code(report)
         except MatrixConfigError as exc:
             print(f"Matrix configuration error: {exc}")
             return 2
         except Exception as exc:
             print(f"PluginMatrix internal error: {type(exc).__name__}: {exc}")
+            if config is not None:
+                print(f"Intended Matrix report: {config.report_path}")
             return 3
     if args.command != "test":
         return 2

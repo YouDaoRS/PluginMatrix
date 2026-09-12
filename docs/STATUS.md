@@ -4,9 +4,9 @@
 
 ## 当前阶段
 
-当前处于 **v0.3.1 Hosted CI Validation and Open-Source Reference Audit** 阶段：
+当前处于 **v0.4 Configuration and Evidence Usability** 阶段，代码与离线验证已完成，等待一次 GitHub-hosted 手动回归：
 
-> 在不改变 Runtime Verifier 和 Matrix 核心逻辑的前提下，完成 GitHub-hosted 验证准备、workflow 静态审计和有限的开源参考审计。
+> 在不改变 Runtime Verifier、串行 Matrix 和手动 workflow 总体架构的前提下，降低首次配置成本，并让失败环境、阶段和证据位置直接可见。
 
 当前实现是一个 Python CLI，要求 Python 3.10+，不依赖第三方运行时库。
 
@@ -97,17 +97,58 @@
 - 已新增 `docs/THIRD_PARTY_REVIEW.md`，记录三个指定项目的 revision、许可证、维护状态、设计差异和复用决定；
 - 本次没有复制或引入任何外部代码、第三方 JAR 或许可证文件。
 
+### v0.4 GitHub Actions 维护
+
+- 已通过 GitHub REST API 读取 [`Compatibility Matrix #2`](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34685958473) 的真实 check annotations；两条黄色警告分别来自：
+  - `actions/checkout@v4`、`actions/setup-python@v5`、`actions/setup-java@v4`、`actions/upload-artifact@v4` 仍以已弃用的 Node.js 20 为目标并被 runner 强制使用 Node.js 24；
+  - `actions/setup-java@v4` 自身已弃用。
+- 按 2026-09-12 官方稳定版本将受影响 Actions 更新为 [`checkout@v7`](https://github.com/actions/checkout/releases/tag/v7.0.1)、[`setup-python@v7`](https://github.com/actions/setup-python/releases/tag/v7.0.0)、[`setup-java@v6`](https://github.com/actions/setup-java/releases/tag/v6.0.1)、[`upload-artifact@v7`](https://github.com/actions/upload-artifact/releases/tag/v7.0.1)；四个 tag 的 `action.yml` 均声明 `using: node24`，未增加第三方 Action。
+- checkout、Python 3.11、Temurin Java 17、两个 artifact 名称和路径、`if: always()` 上传、Job Summary 及最终 exit-code 保留逻辑不变。
+- 新增静态测试，拒绝四个旧版本，固定当前版本、上传条件、`result.json`/`server.log` 路径和 embedded Python 语法。
+- 版本升级后的真实 GitHub-hosted 行为尚未远程执行；不将本地静态结果描述为 hosted 成功。
+
+### v0.4 Matrix 前置检查与配置诊断
+
+- Matrix 在任何 Paper 进程启动或 artifact 下载前检查插件 JAR 预检、请求的 Java 版本/可执行文件、同一 JDK 的 `javac`，以及 work/cache/report 父目录的可创建与可写性；
+- work 与 cache 使用同一路径、report 指向目录或与输出目录冲突会在执行前拒绝；
+- 空 environment、重复/规范化后冲突 environment、非法 Paper 版本、非正整数 `paper_build`、timeout 和稳定窗口均报告精确字段与当前值；
+- 配置/JAR 相对路径错误会同时显示原始值、解析后路径、配置文件相对路径规则，以及 hosted workflow 必须使用所选 branch 中已提交文件的修复提示；
+- Paper API、版本、固定 build、下载和 checksum 失败信息保留版本/build/cache 当前值，并提供更直接的修复方向；
+- 不下载 JDK、不自动修改配置，也不增加配置 DSL。
+
+### v0.4 Report、Artifact 与失败证据
+
+- Matrix CLI 在失败时输出 environment、verdict、failure stage、reason、primary evidence、runtime report、`server.log` 和 run directory；最后明确输出 Matrix Report 路径；
+- 单环境 CLI 保持原命令和 exit code，并统一显示 Report、Server log 与 Run directory；自定义 report 的父目录现在会按需创建；
+- Matrix JSON 保留既有字段，向后兼容地新增 `config_source`、`preflight`、顶层 `artifacts` 和每环境 `primary_evidence`/`artifact_availability`；启动前失败会明确标记 `server.log` 未生成，且仍不复制完整日志；
+- Job Summary 渲染移入可离线测试的 `pluginmatrix.github_summary`，只消费 Matrix Report 的 verdict/stage/evidence，不重新实现 verifier 状态判断；
+- Job Summary 对报告缺失、损坏 JSON、非 UTF-8、非对象顶层和部分字段异常保持容错，并指向 setup log 或 runtime artifact。
+- 新增项目自有源码的 `PluginMatrixEnableFailure` fixture；它通过 JAR 预检并在 `onEnable()` 抛出固定异常。本地真实 Paper 1.20.1/build 196/Java 17 已确认得到 `PLUGIN_ENABLE_FAILED`、`plugin_enable` 和可用的 runtime report/`server.log`，可用于 hosted 失败回归。
+- 使用 v0.4 当前代码在本地重新运行 EnhancedFly 2.2.0 / Paper 1.20.1/build 196/Java 17，得到 `PASS` 和 `1 passed, 0 failed`；成功与失败两条本地真实路径均已通过。
+
 ### 测试
 
 - 预检模块有单元测试；
 - Runtime evidence 有离线 fake-server 测试；
 - 已覆盖正常启动、插件未发现、依赖缺失、load 失败、`onEnable` 异常、插件被 disable、Paper 启动失败、启动超时和网络/环境失败；
-- 当前测试套件共 31 项，全部通过；
+- 新增配置字段/路径诊断、无效插件、Java/JDK、输出目录冲突、Paper 固定 build、artifact 引用、CLI 失败摘要、单环境 CLI、Job Summary 成功/失败/损坏报告和 Action 版本回归测试；
+- 当前测试套件共 51 项，全部通过；
 - 已验证 `compileall`；
 - 已验证 editable install 和命令入口；
 - 已使用真实 Paper 服务器完成多插件 E2E。
 
 ## 当前验证结果
+
+GitHub-hosted 基线：
+
+- Workflow：`Compatibility Matrix #2`；
+- Commit：`7ffe94b`；
+- Paper `1.20.1` / build `196` / Java `17`；
+- EnhancedFly `2.2.0`：`PASS`；
+- Job Summary：`1 passed, 0 failed`；
+- Artifacts：`pluginmatrix-matrix-report`、`pluginmatrix-runtime-artifacts`。
+
+该结果验证了 v0.3.1 修复后的成功路径；v0.4 Action 版本和新增 Summary 内容仍需下一次手动 workflow 回归。
 
 以下三个插件均在 Paper 1.20.1 / Paper build 196 / Java 17 上得到真实 `PASS`：
 
@@ -153,21 +194,21 @@ verifier 先在运行过程中生成 evidence，再由 evidence 归纳最终 ver
 
 ## 当前验证边界
 
-- 本地结构验证、离线测试和编译检查已完成；
-- GitHub-hosted runner 的真实手动 workflow 尚未执行；
-- 该真实执行是本 milestone 唯一仍需用户完成的外部操作，不能由本地检查替代；
-- 本工作区没有可用的 `.git` 元数据，因此无法可靠报告当前 branch、commit、remote 或 git diff；没有据此猜测远程仓库信息；
+- v0.4 本地结构验证、离线测试和编译检查已完成；
+- v0.3.1 已有真实 hosted PASS 基线，但 v0.4 的 Action 主版本升级、增强后的失败 Summary 和失败 artifact 路径尚未在 GitHub-hosted runner 上复验；
+- 下一次手动运行应确认四个官方 Action 不再产生上述两条警告，成功 Summary 与两个 artifacts 保持正常，并至少用一次失败环境确认 stage/evidence 显示及 `if: always()` 上传；
+- 该远程验证不能由本地检查替代，当前未触发 workflow、上传文件或写入远程资源；
 - 人工步骤和输入示例见 README 的 `Manual hosted validation`。
 
-## 下一阶段
+## v0.5 推荐范围
 
-- 唯一推荐的下一完整 milestone 是 **v0.4 Hosted Matrix Configuration and Evidence Usability**：
-  - 用户价值：降低准备测试仓库、理解前置失败和定位 hosted 运行证据的成本；
-  - 现在做的原因：v0.3.1 已完成本地与静态验证，下一项最大不确定性是 hosted 使用反馈和证据可读性，而不是更多 Matrix 环境；
-  - 范围：更明确的配置/JAR 前置诊断、更稳定的 report/artifact 引用、失败证据展示和测试仓库准备体验，继续复用现有 Runtime Verifier 与串行 Matrix；
-  - 不做：并行 Matrix、Marketplace、新服务端实现、Web UI、Bot、行为测试 DSL、第三方依赖自动下载；
-  - 完成标准：用户可按文档准备一个测试仓库，在 hosted runner 上得到稳定的成功/失败状态，且每种结果都有可下载的 report、`result.json` 和 `server.log` 或明确说明为何没有运行产物；
-  - 风险与许可证：主要风险是 GitHub/Paper 网络、runner 环境和输入路径差异；不需要引入外部代码，许可证风险低。
+v0.5 应只做开源发布准备，不增加验证能力：
+
+- 完成 v0.4 hosted 成功与失败路径回归并记录 run/revision；
+- 审核许可证、NOTICE/第三方说明、贡献指南、Code of Conduct、安全报告方式和 issue/PR 模板；
+- 核对 README 安装、最小示例、状态语义、支持范围与隐私/网络行为；
+- 校验干净 checkout 的打包元数据、sdist/wheel 构建和离线安装 smoke，但不发布到 PyPI、不创建 Release/Tag；
+- 整理 changelog 与发布检查清单，继续排除 Marketplace、并行 Matrix、新服务端、Bot/Web UI 和自动 JDK 管理。
 
 ## 尚未开始
 
@@ -200,10 +241,12 @@ verifier 先在运行过程中生成 evidence，再由 evidence 归纳最终 ver
 - Matrix 真实环境仍可能受 Paper bootstrap 网络和本机 Java 可用性影响。
 - GitHub-hosted runner 无法替用户构建任意插件；手动 workflow 要求输入的插件 JAR 已存在于 checkout 中；
 - 当前手动 workflow 只支持 Java 17 配置，其他 Java 组合会在执行前失败；
-- 本地 workflow 静态检查已完成，但本环境未直接执行 GitHub-hosted runner。
+- preflight 会验证 Paper 版本格式和 `paper_build` 类型；某个 build 是否真实存在仍由该环境执行前的官方 Paper API 查询确认；
+- 输出目录可写性是在 preflight 时探测，之后仍可能因权限或磁盘状态变化而失败；
+- v0.4 workflow 静态检查已完成，但更新后的官方 Action 版本尚未直接执行 GitHub-hosted runner。
 
 ## 当前阶段结论
 
-**v0.3 GitHub Actions Integration 已实现，v0.3.1 的本地准备、workflow 修复和参考审计已完成。**
+**v0.4 Configuration and Evidence Usability 的实现、文档与离线回归已完成。**
 
-EnhancedFly 已在 Paper 1.19.4/build 550、1.20.1/build 196、1.20.4/build 499 与 Java 17 上完成真实 Matrix PASS。当前工作区已具备离线常规 CI 和手动真实 Matrix workflow；workflow 本身尚未在 GitHub-hosted runner 上执行，等待用户在实际插件测试仓库中手动触发验证。
+Runtime Verifier、串行 Matrix 和手动 workflow 架构未重做。已有 `Compatibility Matrix #2` 的 hosted PASS 基线；本 milestone 唯一未完成的外部证据是对升级后 Actions、增强 Summary 和失败 artifact 路径再执行一次 GitHub-hosted 手动回归。

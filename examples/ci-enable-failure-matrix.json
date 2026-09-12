@@ -1,13 +1,13 @@
 {
-  "plugin": "../ci-fixtures/EnhancedFly-2.2.0.jar",
+  "plugin": "../ci-fixtures/PluginMatrixEnableFailure.jar",
   "environments": [
     { "paper": "1.20.1", "java": 17, "paper_build": 196 }
   ],
   "options": {
     "timeout": 120,
     "stability_window": 5,
-    "work_dir": "../.pluginmatrix/success-runs",
+    "work_dir": "../.pluginmatrix/failure-runs",
     "cache_dir": "../.pluginmatrix/cache",
-    "report": "../.pluginmatrix/success-matrix-report.json"
+    "report": "../.pluginmatrix/failure-matrix-report.json"
   }
 }

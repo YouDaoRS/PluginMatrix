@@ -22,15 +22,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 
       - name: Set up Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "17"
@@ -48,25 +48,25 @@ jobs:
           set +e
           case "$MATRIX_CONFIG" in
             /*|../*|*/../*|*/..)
-              echo "::error::Matrix config must be a repository-relative path: $MATRIX_CONFIG"
+              echo "::error::Field 'config' has value '$MATRIX_CONFIG'; expected a repository-relative JSON file inside '$GITHUB_WORKSPACE'. Fix: use a path such as examples/ci-matrix.json."
               echo "exit_code=2" >> "$GITHUB_OUTPUT"
               exit 0
               ;;
           esac
           case "$PLUGIN_JAR" in
             /*|../*|*/../*|*/..)
-              echo "::error::Plugin JAR must be a repository-relative path: $PLUGIN_JAR"
+              echo "::error::Field 'plugin_jar' has value '$PLUGIN_JAR'; expected a repository-relative JAR file inside '$GITHUB_WORKSPACE'. Fix: use a path committed to the selected branch."
               echo "exit_code=2" >> "$GITHUB_OUTPUT"
               exit 0
               ;;
           esac
           if [ ! -f "$MATRIX_CONFIG" ]; then
-            echo "::error::Matrix config not found: $MATRIX_CONFIG"
+            echo "::error::Field 'config' resolved to '$GITHUB_WORKSPACE/$MATRIX_CONFIG', but the file was not found. Fix: commit the config to the selected branch and use its repository-relative path."
             echo "exit_code=2" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           if [ ! -f "$PLUGIN_JAR" ]; then
-            echo "::error::Plugin JAR not found: $PLUGIN_JAR"
+            echo "::error::Field 'plugin_jar' resolved to '$GITHUB_WORKSPACE/$PLUGIN_JAR', but the file was not found. Fix: build or legally provide the JAR, commit it to the selected branch, and use its repository-relative path."
             echo "exit_code=2" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -74,7 +74,7 @@ jobs:
           cp -- "$PLUGIN_JAR" .ci/plugin.jar
           copy_status=$?
           if [ "$copy_status" -ne 0 ]; then
-            echo "::error::Unable to copy plugin JAR into .ci/plugin.jar"
+            echo "::error::Field 'plugin_jar' has value '$PLUGIN_JAR', but it could not be copied to '.ci/plugin.jar'. Fix: make the file readable and confirm '.ci' is writable."
             echo "exit_code=2" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -129,7 +129,7 @@ jobs:
 
       - name: Upload Matrix report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pluginmatrix-matrix-report
           path: .pluginmatrix/matrix-report.json
@@ -138,7 +138,7 @@ jobs:
 
       - name: Upload runtime artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pluginmatrix-runtime-artifacts
           path: |
@@ -152,52 +152,7 @@ jobs:
         env:
           MATRIX_REPORT: .pluginmatrix/matrix-report.json
         run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-
-          report_path = Path(".pluginmatrix/matrix-report.json")
-          summary = Path(__import__("os").environ["GITHUB_STEP_SUMMARY"])
-          with summary.open("a", encoding="utf-8") as output:
-              output.write("## PluginMatrix Compatibility Matrix\n\n")
-              if not report_path.is_file():
-                  output.write("Matrix report was not generated. Check configuration and setup errors above.\n")
-              else:
-                  try:
-                      report = json.loads(report_path.read_text(encoding="utf-8"))
-                  except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-                      output.write(
-                          f"Matrix report could not be read as valid JSON: "
-                          f"{type(exc).__name__}: {exc}\n"
-                          "Check the uploaded runtime artifacts and setup errors above.\n"
-                      )
-                  else:
-                      if not isinstance(report, dict):
-                          output.write(
-                              "Matrix report has an unexpected format; expected a JSON object.\n"
-                              "Check the uploaded runtime artifacts and setup errors above.\n"
-                          )
-                      else:
-                          plugin = report.get("plugin", {})
-                          stats = report.get("summary", {})
-                          if not isinstance(plugin, dict):
-                              plugin = {}
-                          if not isinstance(stats, dict):
-                              stats = {}
-                          output.write(f"**Plugin:** {plugin.get('plugin_name') or plugin.get('plugin_jar', 'unknown')}\n\n")
-                          output.write("| Environment | Verdict |\n|---|---|\n")
-                          environments = report.get("environments", [])
-                          if not isinstance(environments, list):
-                              environments = []
-                          for environment in environments:
-                              if isinstance(environment, dict):
-                                  output.write(f"| `{environment.get('id')}` | `{environment.get('verdict')}` |\n")
-                          output.write(
-                              f"\n**Summary:** {stats.get('passed', 0)} passed, "
-                              f"{stats.get('failed', 0)} failed of {stats.get('total', 0)}\n\n"
-                          )
-                          output.write("Artifacts: `pluginmatrix-matrix-report`, `pluginmatrix-runtime-artifacts`\n")
-          PY
+          python -m pluginmatrix.github_summary "$MATRIX_REPORT" "$GITHUB_STEP_SUMMARY"
 
       - name: Preserve Matrix exit code
         if: always()

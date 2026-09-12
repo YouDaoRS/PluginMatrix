@@ -1,0 +1,4 @@
+name: PluginMatrixEnableFailure
+version: 1.0.0
+main: pluginmatrix.fixture.EnableFailurePlugin
+api-version: '1.20'

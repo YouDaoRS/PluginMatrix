@@ -135,7 +135,20 @@ v0.3 adds repository-local CI integration around the existing CLI and Matrix run
 
 GitHub Actions does not change the product boundary: PluginMatrix does not manage arbitrary JDKs, build user plugins, download third-party dependencies, run Matrix environments in parallel, or publish releases. A hosted runner must already have a usable Java 17 path and a plugin JAR/configuration supplied by the workflow inputs.
 
-## 9. 非目标
+## 9. v0.4 Configuration and Evidence Usability
+
+v0.4 keeps the Runtime Verifier, sequential Matrix runner, and manual workflow architecture unchanged while making their prerequisites and evidence easier to act on:
+
+- Matrix validates the plugin JAR, Java runtime version, JDK `javac`, and writable work/cache/report locations before any Paper server starts;
+- configuration errors identify the field, current value, expected shape or prerequisite, and a concrete correction;
+- Paper version and optional fixed-build failures retain the requested values and explain whether to correct or unpin the build;
+- Matrix CLI failures name the environment, verdict, failure stage, reason, runtime report, `server.log`, run directory, and primary evidence before ending with the Matrix Report path;
+- the Matrix Report keeps existing fields and adds the config source, preflight metadata, top-level artifact roots, and per-environment `primary_evidence`/artifact-availability references;
+- GitHub Job Summary is rendered from the Matrix Report by tested package code and tolerates missing, corrupt, non-JSON, and non-object reports.
+
+The manual workflow still supports Java 17 only and still uploads the Matrix report and runtime artifacts with `if: always()`. These usability changes do not add automatic JDK management, Paper variants, Matrix parallelism, or gameplay testing.
+
+## 10. 非目标
 
 当前不做：
 
@@ -147,7 +160,7 @@ GitHub Actions does not change the product boundary: PluginMatrix does not manag
 - 性能测试、压力测试和分布式服务器测试；
 - 自动判断完整业务功能是否正确。
 
-## 10. 成功标准
+## 11. 成功标准
 
 第一阶段成立的证据不是功能数量，而是：
 
@@ -158,7 +171,7 @@ GitHub Actions does not change the product boundary: PluginMatrix does not manag
 - EnhancedFly 之外，至少有其他类型插件可以被验证；
 - 用户认为它比手写 Paper 启动和日志脚本更省事。
 
-## 11. 未来扩展原则
+## 12. 未来扩展原则
 
 未来的 CI 和行为测试都应建立在同一个可靠 Verifier 之上；Matrix v0.2 已是该 Verifier 的本地串行编排层。
 

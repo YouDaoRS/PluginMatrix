@@ -257,10 +257,16 @@ def resolve_java(java: str) -> tuple[str, str]:
     try:
         completed = subprocess.run([candidate, "-version"], capture_output=True, text=True, timeout=10)
     except (OSError, subprocess.SubprocessError) as exc:
-        raise ValueError(f"Java executable is not available: {java} ({exc})") from exc
+        raise ValueError(
+            f"Java value {java!r} did not resolve to an available executable ({exc}). "
+            "Expected an installed JDK java executable; fix PATH or provide its executable path."
+        ) from exc
     output = (completed.stderr or "") + (completed.stdout or "")
     if completed.returncode != 0:
-        raise ValueError(f"Java executable failed: {java}")
+        raise ValueError(
+            f"Java value {java!r} resolved to {candidate!r}, but 'java -version' exited with "
+            f"code {completed.returncode}. Expected a working JDK executable; check the installation."
+        )
     match = re.search(r'version "([^"]+)"', output)
     version = match.group(1) if match else "unknown"
     requested_major = java if java.isdigit() else None
@@ -268,7 +274,10 @@ def resolve_java(java: str) -> tuple[str, str]:
     if version.startswith("1."):
         actual_major = version.split(".")[1]
     if requested_major and actual_major != requested_major:
-        raise ValueError(f"requested Java {requested_major}, found Java {actual_major} ({version})")
+        raise ValueError(
+            f"requested Java {requested_major}, but {candidate!r} reports Java {actual_major} ({version}). "
+            f"Expected Java {requested_major}; select the matching JDK or correct PATH."
+        )
     return candidate, version
 
 
@@ -627,5 +636,7 @@ def verify(
 
 
 def write_report(result: VerificationResult, path: Path) -> None:
-    result.report_path = str(path.resolve())
+    path = path.resolve()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    result.report_path = str(path)
     path.write_text(json.dumps(result.to_dict(), indent=2, ensure_ascii=True), encoding="utf-8")

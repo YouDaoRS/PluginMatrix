@@ -61,27 +61,35 @@ Example `matrix.json`:
 
 Paths in the config are resolved relative to the config file. Matrix exits with `0` when every environment passes, `1` when execution completes with one or more failed environments, `2` for configuration errors, and `3` for an unexpected PluginMatrix error.
 
+Before starting any Paper server, Matrix checks the plugin JAR, each requested Java runtime, the required JDK `javac`, and whether the work, cache, and report locations can be created and written. Configuration errors include the field and current value, what was expected, and a concrete fix. Exact duplicate environments and output-path conflicts are rejected before execution. Paper availability is checked by the Runtime Verifier before that environment starts; an unavailable fixed build is reported as `ENVIRONMENT_INVALID` with guidance to correct or remove `paper_build`.
+
+On failure, the CLI prints the failing environment, verdict, failure stage, reason, primary evidence, runtime report, `server.log`, and run directory. If failure happens before server launch, it explicitly says that `server.log` was not generated. The final line always identifies the unified Matrix Report path. The JSON report retains the v0.2/v0.3 fields and adds `config_source`, `preflight`, top-level `artifacts`, and per-environment `primary_evidence`/`artifact_availability` fields; it references original logs instead of embedding them.
+
 ## GitHub Actions
 
-The repository includes two workflows:
+The repository includes two workflows. Their official JavaScript actions use Node.js 24-compatible current major versions (`checkout@v7`, `setup-python@v7`, `setup-java@v6`, and `upload-artifact@v7`):
 
 - `CI` runs on `push` and `pull_request`. It installs the package, runs `compileall`, and executes the offline test suite. It does not download Paper or run real plugin servers.
 - `Compatibility Matrix` is manual (`workflow_dispatch`). Start it from the Actions tab, provide a repository-relative JSON config and a repository-relative plugin JAR, and use Java 17. The workflow copies the JAR into an isolated CI path, validates that every configured environment uses Java 17, then calls the existing `python -m pluginmatrix matrix` command.
 
 The manual workflow is intended for repositories or branches that contain the plugin artifact to test. This project does not automatically build arbitrary plugin projects, download JDKs, or manage third-party plugin dependencies. A missing config, plugin JAR, or unsupported Java value fails before Matrix execution with a clear setup error.
 
-After a manual run, download `pluginmatrix-matrix-report` for the unified JSON report and `pluginmatrix-runtime-artifacts` for per-environment `result.json` and `server.log` files. The Job Summary reads the generated Matrix Report and shows the plugin, each environment verdict, totals, and artifact names. A failed environment keeps the report and artifacts while the workflow exits with Matrix code `1`; configuration and internal errors retain codes `2` and `3`.
+After a manual run, download `pluginmatrix-matrix-report` for the unified JSON report and `pluginmatrix-runtime-artifacts` for per-environment `result.json` and `server.log` files. The Job Summary reads the generated Matrix Report and shows each environment verdict, failure stage, primary evidence, totals, and artifact names. It does not recalculate verifier verdicts. A failed environment keeps the report and artifacts while the workflow exits with Matrix code `1`; configuration and internal errors retain codes `2` and `3`.
+
+Both workflow inputs must be repository-relative files present in the selected branch. The `plugin` field inside the source config is replaced with the `plugin_jar` workflow input after the JAR is copied to `.ci/plugin.jar`; other config paths are rewritten to `.pluginmatrix` locations. If an input is missing, points outside the repository, or names an uncommitted local file, the setup error identifies the input, resolved expectation, and correction before Matrix runs.
 
 ### Manual hosted validation
 
-The only step that cannot be completed locally is triggering the workflow on a GitHub-hosted runner. Use a test repository or test branch that you control and that contains this workflow, the Matrix config, and a plugin JAR already present in the checkout. Build the JAR yourself or provide it legally; do not rely on an untracked local file or an automatically downloaded third-party plugin.
+`Compatibility Matrix #2` at commit `7ffe94b` already established the hosted success baseline with EnhancedFly 2.2.0 on Paper 1.20.1/build 196/Java 17 (`PASS`, `1 passed, 0 failed`, with both artifacts). The v0.4 Action-version upgrades and expanded failure evidence still require one new manual hosted run; local tests cannot prove runner behavior. Use a test repository or test branch that you control and that contains this workflow, the Matrix config, and a plugin JAR already present in the checkout. Build the JAR yourself or provide it legally; do not rely on an untracked local file or an automatically downloaded third-party plugin.
 
-1. Add a config such as `examples/ci-matrix.json`, with at least one environment using `"java": 17`.
-2. Add a self-built or legally provided plugin JAR, for example `ci-fixtures/ExamplePlugin.jar`.
-3. In **Actions**, choose **Compatibility Matrix**, select **Run workflow**, and enter:
+1. Commit and push the v0.4 changes, both example configs, and both fixture JARs to a branch you control.
+2. In **Actions**, choose **Compatibility Matrix** and run the success case:
    - `config`: `examples/ci-matrix.json`
-   - `plugin_jar`: `ci-fixtures/ExamplePlugin.jar`
-4. Expect the hosted runner to install Python 3.11 and Temurin Java 17, download Paper and any required Paper bootstrap files over the network, run each environment serially, and write a Job Summary.
-5. For a passing plugin, expect `PASS` for each environment and a successful workflow. For an intentionally failing plugin or environment, expect a failed verdict and a failed workflow, while completed runs still retain their evidence.
+   - `plugin_jar`: `ci-fixtures/EnhancedFly-2.2.0.jar`
+3. Confirm `PASS`, `1 passed, 0 failed`, no Node.js 20/setup-java v4 warnings, and both downloadable artifacts.
+4. Run the owned runtime-failure case:
+   - `config`: `examples/ci-enable-failure-matrix.json`
+   - `plugin_jar`: `ci-fixtures/PluginMatrixEnableFailure.jar`
+5. Confirm workflow failure with `PLUGIN_ENABLE_FAILED`, stage `plugin_enable`, a `primary_evidence` server-log path, `0 passed, 1 failed`, and both downloadable artifacts. The fixture source is under `ci-fixtures/enable-failure`; it intentionally throws from `onEnable()` and is not a malformed-config test.
 
 Download `pluginmatrix-matrix-report` for `.pluginmatrix/matrix-report.json`, and `pluginmatrix-runtime-artifacts` for each environment's `result.json` and `server.log`. If config or JAR preparation fails before Matrix starts, the report/log artifacts may be empty; use the setup error in the job log and the Job Summary's missing-report message.
