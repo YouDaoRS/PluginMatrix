@@ -1,0 +1,4 @@
+﻿.pluginmatrix/
+.serena/
+__pycache__/
+*.pyc

@@ -1,0 +1,207 @@
+name: Compatibility Matrix
+
+on:
+  workflow_dispatch:
+    inputs:
+      config:
+        description: "Repository-relative JSON Matrix config"
+        required: true
+        default: "examples/ci-matrix.json"
+        type: string
+      plugin_jar:
+        description: "Repository-relative plugin JAR to test"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  matrix:
+    name: Real Paper compatibility matrix
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install package
+        run: python -m pip install -e .
+
+      - name: Prepare Matrix configuration
+        id: prepare
+        continue-on-error: true
+        env:
+          MATRIX_CONFIG: ${{ inputs.config }}
+          PLUGIN_JAR: ${{ inputs.plugin_jar }}
+        run: |
+          set +e
+          case "$MATRIX_CONFIG" in
+            /*|../*|*/../*|*/..)
+              echo "::error::Matrix config must be a repository-relative path: $MATRIX_CONFIG"
+              echo "exit_code=2" >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+          esac
+          case "$PLUGIN_JAR" in
+            /*|../*|*/../*|*/..)
+              echo "::error::Plugin JAR must be a repository-relative path: $PLUGIN_JAR"
+              echo "exit_code=2" >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+          esac
+          if [ ! -f "$MATRIX_CONFIG" ]; then
+            echo "::error::Matrix config not found: $MATRIX_CONFIG"
+            echo "exit_code=2" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ ! -f "$PLUGIN_JAR" ]; then
+            echo "::error::Plugin JAR not found: $PLUGIN_JAR"
+            echo "exit_code=2" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          mkdir -p .ci
+          cp -- "$PLUGIN_JAR" .ci/plugin.jar
+          copy_status=$?
+          if [ "$copy_status" -ne 0 ]; then
+            echo "::error::Unable to copy plugin JAR into .ci/plugin.jar"
+            echo "exit_code=2" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          source = Path(os.environ["MATRIX_CONFIG"])
+          document = json.loads(source.read_text(encoding="utf-8"))
+          if not isinstance(document, dict):
+              raise SystemExit("Matrix config must contain a JSON object")
+          environments = document.get("environments")
+          if not isinstance(environments, list) or not environments:
+              raise SystemExit("Matrix config must contain a non-empty environments array")
+          for index, environment in enumerate(environments, start=1):
+              java = environment.get("java") if isinstance(environment, dict) else None
+              if str(java) != "17":
+                  raise SystemExit(f"environment #{index} must use Java 17 in this workflow")
+          options = document.setdefault("options", {})
+          if not isinstance(options, dict):
+              raise SystemExit("Matrix config options must be an object")
+          # The generated config lives under .ci, so these paths are relative to .ci.
+          document["plugin"] = "plugin.jar"
+          options["work_dir"] = "../.pluginmatrix/runs"
+          options["cache_dir"] = "../.pluginmatrix/cache"
+          options["report"] = "../.pluginmatrix/matrix-report.json"
+          Path(".ci/matrix.json").write_text(
+              json.dumps(document, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          print(Path(".ci/matrix.json").read_text(encoding="utf-8"))
+          PY
+          status=$?
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Unable to prepare Matrix configuration"
+            echo "exit_code=2" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "exit_code=0" >> "$GITHUB_OUTPUT"
+
+      - name: Run Compatibility Matrix
+        id: matrix
+        continue-on-error: true
+        if: steps.prepare.outputs.exit_code == '0'
+        run: |
+          set +e
+          python -m pluginmatrix matrix .ci/matrix.json
+          status=$?
+          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload Matrix report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pluginmatrix-matrix-report
+          path: .pluginmatrix/matrix-report.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload runtime artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pluginmatrix-runtime-artifacts
+          path: |
+            .pluginmatrix/runs/**/result.json
+            .pluginmatrix/runs/**/server.log
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Write Job Summary
+        if: always()
+        env:
+          MATRIX_REPORT: .pluginmatrix/matrix-report.json
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report_path = Path(".pluginmatrix/matrix-report.json")
+          summary = Path(__import__("os").environ["GITHUB_STEP_SUMMARY"])
+          with summary.open("a", encoding="utf-8") as output:
+              output.write("## PluginMatrix Compatibility Matrix\n\n")
+              if not report_path.is_file():
+                  output.write("Matrix report was not generated. Check configuration and setup errors above.\n")
+              else:
+                  try:
+                      report = json.loads(report_path.read_text(encoding="utf-8"))
+                  except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+                      output.write(
+                          f"Matrix report could not be read as valid JSON: "
+                          f"{type(exc).__name__}: {exc}\n"
+                          "Check the uploaded runtime artifacts and setup errors above.\n"
+                      )
+                  elif not isinstance(report, dict):
+                      output.write(
+                          "Matrix report has an unexpected format; expected a JSON object.\n"
+                          "Check the uploaded runtime artifacts and setup errors above.\n"
+                      )
+                  else:
+                      plugin = report.get("plugin", {})
+                      stats = report.get("summary", {})
+                      if not isinstance(plugin, dict):
+                          plugin = {}
+                      if not isinstance(stats, dict):
+                          stats = {}
+                      output.write(f"**Plugin:** {plugin.get('plugin_name') or plugin.get('plugin_jar', 'unknown')}\n\n")
+                      output.write("| Environment | Verdict |\n|---|---|\n")
+                      environments = report.get("environments", [])
+                      if not isinstance(environments, list):
+                          environments = []
+                      for environment in environments:
+                          if isinstance(environment, dict):
+                              output.write(f"| `{environment.get('id')}` | `{environment.get('verdict')}` |\n")
+                      output.write(
+                          f"\n**Summary:** {stats.get('passed', 0)} passed, "
+                          f"{stats.get('failed', 0)} failed of {stats.get('total', 0)}\n\n"
+                      )
+                      output.write("Artifacts: `pluginmatrix-matrix-report`, `pluginmatrix-runtime-artifacts`\n")
+          PY
+
+      - name: Preserve Matrix exit code
+        if: always()
+        run: |
+          if [ "${{ steps.prepare.outputs.exit_code || '3' }}" -ne 0 ]; then
+            exit "${{ steps.prepare.outputs.exit_code }}"
+          fi
+          exit "${{ steps.matrix.outputs.exit_code || '3' }}"

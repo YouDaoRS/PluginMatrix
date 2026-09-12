@@ -1,0 +1,52 @@
+from __future__ import annotations
+
+from dataclasses import asdict, dataclass, field
+from typing import Any
+
+
+STATES = (
+    "ENVIRONMENT_INVALID",
+    "SERVER_START_FAILED",
+    "SERVER_START_TIMEOUT",
+    "PLUGIN_NOT_DISCOVERED",
+    "PLUGIN_LOAD_FAILED",
+    "PLUGIN_ENABLE_FAILED",
+    "PLUGIN_DISABLED",
+    "PASS",
+    "UNKNOWN_FAILURE",
+)
+
+
+@dataclass
+class Check:
+    name: str
+    status: str
+    detail: str | None = None
+
+
+@dataclass
+class EvidenceEvent:
+    kind: str
+    timestamp: float
+    source: str = "log"
+    detail: str | None = None
+
+
+@dataclass
+class VerificationResult:
+    result: str = "UNKNOWN_FAILURE"
+    failure_stage: str | None = None
+    reason: str | None = None
+    checks: list[Check] = field(default_factory=list)
+    evidence: list[EvidenceEvent] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
+    report_path: str | None = None
+    log_path: str | None = None
+    workdir: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            **asdict(self),
+            "checks": [asdict(check) for check in self.checks],
+            "evidence": [asdict(event) for event in self.evidence],
+        }
