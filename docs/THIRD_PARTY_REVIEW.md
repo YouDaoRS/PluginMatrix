@@ -10,8 +10,8 @@
 公开源码准备阶段按仓库内容重新分类如下：
 
 - **项目原创代码与文档**：`pluginmatrix/`、`tests/`、仓库 workflow、示例和项目治理文档均从当前 Git 历史表现为本项目内容；没有发现复制第三方实现的声明或证据。这里的“原创”是仓库来源分类，不伪造个人、实体或版权归属。
-- **项目原创 fixture**：`PluginMatrixSmoke.jar` 与 `PluginMatrixEnableFailure.jar` 只包含相邻 Java 源码编译出的 class 和 `plugin.yml`，没有 shaded dependency；源码、用途、构建脚本和 SHA-256 清单均保留在 `ci-fixtures/`。Paper libraries 只作为 compile-time classpath，不进入 fixture JAR。
-- **第三方 JAR**：v0.4 使用的 `EnhancedFly-2.2.0.jar` 曾提交在 `ci-fixtures/`。JAR 内 `plugin.yml` 声明 `author: YouDaoRS` 与项目 URL，但 PluginMatrix 仓库及审计时可见的 EnhancedFly 源码 checkout 均没有根许可证或明确再分发授权；JAR 内的 `LICENSE` 是 shaded MySQL Connector/J 的许可证信息，不能作为 EnhancedFly 自身的授权。v0.5 因此移除该 JAR，并将公开示例切换到原创 smoke fixture。历史 hosted 结果只作为事实记录保留。
+- **仓库内 fixture**：`PluginMatrixSmoke.jar` 与 `PluginMatrixEnableFailure.jar` 只包含相邻 Java 源码编译出的 class 和 `plugin.yml`，没有 shaded dependency；源码、用途、构建脚本和 SHA-256 清单均保留在 `ci-fixtures/`。Paper libraries 只作为 compile-time classpath，不进入 fixture JAR。这些是可核验的仓库证据，不等同于独立法律权属结论；项目所有者已确认两个 fixture 源码树和 JAR 的 Apache-2.0 发布权。
+- **第三方 JAR**：v0.4 使用的 `EnhancedFly-2.2.0.jar` 曾提交在 `ci-fixtures/`。JAR 内 `plugin.yml` 声明 `author: YouDaoRS` 与项目 URL，但 PluginMatrix 仓库及审计时可见的 EnhancedFly 源码 checkout 均没有根许可证或明确再分发授权；JAR 内的 `LICENSE` 是 shaded MySQL Connector/J 的许可证信息，不能作为 EnhancedFly 自身的授权。v0.5 因此移除该 JAR，并将公开示例切换到仓库内可审计的 smoke fixture。历史 hosted 结果只作为事实记录保留。
 - **只参考、未复制的第三方项目**：下列 MockBukkit、paper-integration-tester 和 minecraft-plugin-runtime-test 仅用于高层设计比较；没有复制代码、workflow、测试、注释或文件结构。
 
 Python wheel/sdist 不包含 Paper、Mojang runtime、JDK、第三方插件 JAR或任何 fixture JAR。运行时下载边界及仓库 fixture 说明见 `THIRD_PARTY_NOTICES.md`。
@@ -92,6 +92,6 @@ MockBukkit 主要在测试进程内模拟 Bukkit/Paper API，不启动真实 Pap
 2. MockBukkit 的 fixture/lifecycle 思路可作为未来离线测试补充，但不改变真实 Paper 证据边界。
 3. paper-integration-tester 的隔离和真实服务器方向有参考价值，但当前 WIP 状态和额外容器协议使其暂缓。
 4. GPL 项目只保留高层经验，明确排除代码和 workflow 复用。
-5. 来源或再分发授权不清楚的 EnhancedFly 二进制不进入公开仓库；公开成功示例使用可审计的项目原创 fixture。
+5. 来源或再分发授权不清楚的 EnhancedFly 二进制不进入公开仓库；公开成功示例使用仓库内可审计且已由项目所有者确认发布权的 fixture。
 
 如未来决定复用 MIT 项目的实质性代码，必须在项目中记录：项目 URL、原始 revision、版权声明、完整许可证文本、复用文件、修改内容及理由。当前没有复制第三方代码，因此无需把被参考项目的许可证并入项目根许可证；运行时下载项和非复制参考项仍需保留来源记录。

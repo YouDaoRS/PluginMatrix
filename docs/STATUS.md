@@ -4,7 +4,7 @@
 
 ## 当前阶段
 
-**v0.5 Open-Source Release Readiness 已完成本地实现与离线闭环。**
+**v0.5.0 已完成发布准备，正式发布渠道为 GitHub Tag 与 GitHub Release，不发布 PyPI。**
 
 > 在不改变 Runtime Verifier、串行 Matrix 和手动 workflow 总体架构的前提下，使仓库具备公开源码、干净安装、外部贡献和可重复发布前检查的基础。
 
@@ -29,8 +29,8 @@
 - 新增 `CHANGELOG.md`、`docs/VERSIONING.md` 与 `docs/RELEASE_CHECKLIST.md`；
 - 完成代码、文档、workflow、fixture、二进制与只参考项目的来源分类；继续明确排除 GPL-3.0 代码、workflow、测试、注释和文件结构复用；
 - `EnhancedFly-2.2.0.jar` 的 plugin metadata 虽指向同一 GitHub 账号，但仓库及可见源码 checkout 均没有 EnhancedFly 自身的明确许可证或再分发授权；v0.5 已将该 JAR 从公开仓库内容移除，历史 v0.4 hosted 结果仍保留为事实记录；
-- 新增项目原创 `PluginMatrixSmoke` 成功 fixture，与原 enable-failure fixture 一并保留源码、descriptor、统一构建脚本、用途和 SHA-256；两个 JAR 均不含 shaded dependency；
-- README 和所有可复制示例改用原创 fixture，说明 PASS 边界、系统/网络要求、相对路径、artifact 位置、常见故障、隐私风险和手动 workflow 成功/预期失败的区别。
+- 新增仓库内 `PluginMatrixSmoke` 成功 fixture，与原 enable-failure fixture 一并保留源码、descriptor、统一构建脚本、用途和 SHA-256；两个 JAR 均不含 shaded dependency；项目所有者已确认两个 fixture 源码树与 JAR 的 Apache-2.0 发布权；
+- README 和所有可复制示例改用仓库内可审计 fixture，说明 PASS 边界、系统/网络要求、相对路径、artifact 位置、常见故障、隐私风险和手动 workflow 成功/预期失败的区别。
 
 ### 插件预检
 
@@ -215,7 +215,7 @@ verifier 先在运行过程中生成 evidence，再由 evidence 归纳最终 ver
 - v0.5 本地结构、来源、打包、干净安装、离线测试和编译检查已完成；
 - v0.4 已在 GitHub-hosted runner 上完成一次真实成功路径和一次真实 plugin enable 失败路径；
 - 两次 hosted 运行均确认弃用警告消失、Summary 正确和两个 artifacts 可用；
-- v0.5 没有触发远程 workflow；真正发布前仍应使用新的原创 success fixture 与现有 failure fixture 各做一次 hosted smoke；
+- v0.5 本次发布准备不触发远程 workflow；技术 Release Gate 已包含 GitHub-hosted success/failure Matrix 的真实验证记录；
 - 人工步骤和输入示例见 README 与 `docs/RELEASE_CHECKLIST.md`。
 
 ## v0.5 本地验证结果
@@ -227,7 +227,7 @@ verifier 先在运行过程中生成 evidence，再由 evidence 归纳最终 ver
 - wheel metadata：名称、0.5.0、Python >=3.10、Apache-2.0、LICENSE 和项目 URL 均正确；
 - 全新 venv 从 wheel 安装后，`pluginmatrix --version`、`pluginmatrix --help`、`python -m pluginmatrix --version`、`test --help` 与 `matrix --help` 均通过；
 - 打包期间没有 setuptools license 弃用警告；临时验证目录位于系统临时目录，不进入工作树；
-- 本阶段没有下载/启动 Paper，没有触发远程 workflow，没有发布 PyPI、Release 或 Tag，也没有 commit/push。
+- 上述本地 Release Gate 没有下载/启动 Paper或触发远程 workflow；正式发布范围仅包含随后获授权的 GitHub release commit、Tag 与 Release，不包含 PyPI。
 
 ## 尚未开始
 
@@ -266,6 +266,6 @@ verifier 先在运行过程中生成 evidence，再由 evidence 归纳最终 ver
 
 ## 当前阶段结论
 
-**v0.5 Open-Source Release Readiness 已达到可以公开源码的本地仓库状态，但尚未正式发布。**
+**v0.5.0 已通过技术 Release Gate，并由项目所有者授权通过 GitHub Tag 与 GitHub Release 正式发布。**
 
-Runtime Verifier、串行 Matrix 和手动 workflow 架构未重做。公开前项目所有者仍应启用 GitHub private vulnerability reporting 并检查仓库首页的 Apache-2.0 检测结果；真正发布前还要执行原创 success/failure hosted smoke，并由所有者单独授权 Tag、GitHub Release 或 PyPI 发布。完成这些发布动作不属于 v0.5，也没有进入 v0.6。
+Runtime Verifier、串行 Matrix 和手动 workflow 架构未重做。项目所有者已确认两个 fixture 的 Apache-2.0 发布权、GitHub Private Vulnerability Reporting 已启用，并授权创建 release commit、`v0.5.0` Tag 与 GitHub Release。发布渠道不包含 PyPI。本次没有进入 v0.6。

@@ -35,7 +35,7 @@ On Linux or macOS, replace `.venv\Scripts\python` with `.venv/bin/python` and `.
 
 ## Minimal single-environment verification
 
-The repository includes `ci-fixtures/PluginMatrixSmoke.jar`, a minimal project-owned fixture built from the adjacent Java source. It is legal to copy for this example and is not a production plugin.
+The repository includes `ci-fixtures/PluginMatrixSmoke.jar`, a minimal fixture that can be rebuilt from the adjacent Java source. Its source, descriptor, deterministic build script, purpose, and checksum are recorded under `ci-fixtures/`; the project owner confirmed its Apache-2.0 release rights for v0.5.0. It is not a production plugin.
 
 ```powershell
 python -m pluginmatrix test `
@@ -62,7 +62,7 @@ The single-environment command exits `0` only for `PASS`; every other verifier v
 
 ## Compatibility Matrix
 
-Run the owned one-environment example, or copy it and add environments:
+Run the repository-provided one-environment example, or copy its configuration and add environments:
 
 ```powershell
 python -m pluginmatrix matrix .\examples\matrix.json
@@ -112,7 +112,7 @@ The workflow does not build arbitrary plugins or download their dependencies. It
 
 A successful workflow means every environment returned `PASS`. An expected failure workflow, such as `examples/ci-enable-failure-matrix.json` with `ci-fixtures/PluginMatrixEnableFailure.jar`, exits nonzero but should still retain both artifacts. Setup failures before Matrix starts may have no report or server log; use the setup error in the job log.
 
-The v0.4 code was hosted-validated at commit `c5fe4ef`: Matrix #3 passed EnhancedFly 2.2.0 on Paper 1.20.1/build 196/Java 17, while Matrix #4 produced the expected `PLUGIN_ENABLE_FAILED` for the owned failure fixture. Both retained artifacts and had zero Action deprecation warnings. EnhancedFly's binary is no longer distributed here because the repository audit found no explicit redistribution license; the result remains historical evidence, not a public example.
+The v0.4 code was hosted-validated at commit `c5fe4ef`: Matrix #3 passed EnhancedFly 2.2.0 on Paper 1.20.1/build 196/Java 17, while Matrix #4 produced the expected `PLUGIN_ENABLE_FAILED` for the repository-provided failure fixture. Both retained artifacts and had zero Action deprecation warnings. EnhancedFly's binary is no longer distributed here because the repository audit found no explicit redistribution license; the result remains historical evidence, not a public example.
 
 ## Offline development checks
 

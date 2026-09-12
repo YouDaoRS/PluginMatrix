@@ -8,9 +8,9 @@ PluginMatrix queries the official Paper API and downloads the selected Paper ser
 
 ## Repository fixtures
 
-`PluginMatrixSmoke.jar` and `PluginMatrixEnableFailure.jar` are generated from the original source, descriptors, and build script under `ci-fixtures/`. They contain no shaded dependencies. Paper API libraries are used only as a compile-time classpath and are not copied into either JAR.
+`PluginMatrixSmoke.jar` and `PluginMatrixEnableFailure.jar` can be rebuilt from the adjacent source, descriptors, and build script under `ci-fixtures/`. They contain no shaded dependencies. Paper API libraries are used only as a compile-time classpath and are not copied into either JAR. These are repository provenance facts, not an independent legal ownership determination; the project owner confirmed release rights for both fixture source trees and JARs under Apache-2.0 for v0.5.0.
 
-An `EnhancedFly-2.2.0.jar` previously used for v0.4 hosted validation was removed during the v0.5 audit. Its embedded `plugin.yml` named the same GitHub account as author, but neither this repository nor the adjacent source checkout contained an explicit license or other redistribution grant. That evidence is insufficient for a public repository to redistribute the binary. Historical validation facts remain documented; public examples now use the owned smoke fixture.
+An `EnhancedFly-2.2.0.jar` previously used for v0.4 hosted validation was removed during the v0.5 audit. Its embedded `plugin.yml` named the same GitHub account as author, but neither this repository nor the adjacent source checkout contained an explicit license or other redistribution grant. That evidence is insufficient for a public repository to redistribute the binary. Historical validation facts remain documented; public examples now use the repository-provided smoke fixture.
 
 ## Referenced projects
 

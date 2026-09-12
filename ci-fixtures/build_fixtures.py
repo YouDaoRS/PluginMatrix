@@ -1,4 +1,4 @@
-"""Build the two owned Paper fixture JARs from auditable source."""
+"""Build the two repository Paper fixture JARs from auditable source."""
 
 from __future__ import annotations
 

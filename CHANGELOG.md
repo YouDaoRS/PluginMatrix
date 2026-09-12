@@ -1,13 +1,13 @@
 # Changelog
 
-PluginMatrix follows the version policy in `docs/VERSIONING.md`. No entry below implies that a Git tag, GitHub Release, or PyPI release exists. Dates are omitted because these versions were development milestones rather than formal releases.
+PluginMatrix follows the version policy in `docs/VERSIONING.md`. No entry below implies that a Git tag, GitHub Release, or PyPI release exists. Earlier entries without dates were development milestones rather than formal releases.
 
-## 0.5.0 — Unreleased
+## 0.5.0 — 2026-09-12
 
 - Prepared the repository for public source review without adding runtime-verification capability.
 - Added governance, contribution, security, issue, pull-request, source-audit, versioning, and release-checklist documentation.
 - Made `pluginmatrix.__version__` the packaging version source and expanded package metadata.
-- Replaced the publicly stored EnhancedFly JAR and examples with project-owned success and enable-failure fixtures whose source, descriptors, build method, and checksums are retained.
+- Replaced the publicly stored EnhancedFly JAR and examples with repository-provided success and enable-failure fixtures whose source, descriptors, build method, and checksums are retained; the project owner confirmed their Apache-2.0 release rights for v0.5.0.
 - Added offline release-readiness tests and clean sdist/wheel/install verification.
 
 ## 0.4.0 — Implemented, not formally released
