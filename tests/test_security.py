@@ -199,7 +199,8 @@ class SecurityTests(unittest.TestCase):
 
     def test_copy_hash_change_is_rejected_before_server_start(self):
         target = plugin(self.root/'target.jar')
-        paper = self.root/'paper.jar'; paper.write_bytes(b'paper')
+        paper = plugin(self.root/'paper.jar', 'Server')
+        from pluginmatrix.providers import ServerSpec
         real_copy = shutil.copy2
         def changed(source,destination):
             output = real_copy(source,destination)
@@ -207,7 +208,8 @@ class SecurityTests(unittest.TestCase):
                 Path(destination).write_bytes(b'changed')
             return output
         with patch('pluginmatrix.runtime.resolve_java',return_value=('java','17.0.1')), patch('pluginmatrix.runtime.shutil.copy2',side_effect=changed), patch('pluginmatrix.runtime.run_server_process') as start:
-            result=verify(target,'1.20.1','17',self.root/'runs',self.root/'cache',2,1,paper_jar=paper)
+            result=verify(target,'1.20.1','17',self.root/'runs',self.root/'cache',2,1,
+                          server=ServerSpec('local', '1.20.1', jar=paper, name='Test server', runtime='paperclip'))
         self.assertEqual(result.result,'ENVIRONMENT_INVALID')
         self.assertIn('changed after preflight',result.reason)
         start.assert_not_called()

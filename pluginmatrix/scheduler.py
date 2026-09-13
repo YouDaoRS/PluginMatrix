@@ -27,14 +27,30 @@ def schedule(items, worker, max_parallel: int, control: RunControl):
         pending = set(futures)
         while pending:
             try:
-                _, pending = wait(pending, timeout=.1, return_when=FIRST_COMPLETED)
+                done, pending = wait(pending, timeout=.1, return_when=FIRST_COMPLETED)
             except KeyboardInterrupt:
                 control.cancel()
+                continue
+            # Inspect failures while siblings are still running. Waiting for all
+            # futures first can deadlock workers that need cancellation to exit.
+            for future in done:
+                if future.exception() is not None:
+                    control.cancel()
+                    future.result()
         return [future.result() for future in futures]
     except BaseException:
         control.cancel()
         raise
     finally:
+        # Join can be interrupted after CPython changes a Thread's internal
+        # state. Future completion is the authority that a worker finished its
+        # cleanup; do not rely only on a second shutdown/join call.
+        pending = set(futures)
+        while pending:
+            try:
+                _, pending = wait(pending, timeout=.1)
+            except KeyboardInterrupt:
+                control.cancel()
         # Repeated Ctrl+C never abandons processes owned by another worker.
         while True:
             try:

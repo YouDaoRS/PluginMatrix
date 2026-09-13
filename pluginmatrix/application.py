@@ -15,7 +15,8 @@ from .files import atomic_text, protect_inputs, validate_output_paths
 from .matrix import (MatrixConfig, MatrixConfigError, load_matrix_config, validate_matrix_preconditions,
                      validate_matrix_paths, matrix_exit_code, run_matrix as _run_matrix, _check_writable_directory)
 from .providers import ServerSpec, get_provider, inspect_providers, parse_server
-from .reports import load_report, render_html_report
+from .reports import load_report, render_html_report, _render_html_report
+from .locking import report_locks, validate_report_locks
 from .runtime import verify as _verify, resolve_java, write_report
 from .probe import resolve_javac
 
@@ -63,16 +64,19 @@ def run_single(*, plugin: Path, server: ServerSpec, java: str,
     validate_output_paths(work_root, cache_dir, inputs, report_path)
     if html_path:
         validate_output_paths(work_root, cache_dir, [*inputs, *([report_path] if report_path else [])], html_path)
-    control = control or RunControl()
-    control.emit('environment_started', 0, provider=server.type)
-    result = _verify(plugin, server.version, java, work_root, cache_dir, timeout, stability,
-                     dependencies, server.build, server=server, control=control, environment_index=0)
-    if report_path or result.workdir:
-        write_report(result, report_path or Path(result.workdir) / 'result.json')
-        if html_path:
-            render_html_report(Path(result.report_path), html_path)
-    control.emit('environment_completed', 0, verdict=result.result)
-    return result
+    for lock in validate_report_locks([report_path, html_path], inputs):
+        validate_output_paths(work_root, cache_dir, inputs, lock)
+    with report_locks([report_path, html_path], inputs):
+        control = control or RunControl()
+        control.emit('environment_started', 0, provider=server.type)
+        result = _verify(plugin, server.version, java, work_root, cache_dir, timeout, stability,
+                         dependencies, server.build, server=server, control=control, environment_index=0)
+        if report_path or result.workdir:
+            write_report(result, report_path or Path(result.workdir) / 'result.json')
+            if html_path:
+                _render_html_report(Path(result.report_path), html_path)
+        control.emit('environment_completed', 0, verdict=result.result)
+        return result
 
 
 def init_configuration(path: Path, *, plugin: Path, servers: list[ServerSpec], java: str,

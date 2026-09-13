@@ -7,10 +7,39 @@ from __future__ import annotations
 
 import os
 import time
-from contextlib import contextmanager
+from contextlib import contextmanager, ExitStack
 from pathlib import Path
 
-from .files import reject_links
+from .files import reject_links, protect_inputs
+
+
+def reject_lock_output(path: Path) -> None:
+    if path.name.casefold().endswith('.lock'):
+        raise ValueError('report destinations cannot use the reserved .lock suffix')
+
+
+def validate_report_locks(paths, inputs=()) -> list[Path]:
+    paths = [Path(p) for p in paths if p is not None]
+    protected = [*inputs, *paths]
+    locks = []
+    for path in paths:
+        reject_lock_output(path)
+        reject_links(path)
+        lock = path.with_name(path.name + '.lock')
+        protect_inputs(lock, protected)
+        locks.append(lock)
+    return locks
+
+
+@contextmanager
+def report_locks(paths, inputs=()):
+    # Claim all outputs before execution; reverse JSON/HTML choices cannot
+    # deadlock, and a conflict releases every already acquired lock.
+    locks = validate_report_locks(paths, inputs)
+    with ExitStack() as stack:
+        for lock in sorted(set(locks), key=lambda p: str(p.resolve())):
+            stack.enter_context(file_lock(lock, timeout=0))
+        yield
 
 
 @contextmanager

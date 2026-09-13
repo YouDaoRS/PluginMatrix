@@ -9,6 +9,7 @@ from urllib.parse import quote
 
 from .files import atomic_text, protect_inputs, reject_links
 from .providers import PASS_SCOPE, FOLIA_SCOPE
+from .locking import report_locks
 
 
 def load_report(path: Path) -> dict:
@@ -45,21 +46,31 @@ def _json(value) -> str:
     return _e(json.dumps(value, indent=2, ensure_ascii=True))
 
 
+def _report_path(value: str, source: Path) -> Path:
+    path = Path(value)
+    return path if path.is_absolute() else source.parent / path
+
+
 def report_inputs(report: dict, source: Path) -> list[Path]:
     inputs = [source]
     for value in (report.get('config_source'), report.get('plugin', {}).get('plugin_jar'), report.get('config', {}).get('plugin')):
         if isinstance(value, str):
-            inputs.append(Path(value))
+            inputs.append(_report_path(value, source))
     for env in _environments(report):
         metadata = env.get('metadata') or {}
         values = [*metadata.get('protected_inputs', []), metadata.get('plugin_jar'),
                   metadata.get('paper_jar'), metadata.get('server', {}).get('jar')]
         values += list((env.get('artifacts') or {}).values())
         values += [d.get('plugin_jar') for d in metadata.get('dependencies', [])]
-        inputs.extend(Path(v) for v in values if isinstance(v, str))
+        inputs.extend(_report_path(v, source) for v in values if isinstance(v, str))
     config = report.get('config', {})
-    inputs.extend(Path(p) for p in config.get('dependencies', []))
-    inputs.extend(Path(e['server']['jar']) for e in config.get('environments', []) if e.get('server', {}).get('jar'))
+    inputs.extend(_report_path(p, source) for p in config.get('dependencies', []))
+    inputs.extend(_report_path(e['server']['jar'], source) for e in config.get('environments', []) if e.get('server', {}).get('jar'))
+    # A copied/renamed report still references the authoritative original JSON.
+    inputs.extend(_report_path(v, source) for v in report.get('artifacts', {}).values() if isinstance(v, str))
+    report_path = config.get('options', {}).get('report')
+    if isinstance(report_path, str):
+        inputs.append(_report_path(report_path, source))
     return inputs
 
 
@@ -77,9 +88,7 @@ def html_document(report: dict, source: Path, destination: Path) -> str:
             if not isinstance(value, str):
                 continue
             try:
-                path = Path(value)
-                if not path.is_absolute():
-                    path = source.parent / path
+                path = _report_path(value, source)
                 relative = Path(os.path.relpath(path, destination.parent)).as_posix()
                 # Percent-encoding plus ./ prevents URI schemes and injected attributes.
                 link = './' + quote(relative, safe='/')
@@ -106,17 +115,28 @@ def html_document(report: dict, source: Path, destination: Path) -> str:
 
 
 def render_html_report(source: Path, destination: Path) -> Path:
+    with report_locks([destination], [source]):
+        return _render_html_report(source, destination)
+
+
+def _render_html_report(source: Path, destination: Path) -> Path:
+    """Render while the caller owns the destination's report lock."""
     source, destination = Path(source).resolve(), Path(destination).absolute()
     report = load_report(source)
     reject_links(destination)
     protect_inputs(destination, report_inputs(report, source))
     roots = [report.get('config', {}).get('options', {}).get(k) for k in ('work_dir', 'cache_dir')]
+    roots.append(report.get('artifacts', {}).get('runtime_root'))
     for env in _environments(report):
         roots.append((env.get('metadata') or {}).get('cache_dir'))
         roots.append((env.get('artifacts') or {}).get('run_dir'))
     for root in roots:
-        if root and (destination.resolve() == Path(root).resolve() or Path(root).resolve() in destination.resolve().parents):
-            raise ValueError('HTML report must be outside runtime/cache roots')
+        if root:
+            resolved_root = _report_path(root, source).resolve()
+            resolved_output = destination.resolve()
+            if (resolved_output == resolved_root or resolved_root in resolved_output.parents
+                    or resolved_output in resolved_root.parents):
+                raise ValueError('HTML report must be outside runtime/cache roots')
     content = html_document(report, source, destination)
     atomic_text(destination, content)
     return destination.resolve()

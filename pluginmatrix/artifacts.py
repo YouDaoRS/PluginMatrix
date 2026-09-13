@@ -112,6 +112,8 @@ def ensure_download(cache: Path, name: str, url: str, algorithm: str, expected: 
             receipt = cache / (name + '.sha256.json')
             reject_links(receipt)
             if receipt.exists():
+                if not receipt.is_file():
+                    raise ProviderError('cache SHA-256 receipt must be a regular file')
                 if receipt.stat().st_size > 4096:
                     raise ProviderError('cache SHA-256 receipt exceeds size limit')
                 try:

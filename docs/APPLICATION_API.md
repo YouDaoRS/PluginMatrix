@@ -30,6 +30,7 @@ result = run_single(
 - `inspect_providers()` returns capability and configuration metadata from the runtime Provider registry.
 - `run_single(...)` returns `VerificationResult` and saves an authoritative runtime report when a run directory exists or a report path is supplied. `run_matrix(...)` accepts a path or a parsed `MatrixConfig`, validates local preconditions, runs isolated environments, saves JSON and optionally HTML, and returns the report dictionary. Invalid configuration raises `MatrixConfigError`/`ValueError`; artifact-save errors are surfaced to the caller. The CLI maps them to its documented exit codes.
 - `load_report(path)` accepts runtime/Matrix JSON up to 32 MiB. `render_html_report(source, destination)` returns the output path without recalculating verdicts. Inputs, logs and mutable roots are protected from rendering output.
+- Saved paths are absolute; relative paths in imported reports are resolved from the JSON file's directory for both links and output protection. The old internal `runtime.verify(paper_jar=..., paper_metadata=...)` bypass is rejected; use `run_single(server=ServerSpec('local', ..., jar=..., name=..., runtime='paperclip'))` for user-supplied JARs, which records `official=false`.
 - `RunControl.cancel()` is idempotent. Cancellation is cooperative and bounded by current HTTP/compile/cleanup operations. Use a new control for a new run. Already completed results are retained; cancelled/unstarted environments receive `CANCELLED` and cannot pass.
 
 ## Progress event schema

@@ -84,7 +84,9 @@ class ParallelTests(unittest.TestCase):
             index = kwargs['environment_index']
             directory = kwargs['work_root']/str(index); directory.mkdir(parents=True)
             marker = self.root/f'survivor-{index}'
-            child = f"import time,pathlib; time.sleep(1.5); pathlib.Path({str(marker)!r}).write_text('alive')"
+            ready = self.root/f'descendant-ready-{index}'
+            grandchild = f"import time,pathlib; pathlib.Path({str(ready)!r}).write_text('ready'); time.sleep(1.5); pathlib.Path({str(marker)!r}).write_text('alive'); time.sleep(30)"
+            child = f"import subprocess,sys,time; subprocess.Popen([sys.executable,'-c',{grandchild!r}]); time.sleep(30)"
             code = f"import subprocess,sys,time; subprocess.Popen([sys.executable,'-c',{child!r}]); time.sleep(30)"
             outcome = run_server_process([sys.executable, '-u', '-c', code], directory, directory/'server.log',
                                          'Example', 'target.jar', 10, 1, control=control, environment_index=index)
@@ -92,12 +94,17 @@ class ParallelTests(unittest.TestCase):
             return VerificationResult(result=verdict, failure_stage=stage, reason=reason,
                                       evidence=outcome.evidence.events, workdir=str(directory), log_path=str(directory/'server.log'))
         def cancel():
-            launched.wait(5)
+            deadline = time.monotonic() + 5
+            # Popen/server_started is too early: require actual grandchildren
+            # in every environment before cancelling their live process trees.
+            while len(list(self.root.glob('descendant-ready-*'))) != 3 and time.monotonic() < deadline:
+                time.sleep(.01)
             control.cancel()
         thread = threading.Thread(target=cancel); thread.start()
         report = run_matrix(self.config(3), verifier=verifier, control=control)
         thread.join(5)
         self.assertEqual(len(started), 3)
+        self.assertEqual(len(list(self.root.glob('descendant-ready-*'))), 3)
         self.assertEqual([e['verdict'] for e in report['environments']], ['CANCELLED']*3)
         self.assertTrue(all(e['artifact_availability']['runtime_report'] for e in report['environments']))
         self.assertEqual(matrix_exit_code(report), 1)

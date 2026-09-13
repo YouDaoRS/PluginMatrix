@@ -4,6 +4,8 @@
 
 当前开发版本 **0.6.0.dev0**；公开稳定版本仍为 **v0.5.1**。本次工作在 `codex/multi-server-core` 本地开发分支上，不创建 Tag、GitHub Release，不发布 PyPI，不修改已发布版本或历史。
 
+独立关键路径审查已修复来源绕过、输出覆盖/锁、异常取消、清理中断及特殊缓存文件问题，见 [CRITICAL_PATH_REVIEW.md](CRITICAL_PATH_REVIEW.md)。最新离线回归为 155 项（152 通过、3 项平台/权限跳过）。本轮真实并行 Matrix 两次出现 Folia probe 超过 2 秒未更新，严格返回 UNKNOWN_FAILURE；下文较早的全通过记录不能替代本轮失败证据，Release Gate 仍未通过。
+
 ## 已实现
 
 - 单一 Runtime Verifier + Server Provider 层：配置、能力描述、官方 version/build、完整性、cache identity、启动参数、ready/startup/shutdown 解释、CodeSource 规则和报告 metadata。

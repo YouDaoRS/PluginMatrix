@@ -17,7 +17,7 @@ from .runtime import validate_plugin_inputs
 from .providers import ServerSpec, parse_server, get_provider
 from .control import RunControl
 from .scheduler import schedule, validate_parallel
-from .locking import file_lock
+from .locking import report_locks, validate_report_locks
 
 
 class MatrixConfigError(ValueError):
@@ -78,17 +78,17 @@ class MatrixConfig:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "plugin": str(self.plugin),
-            "dependencies": [str(p) for p in self.dependencies],
+            "plugin": str(self.plugin.resolve()),
+            "dependencies": [str(p.resolve()) for p in self.dependencies],
             "environments": [environment.to_dict() for environment in self.environments],
             "options": {
-                "work_dir": str(self.work_dir),
-                "cache_dir": str(self.cache_dir),
-                "report": str(self.report_path),
+                "work_dir": str(self.work_dir.resolve()),
+                "cache_dir": str(self.cache_dir.resolve()),
+                "report": str(self.report_path.resolve()),
                 "timeout": self.timeout,
                 "stability_window": self.stability_window,
                 "max_parallel": self.max_parallel,
-                **({'html_report': str(self.html_path)} if self.html_path else {}),
+                **({'html_report': str(self.html_path.resolve())} if self.html_path else {}),
             },
         }
 
@@ -420,6 +420,9 @@ def validate_matrix_preconditions(
             errors.append(f'{environment.environment_id}: {exc}')
             artifact = None
         unsupported = provider.check_plugin(spec, plugin_metadata)
+        for dependency in dependency_metadata:
+            if provider.check_plugin(spec, dependency):
+                errors.append(f"{environment.environment_id}: dependency {dependency['plugin_name']} has no Folia support declaration")
         java_info = java_runtimes.get(environment.java)
         if java_info:
             version = java_info['runtime_version']
@@ -442,7 +445,8 @@ def validate_matrix_preconditions(
 def validate_matrix_paths(config: MatrixConfig) -> None:
     validate_parallel(config.max_parallel)
     validate_output_paths(config.work_dir, config.cache_dir, config.protected_inputs, config.report_path)
-    protect_inputs(config.report_path.with_name(config.report_path.name + '.lock'), config.protected_inputs)
+    for lock in validate_report_locks([config.report_path, config.html_path], config.protected_inputs):
+        validate_output_paths(config.work_dir, config.cache_dir, config.protected_inputs, lock)
     if config.html_path:
         validate_output_paths(config.work_dir, config.cache_dir,
                               [*config.protected_inputs, config.report_path, config.report_path.with_name(config.report_path.name + '.lock')], config.html_path)
@@ -510,7 +514,7 @@ def run_matrix(
 ) -> dict[str, Any]:
     validate_matrix_paths(config)
     # A second invocation using this report fails instead of overwriting a live run.
-    with file_lock(config.report_path.with_name(config.report_path.name + '.lock'), timeout=0):
+    with report_locks([config.report_path, config.html_path], config.protected_inputs):
         return _run_matrix(config, verifier, progress, preflight, control or RunControl())
 
 
@@ -547,7 +551,7 @@ def _run_matrix(config, verifier, progress, preflight, control):
                 metadata={'requested_java': environment.java})
         result.metadata.setdefault('server', get_provider(environment.server_spec.type).requested_metadata(environment.server_spec))
         if result.workdir:
-            result.metadata.setdefault('protected_inputs', []).extend(str(p) for p in config.protected_inputs)
+            result.metadata.setdefault('protected_inputs', []).extend(str(p.resolve()) for p in config.protected_inputs)
             runtime_report = Path(result.workdir) / 'result.json'
             if not result.report_path:
                 try:
@@ -559,13 +563,13 @@ def _run_matrix(config, verifier, progress, preflight, control):
                     result.reason = f'could not save runtime report {runtime_report}: {exc}'
         entry = _result_entry(environment, result)
         if not entry['primary_evidence']:
-            entry['primary_evidence'] = str(config.report_path)
+            entry['primary_evidence'] = str(config.report_path.resolve())
         control.emit('environment_completed', index, verdict=result.result)
         return entry, errors, result.metadata
 
     completed = schedule(config.environments, worker, config.max_parallel, control)
     results = [item[0] for item in completed]
-    plugin_metadata = {'plugin_jar': str(config.plugin)}
+    plugin_metadata = {'plugin_jar': str(config.plugin.resolve())}
     if preflight and isinstance(preflight.get('plugin'), dict):
         plugin_metadata.update(preflight['plugin'])
     for _, _, metadata in completed:
@@ -575,17 +579,17 @@ def _run_matrix(config, verifier, progress, preflight, control):
     passed = sum(entry['verdict'] == 'PASS' for entry in results)
     report = {
         'pluginmatrix_version': __version__, 'report_schema': 1,
-        'config_source': str(config.source_path), 'plugin': plugin_metadata,
+        'config_source': str(config.source_path.resolve()), 'plugin': plugin_metadata,
         'config': config.to_dict(), 'preflight': preflight or {}, 'environments': results,
         'summary': {'total': len(results), 'passed': passed, 'failed': len(results) - passed},
         'internal_errors': sum(item[1] for item in completed), 'cancelled': control.cancelled,
-        'artifacts': {'matrix_report': str(config.report_path), 'runtime_root': str(config.work_dir)},
+        'artifacts': {'matrix_report': str(config.report_path.resolve()), 'runtime_root': str(config.work_dir.resolve())},
     }
     validate_matrix_paths(config)
     atomic_json(config.report_path, report)
     if config.html_path:
-        from .reports import render_html_report
-        render_html_report(config.report_path, config.html_path)
+        from .reports import _render_html_report
+        _render_html_report(config.report_path, config.html_path)
     control.emit('matrix_completed', total=total, completed=len(results))
     return report
 

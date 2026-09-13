@@ -16,6 +16,7 @@ from pathlib import Path
 from pluginmatrix.files import sha256_file
 from pluginmatrix.probe import _extract_paper_libraries, resolve_javac
 from pluginmatrix.runtime import resolve_java, verify, write_report
+from pluginmatrix.providers import ServerSpec
 
 
 def build_fixture(root, paper, java, name, body):
@@ -93,8 +94,9 @@ def main():
     summary = []
     for label, plugin, dependencies, expected, stability in scenarios:
         result = verify(plugin, args.paper_version, args.java, root/'runs', root/'cache', 180, stability,
-                        dependencies=dependencies, paper_jar=paper,
-                        paper_metadata={'minecraft_version':args.paper_version,'paper_build':args.paper_build})
+                        dependencies=dependencies,
+                        server=ServerSpec('local', args.paper_version, jar=paper, name='User-supplied Paper gate JAR',
+                                          runtime='paperclip', metadata={'declared_paper_build': args.paper_build}))
         write_report(result, root/f'{label}.json')
         write_report(result, Path(result.workdir)/'result.json')
         item = dict(scenario=label, expected=expected, verdict=result.result, report=result.report_path,

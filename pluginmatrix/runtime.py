@@ -5,6 +5,7 @@ import math
 import os
 import re
 import shutil
+import stat
 import subprocess
 import time
 import threading
@@ -22,7 +23,7 @@ from .preflight import PreflightError, inspect_plugin, java_target_name
 from .probe import PROBE_FILE_NAME, PROBE_PLUGIN_NAME, build_probe_plugin, read_probe_evidence
 from .providers import ServerSpec, get_provider
 from .control import RunControl, RunCancelled
-from .locking import file_lock
+from .locking import file_lock, reject_lock_output
 
 
 READY_MARKERS = ("done (", 'for help, type "help"')
@@ -382,6 +383,9 @@ def _reject_symlinks(root: Path) -> None:
     reject_links(root)
     for path in root.rglob("*"):
         reject_links(path)
+        mode = path.stat().st_mode
+        if not (stat.S_ISREG(mode) or stat.S_ISDIR(mode)):
+            raise ValueError(f'only regular files and directories are allowed in runtime cache data: {path}')
 
 
 def _format_exception(match: re.Match[str]) -> str:
@@ -595,12 +599,19 @@ def run_server_process(
         evidence.add('environment_failure', time.monotonic() - started, source='process', detail=str(exc))
     finally:
         if process is not None:
-            try:
-                _stop_process(process)
-            except (OSError, subprocess.SubprocessError) as exc:
-                evidence.environment_failed = True
-                evidence.failure_reason = f'could not clean up server process tree: {exc}'
-                evidence.add('cleanup_failure', time.monotonic() - started, source='process', detail=str(exc))
+            while True:
+                try:
+                    _stop_process(process)
+                    break
+                except KeyboardInterrupt:
+                    control.cancel()
+                    evidence.cancelled = True
+                    evidence.add('run_cancelled', time.monotonic() - started, source='process')
+                except (OSError, subprocess.SubprocessError) as exc:
+                    evidence.environment_failed = True
+                    evidence.failure_reason = f'could not clean up server process tree: {exc}'
+                    evidence.add('cleanup_failure', time.monotonic() - started, source='process', detail=str(exc))
+                    break
     evidence.finalize(time.monotonic() - started, exit_code is None, timed_out)
     return ProcessRun(evidence=evidence, exit_code=exit_code, timed_out=timed_out)
 
@@ -663,6 +674,8 @@ def verify(
         result.metadata['protected_inputs'].append(str(server.jar.resolve()))
     result.metadata['cache_dir'] = str(cache_dir.resolve())
     try:
+        if paper_jar is not None or paper_metadata is not None:
+            raise ValueError('legacy paper_jar/paper_metadata overrides are unsupported; use server.type=local with an explicit name, version and runtime contract')
         validate_output_paths(work_root, cache_dir, [plugin, *(dependencies or []), *([server.jar] if server.jar else [])])
         workdir = _create_run_dir(work_root)
     except (OSError, ValueError) as exc:
@@ -704,15 +717,10 @@ def verify(
             result.failure_stage = "preflight"
             result.reason = detail
             return result
-        if paper_jar is None:
-            if server.type == 'paper':
-                paper_jar, resolved_metadata = ensure_paper(server.version, cache_dir, server.build, control, environment_index)
-            else:
-                paper_jar, resolved_metadata = provider.prepare(server, cache_dir, control, environment_index)
+        if server.type == 'paper':
+            paper_jar, resolved_metadata = ensure_paper(server.version, cache_dir, server.build, control, environment_index)
         else:
-            if server.type != 'paper':
-                raise ValueError('legacy paper_jar override is Paper-only; use server.type=local for custom JARs')
-            resolved_metadata = paper_metadata or {"paper_jar_name": paper_jar.name}
+            paper_jar, resolved_metadata = provider.prepare(server, cache_dir, control, environment_index)
         actual_hash = sha256_file(paper_jar)
         expected_hash = resolved_metadata.get('jar_sha256') or resolved_metadata.get('paper_jar_sha256')
         if expected_hash and actual_hash != expected_hash:
@@ -859,6 +867,7 @@ def verify(
 
 
 def write_report(result: VerificationResult, path: Path) -> None:
+    reject_lock_output(path)
     reject_links(path)
     path = path.resolve()
     inputs = [Path(value) for value in result.metadata.get('protected_inputs', [])]

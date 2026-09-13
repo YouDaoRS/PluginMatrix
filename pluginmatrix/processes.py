@@ -82,6 +82,7 @@ def stop_process(process):
             _fields_ = [('times', ctypes.c_int64 * 4), ('faults', w.DWORD),
                         ('total', w.DWORD), ('active', w.DWORD), ('terminated', w.DWORD)]
         kernel, handle = job
+        interrupted = False
         try:
             if not kernel.TerminateJobObject(handle, 1):
                 raise ctypes.WinError(ctypes.get_last_error())
@@ -95,9 +96,15 @@ def stop_process(process):
                 if time.monotonic() >= deadline:
                     raise OSError('Windows job still has active processes after cleanup deadline')
                 time.sleep(.02)
+        except KeyboardInterrupt:
+            # The owner retries cleanup. Keep the handle so it can still wait
+            # for *all* descendants, even when the parent has already exited.
+            interrupted = True
+            raise
         finally:
-            kernel.CloseHandle(handle)
-            process._pluginmatrix_job = None
+            if not interrupted:
+                kernel.CloseHandle(handle)
+                process._pluginmatrix_job = None
     elif os.name != 'nt' and getattr(process, '_pluginmatrix_group', False):
         try:
             os.killpg(process.pid, signal.SIGKILL)
