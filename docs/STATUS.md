@@ -8,11 +8,11 @@
 
 本地修复与发布前验证见 [v0.5.1 准备报告](V0.5.1_PREPARATION.md)。PASS 需要匹配运行 ID、名称、版本、主类、加载来源且持续递增的 probe 证据，从 ready 后首个有效 enabled 样本开始覆盖完整正数稳定窗口；零窗口在配置阶段拒绝。原始日志、串行 Matrix、独立 artifact 架构保持不变。
 
-所有者已授权 v0.5.1 正常提交、push 和 hosted 验证；只有全部核心 Gate 通过才允许 Tag/Release。当前进入最终验证，仍保持 Unreleased。EnhancedFly 历史公开对象另由所有者决定，不属于本次处理范围。
+所有者已授权 v0.5.1 正常提交、push 和 hosted 验证；核心 Gate 已于 2026-09-13 通过，进入最终 Tag/Release。EnhancedFly 历史公开对象另由所有者决定，不属于本次处理范围。
 
-最终独立复核补充修复了块列表中空行/注释后的 `provides` 别名漏读，以及 Paper API Windows 设备文件名。Windows 完整离线测试 104 项（102 通过、2 项 symlink 权限跳过），compileall 和 diff check 通过。新增手动 Release Gate 强制覆盖 Paper 1.21.4/build 232/JDK 21 的 remapped 来源，并在两组 Paper 上验证非法 UTF-8 和晚期 disable；hosted 结果尚待执行。
+最终独立复核补充修复了块列表中空行/注释后的 `provides` 别名漏读、Paper API Windows 设备文件名，以及 Windows runner junction 回归测试的原生创建路径。候选提交 `7c643c695ff3daf239ad09c3906ddcd86f953027` 的 hosted CI 四平台通过；success/failure Matrix 和 Paper 1.20.1/1.21.4 Release Gate 均已完成。
 
-本地 Windows Python 3.11.9 与 3.10.21 全套各 103 项：101 通过、2 个 symlink 权限跳过；junction、hardlink、Job Object 与进程树清理实际通过。4 个真实 Paper 场景（成功、enable failure、其他插件异常+非法 UTF-8、晚期 disable）全部符合预期。compileall、diff check、sdist/wheel、包内容审计及干净安装 smoke 均通过。较新 Paper `.paper-remapped` 分支仍待实测。
+本地 Windows Python 3.11.9 全套 106 项：104 通过、2 个 symlink 权限跳过；junction、hardlink、Job Object 与进程树清理实际通过。GitHub-hosted Linux 运行了同一套 106 项且无 symlink 跳过。4 个真实 Paper 场景（成功、enable failure、其他插件异常+非法 UTF-8、晚期 disable）在 Paper 1.20.1/JDK 17 和 Paper 1.21.4/JDK 21 均符合预期，后者确认 `.paper-remapped` 身份。compileall、diff check、sdist/wheel、包内容审计及干净安装 smoke 均通过。
 
 以下 v0.1–v0.5.0 完成项和数字保留为历史基线；当前验收结果以 v0.5.1 准备报告为准。
 
