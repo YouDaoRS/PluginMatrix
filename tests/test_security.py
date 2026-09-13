@@ -124,6 +124,8 @@ class SecurityTests(unittest.TestCase):
         with patch('pluginmatrix.matrix.reject_links', side_effect=NotADirectoryError('parent is a file')):
             with self.assertRaisesRegex(MatrixConfigError, 'options.work_dir.*not writable.*Fix:'):
                 _resolve_path('blocked/child', self.root, 'options.work_dir')
+            with self.assertRaisesRegex(MatrixConfigError, 'options.report parent.*not writable.*Fix:'):
+                _resolve_path('blocked/report.json', self.root, 'options.report')
 
     def test_closed_stdout_does_not_shorten_observation(self):
         result, _, elapsed = self.run_code(probe_writer() + "\nprint('Done (1s)!',flush=True); os.close(1); time.sleep(5)", stability=.4)

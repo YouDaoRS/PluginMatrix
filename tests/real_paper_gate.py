@@ -57,6 +57,21 @@ def main():
     paper = args.paper_jar.resolve()
     noise = build_fixture(root, paper, java, 'Noise', '''
         getServer().getScheduler().runTaskLater(this, () -> {
+            try {
+                Object probe = getServer().getPluginManager().getPlugin("PluginMatrixRuntimeProbe");
+                java.lang.reflect.Field clock = probe.getClass().getDeclaredField("lastEmittedAt");
+                java.lang.reflect.Field sequence = probe.getClass().getDeclaredField("sequence");
+                java.lang.reflect.Method emit = probe.getClass().getDeclaredMethod("writeEvidence");
+                clock.setAccessible(true); sequence.setAccessible(true); emit.setAccessible(true);
+                long previous = clock.getLong(probe);
+                long before = sequence.getLong(probe);
+                try {
+                    clock.setLong(probe, System.currentTimeMillis() + 1000);
+                    emit.invoke(probe);
+                    if (sequence.getLong(probe) != before) throw new IllegalStateException("stalled clock advanced sequence");
+                } finally { clock.setLong(probe, previous); }
+                getLogger().info("PROBE_CLOCK_GATE_PASS");
+            } catch (Exception failure) { throw new RuntimeException("probe clock regression", failure); }
             getLogger().warning("java.io.IOException: optional integration unavailable");
             getLogger().warning("UnknownDependencyException: PluginMatrixSmoke for Noise");
             try { new java.io.FileOutputStream(java.io.FileDescriptor.out).write(new byte[]{(byte)255,10}); }
@@ -93,6 +108,8 @@ def main():
             assert Path(source).parent.name == '.paper-remapped', source
         if label in ('noise-invalid-utf8', 'raw-late-disable'):
             assert item['raw_invalid_utf8'], item
+        if label == 'noise-invalid-utf8':
+            assert b'PROBE_CLOCK_GATE_PASS' in Path(result.log_path).read_bytes(), item
         if label != 'enable-failure':
             assert any(event.kind == 'stability_window_completed' for event in result.evidence), item
     (root/'summary.json').write_text(json.dumps({'paper_sha256':sha256_file(paper),'results':summary},indent=2))

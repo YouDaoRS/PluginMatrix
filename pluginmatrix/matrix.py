@@ -88,8 +88,9 @@ def _resolve_path(value: object, base: Path, label: str, must_exist: bool = Fals
         except ValueError as exc:
             raise MatrixConfigError(f"field '{label}': {exc}") from exc
         except OSError as exc:
+            location = f'{label} parent' if label == 'options.report' and isinstance(exc, NotADirectoryError) else label
             raise MatrixConfigError(
-                f"field '{label}' path '{path}' is not writable: {exc}. "
+                f"field '{location}' path '{path}' is not writable: {exc}. "
                 "Fix: choose an accessible path whose parents are directories."
             ) from exc
     path = path.resolve()

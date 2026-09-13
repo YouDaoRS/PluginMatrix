@@ -56,6 +56,7 @@ public final class RuntimeProbe extends JavaPlugin {{
     private static final String TARGET = "{target}";
     private static final String OUTPUT = "{_java_string(evidence_path.name)}";
     private long sequence = 0;
+    private long lastEmittedAt = 0;
     private boolean disabled = false;
 
     @Override
@@ -70,6 +71,11 @@ public final class RuntimeProbe extends JavaPlugin {{
     }}
 
     private void writeEvidence() {{
+        long emittedAt = System.currentTimeMillis();
+        // Catch-up ticks may run in the same millisecond. Do not manufacture a
+        // newer observation when the wall clock has not advanced.
+        if (emittedAt <= lastEmittedAt) return;
+        lastEmittedAt = emittedAt;
         Plugin plugin = getServer().getPluginManager().getPlugin(TARGET);
         String name = plugin == null ? "" : plugin.getDescription().getName();
         String version = plugin == null ? "" : plugin.getDescription().getVersion();
@@ -82,7 +88,7 @@ public final class RuntimeProbe extends JavaPlugin {{
         String json = "{{" +
             "\\"probe\\":\\"pluginmatrix\\"," +
             "\\"schema\\":{PROBE_SCHEMA},\\"run_id\\":\\"{_java_string(run_id)}\\"," +
-            "\\"emitted_at_ms\\":" + System.currentTimeMillis() + "," +
+            "\\"emitted_at_ms\\":" + emittedAt + "," +
             "\\"sequence\\":" + (++sequence) + "," +
             "\\"target_main\\":\\"" + escape(main) + "\\"," +
             "\\"target_source\\":\\"" + escape(origin) + "\\"," +
