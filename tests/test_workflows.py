@@ -71,6 +71,7 @@ class WorkflowTests(unittest.TestCase):
     def test_provider_gate_is_manual_cross_platform_and_preserves_complete_evidence(self):
         workflow = self.read('provider-gate.yml')
         self.assertIn('workflow_dispatch:', workflow)
+        self.assertIn('workflow_call:', workflow)
         self.assertNotIn('\n  push:', workflow)
         self.assertNotIn('\n  pull_request:', workflow)
         self.assertIn('os: [ubuntu-latest, windows-latest]', workflow)
@@ -83,6 +84,7 @@ class WorkflowTests(unittest.TestCase):
             with self.subTest(artifact=artifact):
                 self.assertIn(artifact, workflow)
         self.assertIn('if-no-files-found: error', workflow)
+        self.assertIn('uses: ./.github/workflows/provider-gate.yml', self.read('release-gate.yml'))
 
     def test_manual_example_is_valid_json_and_java_17(self):
         import json

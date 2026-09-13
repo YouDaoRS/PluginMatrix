@@ -45,7 +45,7 @@ class ApplicationTests(unittest.TestCase):
                 code, _ = self.invoke(args)
             self.assertEqual(code, 0)
             config = load_matrix_config(self.root/f'{kind}.json')
-            self.assertEqual(config.plugin, self.plugin)
+            self.assertTrue(os.path.samefile(config.plugin, self.plugin))
             self.assertEqual(config.environments[0].server_spec.type, kind)
             self.assertEqual(config.max_parallel, 1)
 

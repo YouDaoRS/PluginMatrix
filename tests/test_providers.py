@@ -153,7 +153,7 @@ class ProviderTests(unittest.TestCase):
         spec = parse_server({'type': 'custom', 'version': '1.21.4', 'name': 'My Server', 'jar': str(jar), 'runtime': 'paperclip', 'metadata': {'owner': 'local'}})
         with patch('pluginmatrix.providers.read_json') as network:
             path, info = get_provider('local').prepare(spec, self.root/'cache')
-        self.assertEqual(path, jar)
+        self.assertTrue(os.path.samefile(path, jar))
         self.assertFalse(info['official'])
         self.assertEqual(info['server_type'], 'local')
         self.assertEqual(info['jar_sha256'], hashlib.sha256(jar.read_bytes()).hexdigest())
@@ -166,6 +166,14 @@ class ProviderTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             write_report(result, alias)
         self.assertEqual(jar.read_bytes(), original)
+
+    def test_local_provider_accepts_path_normalization_alias(self):
+        jar = plugin(self.root/'server.jar', 'Server')
+        alias = self.root/'short-path-alias'/'server.jar'
+        spec = ServerSpec('local', '1.21.4', jar=alias, name='Mine', runtime='paperclip')
+        normalized = ServerSpec('local', '1.21.4', jar=jar.resolve(), name='Mine', runtime='paperclip')
+        with patch('pluginmatrix.providers.parse_server', return_value=normalized):
+            get_provider('local').validate(spec)
 
     def test_unknown_local_contract_and_mixed_legacy_fields_are_errors(self):
         for raw in ({'type': 'unknown', 'version': '1.21.4'}, {'type': 'local', 'version': '1.21.4', 'name': 'custom', 'jar': 'server.jar', 'runtime': 'magic'},

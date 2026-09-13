@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import re
 import zipfile
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 
 from .artifacts import ProviderError, ensure_download, read_json, safe_name, safe_url
@@ -125,7 +125,13 @@ class ServerProvider:
     metadata: ProviderMetadata
 
     def validate(self, spec: ServerSpec) -> None:
-        if parse_server(spec.to_dict()) != spec:
+        normalized = parse_server(spec.to_dict())
+        # Windows hosted runners can expose the same temporary path through an
+        # 8.3 alias (RUNNER~1) while Path.resolve() expands it (runneradmin).
+        # The normalized absolute path is the provider identity; hash and
+        # input-alias checks still run before any local JAR is executed.
+        comparable = replace(spec, jar=normalized.jar) if spec.jar is not None else spec
+        if normalized != comparable:
             raise ProviderError('server specification is not normalized')
 
     def requested_metadata(self, spec: ServerSpec) -> dict:

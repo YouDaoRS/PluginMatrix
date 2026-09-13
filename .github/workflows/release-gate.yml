@@ -7,6 +7,9 @@ permissions:
   contents: read
 
 jobs:
+  providers:
+    uses: ./.github/workflows/provider-gate.yml
+
   paper:
     runs-on: ubuntu-latest
     timeout-minutes: 25
