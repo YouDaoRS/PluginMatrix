@@ -243,7 +243,7 @@ class RuntimeEvidence:
             self.add("plugin_disabled", timestamp, source="runtime_probe", detail=self.direct_plugin_name)
         if payload.get('target_ever_disabled'):
             self.plugin_disabled = True
-            self.failure_reason = 'runtime probe recorded a target disable event'
+            self.failure_reason = self.failure_reason or 'runtime probe recorded a target disable event'
             self.add('plugin_disabled', timestamp, source='runtime_probe', detail=self.failure_reason)
 
     def _name_matches(self, value: str) -> bool:

@@ -172,7 +172,7 @@ class MatrixTests(unittest.TestCase):
                 load_matrix_config(path)
             message = str(captured.exception)
             self.assertIn("field 'plugin'", message)
-            self.assertIn(str(root), message)
+            self.assertIn(str(root.resolve()), message)
             self.assertIn("plugin_jar inputs", message)
 
     def test_preflight_rejects_invalid_plugin_and_unavailable_java_together(self):

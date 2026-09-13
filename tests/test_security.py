@@ -111,6 +111,20 @@ class SecurityTests(unittest.TestCase):
         result, _, _ = self.run_code(probe_writer(target_ever_disabled=True) + "\nprint('Done (1s)!'); time.sleep(5)")
         self.assertEqual(self.verdict(result), 'PLUGIN_DISABLED')
 
+    def test_disable_probe_preserves_original_enable_failure_reason(self):
+        evidence = RuntimeEvidence('Example')
+        evidence.observe_line('Error occurred while enabling Example v1.0: original enable exception', 0)
+        evidence.observe_probe(dict(target_present=True, target_enabled=False, target_name='Example',
+                                    target_version='1.0', target_ever_disabled=True), .1)
+        self.assertIn('original enable exception', evidence.failure_reason)
+        self.assertEqual(evidence.verdict(True, False)[0], 'PLUGIN_ENABLE_FAILED')
+
+    def test_output_lstat_error_is_actionable_config_error(self):
+        from pluginmatrix.matrix import _resolve_path
+        with patch('pluginmatrix.matrix.reject_links', side_effect=NotADirectoryError('parent is a file')):
+            with self.assertRaisesRegex(MatrixConfigError, 'options.work_dir.*not writable.*Fix:'):
+                _resolve_path('blocked/child', self.root, 'options.work_dir')
+
     def test_closed_stdout_does_not_shorten_observation(self):
         result, _, elapsed = self.run_code(probe_writer() + "\nprint('Done (1s)!',flush=True); os.close(1); time.sleep(5)", stability=.4)
         self.assertEqual(self.verdict(result), 'PASS')

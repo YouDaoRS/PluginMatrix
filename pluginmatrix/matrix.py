@@ -87,6 +87,11 @@ def _resolve_path(value: object, base: Path, label: str, must_exist: bool = Fals
             reject_links(path)
         except ValueError as exc:
             raise MatrixConfigError(f"field '{label}': {exc}") from exc
+        except OSError as exc:
+            raise MatrixConfigError(
+                f"field '{label}' path '{path}' is not writable: {exc}. "
+                "Fix: choose an accessible path whose parents are directories."
+            ) from exc
     path = path.resolve()
     if must_exist and not path.is_file():
         raise MatrixConfigError(
