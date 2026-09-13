@@ -261,8 +261,8 @@ class SecurityTests(unittest.TestCase):
     @unittest.skipUnless(os.name=='nt','Windows junction regression')
     def test_windows_junction_output_is_rejected(self):
         outside=self.root/'outside'; outside.mkdir(); junction=self.root/'junction'
-        command=['powershell','-NoProfile','-Command', 'New-Item -ItemType Junction -Path $env:PM_TEST_LINK -Target $env:PM_TEST_TARGET | Out-Null']
-        completed=subprocess.run(command,env={**os.environ,'PM_TEST_LINK':str(junction),'PM_TEST_TARGET':str(outside)},capture_output=True,timeout=10)
+        command=['cmd','/d','/c','mklink','/J',str(junction),str(outside)]
+        completed=subprocess.run(command,capture_output=True,text=True,timeout=10)
         self.assertEqual(completed.returncode,0,completed.stderr)
         try:
             with self.assertRaises(ValueError): atomic_json(junction/'result.json',{})
