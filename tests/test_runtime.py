@@ -98,6 +98,7 @@ class RuntimeProcessTests(unittest.TestCase):
         stability: float = 0.1,
         exit_code: int = 0,
         probe_payload: dict | None = None,
+        regionized_runtime: bool = False,
     ):
         with TemporaryDirectory() as temp:
             root = Path(temp)
@@ -124,6 +125,7 @@ class RuntimeProcessTests(unittest.TestCase):
                 stability=stability,
                 probe_path=root / "pluginmatrix-runtime-evidence.json" if probe_payload else None,
                 require_direct_runtime=bool(probe_payload),
+                regionized_runtime=regionized_runtime,
             )
             return result, (root / "server.log").read_text(encoding="utf-8")
 
@@ -180,6 +182,24 @@ class RuntimeProcessTests(unittest.TestCase):
             ["[Server thread/INFO]: Enabling Example v1.0", '[Server thread/INFO]: Done (1.0s)! For help, type "help"', "[Server thread/INFO]: Disabling Example v1.0"]
         )
         self.assertEqual(result.evidence.verdict(result.exit_code is None, result.timed_out)[0], "PLUGIN_DISABLED")
+
+    def test_direct_negative_folia_probe_finishes_without_waiting_for_startup_deadline(self):
+        started = time.monotonic()
+        result, _ = self.run_script(
+            ['[Server thread/INFO]: Done (1.0s)! For help, type "help"'],
+            sleep_after=5,
+            timeout=3,
+            probe_payload={
+                "target_present": True,
+                "target_name": "Example",
+                "target_version": "1.0",
+                "target_enabled": False,
+            },
+            regionized_runtime=True,
+        )
+        self.assertEqual(result.evidence.verdict(result.exit_code is None, result.timed_out)[0], "PLUGIN_DISABLED")
+        self.assertTrue(result.evidence.direct_runtime_observed)
+        self.assertLess(time.monotonic() - started, 2)
 
     def test_server_start_failure(self):
         result, _ = self.run_script(["[Server thread/ERROR]: Error during server startup: failed to bind to port"], sleep_after=0, exit_code=1)

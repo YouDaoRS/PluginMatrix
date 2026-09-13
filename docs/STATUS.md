@@ -15,6 +15,7 @@
 - Folia probe 先要求 global region scheduler 连续产生完整两秒的新鲜 callback，再发布首个样本；孤立的启动 callback 不再成为 PASS 证据。
 - host 端两秒新鲜度、身份/CodeSource、递增序列/时间和窗口末端新样本规则均未放宽；完整稳定窗口只从首个有效样本开始。
 - Folia 的冷世界初始化和未发布握手使用原始 `--timeout` 启动截止；普通 Bukkit scheduler 仍使用最多十秒的 post-ready probe grace。
+- probe 已直接确认目标不存在或 disabled 且日志已追平时立即形成负向 verdict，不再等待不可能出现的 enabled 样本；这不影响任何 PASS 路径。
 - 空世界使用固定 seed，使并行 Folia 回归可复现。三个并发真实子进程的回归先模拟超过两秒无样本，再要求各自完成严格窗口。
 
 失败证据保留在 [superseded hosted run 34768288891](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34768288891)。Folia 的 support declaration 与 scheduler 合同依据 Paper 官方 [Folia support](https://docs.papermc.io/paper/dev/folia-support/) 和 [Folia overview](https://docs.papermc.io/folia/reference/overview/)；PASS 仍不声称线程安全或跨 region 安全。
@@ -31,7 +32,7 @@
 
 | Gate | 结果 |
 | --- | --- |
-| Windows Python 3.10.21 / 3.11.9 | 各 161 项全部通过（本机 3 项为 POSIX/权限型跳过）；`compileall` 通过 |
+| Windows Python 3.10.21 / 3.11.9 | 各 162 项全部通过（本机 3 项为 POSIX/权限型跳过）；`compileall` 通过 |
 | GitHub-hosted CI | Ubuntu/Windows × Python 3.10/3.11 全绿；Linux 实际执行 FIFO、symlink、hardlink、路径别名和 parent/child/grandchild POSIX process-group 测试；Windows 实际执行 junction、hardlink、Job Object 和取消清理 |
 | 本机 JDK 21 Provider Gate | 14/14 预期结论：Paper/Purpur/Folia success 与 enable-failure、Folia unsupported、local、`max_parallel=1/3` 混合 Matrix；官方 success 都确认 `.paper-remapped` CodeSource |
 | Hosted Release Gate | Paper 1.20.1/196/JDK17、Paper 1.21.4/232/JDK21，以及 Ubuntu/Windows Provider Gate；真实 Paper/Purpur/Folia success/enable-failure、local 和串并行混合 Matrix |

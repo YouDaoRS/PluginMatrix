@@ -437,8 +437,8 @@ def run_server_process(
     expected_main: str | None = None, expected_source: Path | None = None,
     run_id: str = '',
     allowed_sources: tuple[Path, ...] | None = None, provider_type: str = 'paper',
-    regionized_runtime: bool = False,
     control: RunControl | None = None, environment_index: int | None = None,
+    regionized_runtime: bool = False,
 ) -> ProcessRun:
     if any(isinstance(value, bool) or not math.isfinite(value) or value <= 0 for value in (timeout, stability)):
         raise ValueError('timeout and stability_window must be positive finite seconds')
@@ -554,7 +554,14 @@ def run_server_process(
                             if regionized_runtime
                             else ready_at + standard_probe_start_timeout
                         )
-                        if now >= probe_start_deadline:
+                        if evidence.direct_runtime_observed and not evidence.direct_plugin_enabled:
+                            # A caught-up direct negative sample is already the
+                            # authoritative startup verdict. Waiting for an
+                            # enabled sample cannot turn it into PASS and makes
+                            # Folia enable failures consume the whole timeout.
+                            if not backlog and not pending:
+                                break
+                        elif now >= probe_start_deadline:
                             evidence.direct_runtime_error = 'runtime probe did not produce direct plugin state evidence'
                             break
                     else:

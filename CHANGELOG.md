@@ -11,7 +11,7 @@ PluginMatrix follows the version policy in `docs/VERSIONING.md`. No entry below 
 - Add init, validate, doctor, providers, static HTML report rendering, and application API with bounded progress events and cancellation.
 - Add bounded Matrix parallelism (default 1, maximum 8), ordered reports, independent ports/artifacts, shared cancellation and complete worker/process-tree draining.
 - Disable interactive server console and inherited stdin; raw log consumption remains strict. Add project-owned Folia fixtures and explicit provider gates outside offline test discovery.
-- Stabilize Folia cold starts without relaxing PASS: withhold isolated early callbacks until a continuous two-second scheduler span, keep the host-side two-second freshness rule, and use the configured startup deadline while Folia completes world initialization. Use a fixed empty-world seed for reproducible gates.
+- Stabilize Folia cold starts without relaxing PASS: withhold isolated early callbacks until a continuous two-second scheduler span, keep the host-side two-second freshness rule, and use the configured startup deadline while Folia completes world initialization. Finish a caught-up direct negative sample without waiting for an impossible enabled sample. Use a fixed empty-world seed for reproducible gates.
 - Fail closed on malformed nested saved reports, normalize local server path aliases on Windows, preserve server-shutdown verdict precedence, and extend hosted gates to audit JSON, HTML, summaries, logs, runtime reports, progress events and artifact references.
 
 No Tag, GitHub Release or PyPI publication is part of this release candidate. Validation results and limitations are tracked in docs/STATUS.md.
