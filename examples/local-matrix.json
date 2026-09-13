@@ -1,0 +1,22 @@
+{
+  "plugin": "../ci-fixtures/PluginMatrixSmoke.jar",
+  "environments": [
+    {
+      "server": {
+        "type": "local",
+        "name": "User-supplied server",
+        "version": "1.21.4",
+        "jar": "../local-inputs/server.jar",
+        "runtime": "paperclip",
+        "metadata": {"note": "Replace this example path with your own JAR"}
+      },
+      "java": 21
+    }
+  ],
+  "options": {
+    "report": "../.pluginmatrix/local-report.json",
+    "html_report": "../.pluginmatrix/local-report.html",
+    "work_dir": "../.pluginmatrix/runs",
+    "cache_dir": "../.pluginmatrix/cache"
+  }
+}

@@ -1,23 +1,25 @@
 # PluginMatrix
 
-PluginMatrix is an early-stage command-line verifier for Minecraft Paper plugin JARs. It prepares an isolated Paper/Java environment, starts a real Paper server, observes plugin discovery and lifecycle evidence, and writes a structured report alongside the original `server.log`.
+PluginMatrix is an early-stage command-line verifier for Minecraft plugin JARs. It prepares an isolated server/Java environment, starts a real server, observes plugin discovery and lifecycle evidence, and writes an authoritative JSON report alongside the original `server.log` and optional static HTML.
 
-It supports one environment with `test` and a sequential list of environments with `matrix`. It does not support Spigot, Folia, Fabric, Forge, Velocity, parallel Matrix execution, gameplay bots, or complete feature testing.
+The **0.6.0.dev0 development version** adds Paper, Purpur, Folia and user-supplied local server Providers. One Runtime Verifier serves all Providers. Matrix defaults to serial execution and optionally runs 1–8 environments concurrently. There is no GUI, cloud service, automatic JDK management, gameplay bot or complete feature testing.
 
-The current release is **0.5.1**, a trust and safety patch for v0.5.0. See [release preparation](docs/V0.5.1_PREPARATION.md) and the [GitHub Release](https://github.com/YouDaoRS/PluginMatrix/releases/tag/v0.5.1) for the completed validation record.
+The public stable release remains **0.5.1**. This development version is not a release. See [development status](docs/STATUS.md), [architecture](docs/ARCHITECTURE.md), and the [v0.5.1 validation record](docs/V0.5.1_PREPARATION.md).
 
 ## What `PASS` means
 
-`PASS` means that, for the exact Paper build and Java runtime recorded in the report:
+`PASS` means that, for the exact server JAR/build and Java runtime recorded in the report:
 
-1. Paper reached its ready state.
-2. The runtime probe found the target through Paper's `PluginManager`.
+1. The selected server reached its ready state.
+2. The runtime probe found the target through `PluginManager`.
 3. `Plugin#isEnabled()` was `true`.
 4. The server and plugin remained running during the configured stability window.
 
 The window starts with a valid enabled probe sample after ready. Samples must match the run, name, version, main class and isolated source, advance in sequence/time with no gap over two seconds, and include a new sample at the end. Zero stability is rejected. A stale/malformed probe, incomplete window or cleanup failure cannot produce PASS.
 
-The verifier supports ordinary `plugin.yml` descriptors with simple single-line identity fields and dependency lists. Duplicate/ambiguous keys, unsupported YAML constructs, missing version and dual `paper-plugin.yml` descriptors are rejected explicitly. Plugin names and `provides` aliases must not collide with each other or the probe. Paper-remapped sources are accepted only at the expected isolated `.paper-remapped/<target filename>` path; this path remains a hosted validation item.
+The verifier supports simple `plugin.yml` and standalone `paper-plugin.yml` descriptors. Duplicate/ambiguous keys, unsupported YAML, missing version and dual descriptors are rejected explicitly. Complex Paper bootstrapper/loader/nested dependency descriptors remain unsupported. Plugin names and `provides` aliases must not collide with each other or the probe. Remapped sources are accepted only at the expected isolated `.paper-remapped/<target filename>` path when allowed by the Provider.
+
+Folia requires the unquoted boolean `folia-supported: true`; its absence returns `PLUGIN_UNSUPPORTED` before download/startup. The Folia probe runs on the global region scheduler. **Folia PASS does not prove thread safety, cross-region safety or complete gameplay compatibility.**
 
 These checks are for compatibility of plugins you trust to execute. A run directory and a probe in the same JVM are not a security sandbox against intentionally malicious plugin code or processes that deliberately leave the POSIX process group.
 
@@ -27,7 +29,7 @@ It does **not** prove that commands, events, GUIs, databases, dependencies, perf
 
 - Python 3.10 or newer.
 - A full JDK containing both `java` and `javac`; Java 17 is required for the included Paper 1.20.1 example.
-- Network access to the official Paper API and download host.
+- Network access to the selected official Provider API/download host (not needed for local JAR resolution).
 - Network access required by Paper bootstrap on its first run, including Mojang runtime artifacts.
 - A Paper plugin JAR you are allowed to use. Dependencies must be supplied as local JARs explicitly.
 
@@ -70,6 +72,31 @@ The single-environment command exits `0` only for `PASS`; other verifier verdict
 
 ## Compatibility Matrix
 
+Generate and validate a mixed Matrix without writing JSON by hand:
+
+```powershell
+python -m pluginmatrix init mixed.json --plugin path/to/plugin.jar --server paper --server purpur --server folia --minecraft 1.21.4 --java 21
+python -m pluginmatrix validate mixed.json --json
+python -m pluginmatrix validate mixed.json --network --json
+python -m pluginmatrix doctor --java 21 --json
+python -m pluginmatrix providers --json
+python -m pluginmatrix matrix mixed.json --max-parallel 3
+```
+
+`init` prompts only in an interactive terminal and only for missing arguments. Existing configs are preserved unless `--force` is supplied; input JAR aliases remain protected even with force. `validate` performs configuration/plugin/dependency/Provider/Java/path preflight without downloading or launching servers. `--network` resolves version/build metadata only. `doctor` checks Python, Java/JDK, disk, directory permissions and Provider APIs; `--offline` omits network checks. Required failures exit 2; warnings do not. Neither command installs Java.
+
+New environments use `{"server":{"type":"purpur","version":"1.21.4","build":"latest"},"java":21}`. Omit `build` for automatic selection or set a positive integer. `heap_mb` limits each JVM (default 1024). Paper/Folia latest prefers stable builds, otherwise the latest published channel, which is recorded explicitly. A fixed build always requests that exact channel/build. Purpur resolves `latest` to a fixed number before download, checks the official MD5 and additionally records and pins SHA-256 in its own cache namespace. It does not claim an official SHA-256 when the API provides only MD5.
+
+Local JAR usage requires an explicit supported runtime contract:
+
+```powershell
+python -m pluginmatrix test --plugin path/to/plugin.jar --server local --server-jar path/to/server.jar --server-name "My server" --minecraft 1.21.4 --runtime paperclip --java 21 --report local.json --html local.html
+```
+
+`local` (alias `custom`) accepts `runtime` values `paperclip`, `bukkit` or `folia`. These describe known startup/log/probe/CodeSource contracts, not official identities. `paperclip`/`folia` require embedded API libraries; `bukkit` requires the API classes in the server JAR. Unsupported layouts or unrecognized readiness/probe behavior fail closed. The original JAR is hashed, copied and rechecked in an isolated directory; it is never modified or downloaded. User-declared name/version/metadata stay distinct from official Provider information. No BuildTools is run.
+
+The original `--paper`, `--paper-build` and JSON `paper`/`paper_build` fields remain supported with their Paper report fields. Combining legacy fields with `server` produces an explicit migration error. Unknown fields are now rejected instead of silently ignored. Separate output roots and positive stability windows remain mandatory. The bounded heap and noninteractive console flags are recorded in each launch command.
+
 Run the repository-provided one-environment example, or copy its configuration and add environments:
 
 ```powershell
@@ -95,6 +122,22 @@ python -m pluginmatrix matrix .\examples\matrix.json
 Every relative path in a Matrix config is resolved from the directory containing that config, not from the shell's current directory. Before downloading Paper or starting a server, Matrix validates the plugin, Java/JDK, duplicate environments, and output paths.
 
 Each environment keeps its own runtime `result.json`, `server.log`, and run directory. The unified Matrix Report defaults to `.pluginmatrix/matrix-report.json` relative to the config and references those artifacts without embedding the raw log. Matrix exits `0` when all environments pass, `1` after one or more environment failures, `2` for invalid configuration, and `3` for an internal PluginMatrix error.
+
+Use `options.max_parallel` or `matrix --max-parallel` (default 1, maximum 8). Result order follows configuration order. Each environment has an independent port, probe run ID, log and directory. Cache publication uses OS file locks, checksums and atomic replacements. One environment failure does not cancel others. Ctrl+C requests cancellation, waits for all owned process trees to be cleaned up, and retains completed and cancelled results. `CANCELLED` exits 1; cleanup/report/internal errors take precedence as failures. Concurrent invocations targeting the same Matrix report are rejected while it is in use.
+
+`options.dependencies` is not supported: supply local dependency JAR paths in the top-level `dependencies` array. All target/dependency/alias/probe conflicts are rejected before execution.
+
+## Static HTML and Python application API
+
+`init` enables `options.html_report` by default. Existing JSON-only configs remain JSON-only. Alternatively use `matrix --html matrix.html`, `test --html runtime.html`, or render existing evidence:
+
+```powershell
+python -m pluginmatrix report .pluginmatrix/matrix-report.json --html matrix.html
+```
+
+HTML reads the recorded JSON verdicts without recalculating them. It is a single offline file with escaped text, metadata/evidence details, relative artifact paths, PASS scope and Folia limitations. It does not embed raw logs or external scripts. Keep referenced artifacts with the report if you move it.
+
+The stable application entry points are documented in [APPLICATION_API.md](docs/APPLICATION_API.md): `validate_configuration`, `inspect_providers`, `run_single`, `run_matrix`, `load_report`, `render_html_report`, and `RunControl.cancel()`. Structured progress callbacks are serialized, bounded and contain no configuration, paths or log contents. There is no background daemon or GUI.
 
 ## Common failures
 

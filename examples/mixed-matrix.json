@@ -1,0 +1,17 @@
+{
+  "plugin": "../.pluginmatrix/fixtures/PluginMatrixFoliaSuccess.jar",
+  "environments": [
+    {"server": {"type": "paper", "version": "1.21.4", "build": 232}, "java": 21},
+    {"server": {"type": "purpur", "version": "1.21.4", "build": "latest"}, "java": 21},
+    {"server": {"type": "folia", "version": "1.21.4", "build": 6}, "java": 21}
+  ],
+  "options": {
+    "max_parallel": 1,
+    "timeout": 180,
+    "stability_window": 5,
+    "work_dir": "../.pluginmatrix/runs",
+    "cache_dir": "../.pluginmatrix/cache",
+    "report": "../.pluginmatrix/mixed-report.json",
+    "html_report": "../.pluginmatrix/mixed-report.html"
+  }
+}

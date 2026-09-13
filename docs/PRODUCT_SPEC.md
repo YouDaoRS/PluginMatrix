@@ -2,7 +2,7 @@
 
 ## 1. 项目定义
 
-PluginMatrix 是一个面向 Minecraft Paper 插件开发者的发布前运行时兼容性验证工具。
+PluginMatrix 是一个面向 Minecraft 插件开发者的发布前运行时兼容性验证工具。当前 v0.6 开发范围为 Paper、Purpur、Folia 和用户明确声明运行契约的 local JAR，复用同一个可信 Runtime Verifier。下列 v0.1–v0.5 小节保留历史需求演进，当前范围以第 14 节为准。
 
 它接收插件 JAR，在真实 Paper 服务器中运行，并尽可能准确地区分：
 
@@ -174,7 +174,7 @@ v0.5.1 是 v0.5.0 可信度和安全修复，不扩展产品架构。成功证�
 - Bot、GUI 自动化和完整 E2E 测试；
 - AI 日志分析或自动修复；
 - 自动下载第三方依赖插件；
-- Spigot、Folia、Fabric、Forge、Velocity；
+- Spigot/Fabric/Forge/Velocity 官方 Provider、自动 BuildTools；
 - 性能测试、压力测试和分布式服务器测试；
 - 自动判断完整业务功能是否正确。
 
@@ -194,3 +194,19 @@ v0.5.1 是 v0.5.0 可信度和安全修复，不扩展产品架构。成功证�
 未来的 CI 和行为测试都应建立在同一个可靠 Verifier 之上；Matrix v0.2 已是该 Verifier 的本地串行编排层。
 
 扩展不应改变 v0.1 的基本语义：每个环境都必须有独立元数据、独立日志、独立状态和可复查证据。
+
+## 14. v0.6 多服务端与本地使用体验
+
+Provider 负责配置/能力、官方 version/build/download 解析、完整性与缓存身份、启动命令、服务端 ready/startup/shutdown 解释、CodeSource 规则和专用报告字段。Runtime 继续负责隔离插件、probe、日志、稳定窗口、verdict、进程树清理和 artifact。所有 Provider 必须经过同一证据链，禁止复制 Runtime Verifier。
+
+- Paper 保留旧 JSON/CLI 字段及报告键。新配置使用 `server.type/version/build`；混合新旧字段报明确迁移错误。
+- Purpur 使用官方 API，latest 先解析为固定 build，独立 cache namespace；记录官方 MD5 和实际 SHA-256，不能伪称官方提供 SHA-256。
+- Folia 使用官方 PaperMC 构建；记录渠道和 regionized runtime。未声明 `folia-supported: true` 返回 `PLUGIN_UNSUPPORTED`，probe 使用 global region scheduler。PASS 不证明线程、跨 region 或业务安全。
+- local/custom 使用用户 JAR、声明名称、Minecraft version、可选 metadata 和显式 `paperclip/bukkit/folia` 运行契约。原始 JAR 只读，复制后校验 hash；未知布局、启动、日志和 probe 行为 fail closed，报告 `official=false`。
+- 支持简单 `paper-plugin.yml`，但双 descriptor、复杂 bootstrapper/loader/dependencies 语法仍拒绝，禁止误读 metadata 获得 PASS。
+- CLI 增加参数化/交互 init、离线 validate（可选网络解析）、doctor、Provider metadata 列表和 report HTML 渲染；不自动安装 Java。
+- HTML 只读取 JSON 结果，所有动态内容转义，无外部依赖、不嵌入完整日志、提供 artifact 相对路径和 PASS 边界。
+- Matrix 默认并发 1，可配置 1–8；结果顺序固定，单环境失败继续，缓存使用跨进程 OS 锁和原子发布。取消后等待所有 worker 清理其 Job Object/POSIX process group，汇总中保留 `CANCELLED`。
+- `pluginmatrix.application` 提供可复用服务接口，`RunControl` 支持取消与有界结构化 progress events；不引入 GUI、账号、后台服务、遥测或上传。
+
+`CANCELLED` 与 `PLUGIN_UNSUPPORTED` 是新增的稳定顶层状态。原 exit code 0/1/2/3 含义保持；取消属于已完成但未全部通过（1），报告或内部错误为 3。任何清理失败都不能 PASS。

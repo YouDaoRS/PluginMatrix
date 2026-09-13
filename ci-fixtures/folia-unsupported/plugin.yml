@@ -1,0 +1,4 @@
+name: PluginMatrixFoliaUnsupported
+version: 1.0.0
+main: pluginmatrix.fixture.FoliaUnsupportedPlugin
+api-version: '1.20'

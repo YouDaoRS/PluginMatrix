@@ -2,6 +2,18 @@
 
 PluginMatrix follows the version policy in `docs/VERSIONING.md`. No entry below implies that a Git tag, GitHub Release, or PyPI release exists. Earlier entries without dates were development milestones rather than formal releases.
 
+## 0.6.0.dev0 — Unreleased
+
+- Introduce Server Provider contracts for official Paper, Purpur and experimental Folia, plus explicitly declared local/custom JAR runtime profiles; retain one Runtime Verifier.
+- Preserve legacy Paper configuration/CLI/report keys. Reject mixed legacy/new fields and unknown configuration keys explicitly.
+- Keep target identity, expected CodeSource, monotonically fresh probe samples and the full positive stability window. Add Folia global-region probe scheduling and `PLUGIN_UNSUPPORTED` declaration verdict.
+- Add official host allowlists, bounded downloads, per-provider cache identity, OS locks and atomic checksum-verified publication. Record Purpur's upstream MD5 separately from the local SHA-256.
+- Add init, validate, doctor, providers, static HTML report rendering, and application API with bounded progress events and cancellation.
+- Add bounded Matrix parallelism (default 1, maximum 8), ordered reports, independent ports/artifacts, shared cancellation and complete worker/process-tree draining.
+- Disable interactive server console and inherited stdin; raw log consumption remains strict. Add project-owned Folia fixtures and explicit provider gates outside offline test discovery.
+
+No Tag, GitHub Release or PyPI publication is part of this development version. Validation results and limitations are tracked in docs/STATUS.md.
+
 ## 0.5.1 — 2026-09-13
 
 This patch addresses verdict trust and safety defects found in the independent v0.5.0 review. It retains the existing Runtime Verifier, sequential Matrix, evidence and artifact architecture.

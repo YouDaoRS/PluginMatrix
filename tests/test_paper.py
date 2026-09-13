@@ -12,7 +12,7 @@ class PaperDiagnosticsTests(unittest.TestCase):
         return io.BytesIO(json.dumps(payload).encode("utf-8"))
 
     def test_missing_version_names_current_value_expectation_and_fix(self):
-        with patch("pluginmatrix.paper.urllib.request.urlopen", return_value=self.response([])):
+        with patch("pluginmatrix.artifacts.open_official", return_value=self.response([])):
             with self.assertRaises(PaperDownloadError) as captured:
                 resolve_paper("1.99.9")
         message = str(captured.exception)
@@ -28,7 +28,7 @@ class PaperDiagnosticsTests(unittest.TestCase):
                 "downloads": {"server:default": {"name": "paper.jar", "url": "https://example.invalid"}},
             }
         ]
-        with patch("pluginmatrix.paper.urllib.request.urlopen", return_value=self.response(builds)):
+        with patch("pluginmatrix.artifacts.open_official", return_value=self.response(builds)):
             with self.assertRaises(PaperDownloadError) as captured:
                 resolve_paper("1.20.1", 196)
         message = str(captured.exception)

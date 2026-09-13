@@ -13,6 +13,11 @@ from .model import VerificationResult
 from .preflight import PreflightError, inspect_plugin
 from .probe import resolve_javac
 from .runtime import resolve_java, verify, write_report
+from .runtime import validate_plugin_inputs
+from .providers import ServerSpec, parse_server, get_provider
+from .control import RunControl
+from .scheduler import schedule, validate_parallel
+from .locking import file_lock
 
 
 class MatrixConfigError(ValueError):
@@ -24,15 +29,28 @@ class MatrixEnvironment:
     paper: str
     java: str
     paper_build: int | None = None
+    server: ServerSpec | None = None
+
+    @property
+    def server_spec(self) -> ServerSpec:
+        return self.server or ServerSpec('paper', self.paper, self.paper_build)
 
     @property
     def environment_id(self) -> str:
         build = str(self.paper_build) if self.paper_build is not None else "auto"
         java = re.sub(r"[^A-Za-z0-9_.-]+", "-", self.java)
         paper = re.sub(r"[^A-Za-z0-9_.-]+", "-", self.paper)
+        if self.server and self.server.type != 'paper':
+            suffix = ''
+            if self.server.jar:
+                import hashlib
+                suffix = '-' + hashlib.sha256(str(self.server.jar).encode()).hexdigest()[:12]
+            return f'{self.server.type}-{self.server.version}-java-{java}-build-{self.server.build or "auto"}{suffix}'
         return f"paper-{paper}-java-{java}-build-{build}"
 
     def to_dict(self) -> dict[str, Any]:
+        if self.server:
+            return {'server': self.server.to_dict(), 'java': self.java}
         value: dict[str, Any] = {"paper": self.paper, "java": self.java}
         if self.paper_build is not None:
             value["paper_build"] = self.paper_build
@@ -49,10 +67,19 @@ class MatrixConfig:
     report_path: Path
     timeout: int = 120
     stability_window: int = 5
+    max_parallel: int = 1
+    dependencies: tuple[Path, ...] = ()
+    html_path: Path | None = None
+
+    @property
+    def protected_inputs(self) -> list[Path]:
+        return [self.source_path, self.plugin, *self.dependencies,
+                *(e.server_spec.jar for e in self.environments if e.server_spec.jar)]
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "plugin": str(self.plugin),
+            "dependencies": [str(p) for p in self.dependencies],
             "environments": [environment.to_dict() for environment in self.environments],
             "options": {
                 "work_dir": str(self.work_dir),
@@ -60,6 +87,8 @@ class MatrixConfig:
                 "report": str(self.report_path),
                 "timeout": self.timeout,
                 "stability_window": self.stability_window,
+                "max_parallel": self.max_parallel,
+                **({'html_report': str(self.html_path)} if self.html_path else {}),
             },
         }
 
@@ -111,6 +140,8 @@ def load_matrix_config(path: Path) -> MatrixConfig:
             "Fix: pass the Matrix config path, not its containing directory."
         )
     try:
+        if path.stat().st_size > 1024 * 1024:
+            raise MatrixConfigError('config exceeds 1 MiB')
         raw = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         raise MatrixConfigError(
@@ -124,6 +155,13 @@ def load_matrix_config(path: Path) -> MatrixConfig:
         ) from exc
     document = _require_mapping(raw, "matrix config")
     plugin = _resolve_path(document.get("plugin"), path.parent, "plugin", must_exist=True)
+    unknown = set(document) - {'plugin', 'dependencies', 'environments', 'options'}
+    if unknown:
+        raise MatrixConfigError(f'unknown configuration fields: {sorted(unknown)}')
+    dependencies = document.get('dependencies', [])
+    if not isinstance(dependencies, list) or len(dependencies) > 128:
+        raise MatrixConfigError('dependencies must be an array of at most 128 local JAR paths')
+    dependencies = tuple(_resolve_path(v, path.parent, 'dependencies', True) for v in dependencies)
 
     raw_environments = document.get("environments")
     if not isinstance(raw_environments, list) or not raw_environments:
@@ -132,9 +170,22 @@ def load_matrix_config(path: Path) -> MatrixConfig:
             "Fix: add at least one object with 'paper' and 'java'."
         )
     environments: list[MatrixEnvironment] = []
+    if len(raw_environments) > 256:
+        raise MatrixConfigError('environments exceeds the maximum of 256')
     seen: set[str] = set()
     for index, raw_environment in enumerate(raw_environments, start=1):
         item = _require_mapping(raw_environment, f"environment #{index}")
+        if set(item) - {'paper', 'java', 'paper_build', 'server'}:
+            raise MatrixConfigError(f'unknown fields in environment #{index}')
+        spec = None
+        if 'server' in item:
+            if 'paper' in item or 'paper_build' in item:
+                raise MatrixConfigError('server and legacy paper/paper_build cannot be combined; migrate to server.version/build')
+            try:
+                spec = parse_server(item['server'], path.parent)
+            except (OSError, ValueError) as exc:
+                raise MatrixConfigError(f'environment #{index}: {exc}') from exc
+            item = {**item, 'paper': spec.version, 'paper_build': spec.build}
         paper = item.get("paper")
         java = item.get("java")
         if not isinstance(paper, str) or not re.fullmatch(r"\d+\.\d+(?:\.\d+)?", paper.strip()):
@@ -159,7 +210,7 @@ def load_matrix_config(path: Path) -> MatrixConfig:
                     "Paper build integer. Fix: remove the field for automatic stable-build selection or set a "
                     "build available for the requested Paper version."
                 )
-        environment = MatrixEnvironment(paper=paper, java=java, paper_build=build)
+        environment = MatrixEnvironment(paper=paper, java=java, paper_build=build, server=spec)
         if environment.environment_id in seen:
             raise MatrixConfigError(
                 f"field 'environments[{index - 1}]' conflicts with an earlier environment after normalization: "
@@ -170,6 +221,12 @@ def load_matrix_config(path: Path) -> MatrixConfig:
         environments.append(environment)
 
     options = _require_mapping(document.get("options", {}), "options")
+    if set(options) - {'timeout', 'stability_window', 'work_dir', 'cache_dir', 'report', 'html_report', 'max_parallel'}:
+        raise MatrixConfigError('unknown options; consult pluginmatrix init or README')
+    try:
+        parallel = validate_parallel(options.get('max_parallel', 1))
+    except ValueError as exc:
+        raise MatrixConfigError(str(exc)) from exc
     timeout = options.get("timeout", 120)
     stability = options.get("stability_window", 5)
     if isinstance(timeout, bool) or not isinstance(timeout, int) or timeout <= 0:
@@ -198,6 +255,8 @@ def load_matrix_config(path: Path) -> MatrixConfig:
         report_path=report_path,
         timeout=timeout,
         stability_window=stability,
+        max_parallel=parallel, dependencies=dependencies,
+        html_path=_resolve_path(options['html_report'], path.parent, 'options.html_report') if 'html_report' in options else None,
     )
 
 
@@ -258,7 +317,7 @@ def validate_matrix_preconditions(
 
     errors: list[str] = []
     try:
-        validate_output_paths(config.work_dir, config.cache_dir, [config.source_path, config.plugin], config.report_path)
+        validate_matrix_paths(config)
     except ValueError as exc:
         raise MatrixConfigError(str(exc)) from exc
     if config.work_dir == config.cache_dir:
@@ -289,10 +348,18 @@ def validate_matrix_preconditions(
         error = _check_writable_directory(directory, field)
         if error:
             errors.append(error)
+    if config.html_path:
+        error = _check_writable_directory(config.html_path.parent, 'options.html_report parent')
+        if error:
+            errors.append(error)
+        if config.html_path.exists() and not config.html_path.is_file():
+            errors.append('options.html_report must be a file destination')
 
     plugin_metadata: dict[str, Any] = {}
+    dependency_metadata: list[dict] = []
     try:
         plugin_metadata, _ = inspect_plugin(config.plugin)
+        dependency_metadata = validate_plugin_inputs(config.plugin, plugin_metadata, list(config.dependencies))
     except PreflightError as exc:
         detail = next((check.detail for check in reversed(exc.checks) if check.status == "FAIL"), None)
         errors.append(
@@ -300,7 +367,7 @@ def validate_matrix_preconditions(
             f"{f' ({detail})' if detail else ''}. Fix: provide a readable Paper plugin JAR with valid "
             "plugin.yml and main class metadata."
         )
-    except OSError as exc:
+    except (OSError, ValueError) as exc:
         errors.append(
             f"field 'plugin' resolves to '{config.plugin}', but it could not be read "
             f"({type(exc).__name__}: {exc}). Fix: make the JAR readable or select another file."
@@ -342,12 +409,48 @@ def validate_matrix_preconditions(
                 "javac": str(Path(compiler).resolve()) if Path(compiler).exists() else compiler,
             }
 
+    provider_checks = []
+    for environment in config.environments:
+        spec = environment.server_spec
+        provider = get_provider(spec.type)
+        try:
+            provider.validate(spec)
+            artifact = provider.resolve(spec) if spec.type == 'local' else None
+        except (OSError, ValueError) as exc:
+            errors.append(f'{environment.environment_id}: {exc}')
+            artifact = None
+        unsupported = provider.check_plugin(spec, plugin_metadata)
+        java_info = java_runtimes.get(environment.java)
+        if java_info:
+            version = java_info['runtime_version']
+            try:
+                major = int(version.split('.')[1] if version.startswith('1.') else version.split('.')[0])
+                for item in [plugin_metadata, *dependency_metadata]:
+                    if item.get('main_class_major', 0) > major + 44:
+                        errors.append(f"{environment.environment_id}: {item.get('plugin_name')} bytecode exceeds Java {major}")
+            except ValueError:
+                errors.append(f'{environment.environment_id}: could not determine Java major version')
+        provider_checks.append({'id': environment.environment_id, 'provider': spec.type,
+                                'status': 'unsupported' if unsupported else 'valid', 'reason': unsupported,
+                                'artifact': artifact})
     if errors:
         raise MatrixConfigError("Matrix preflight failed:\n- " + "\n- ".join(errors))
-    return {"plugin": plugin_metadata, "java_runtimes": java_runtimes}
+    return {"plugin": plugin_metadata, "java_runtimes": java_runtimes,
+            'dependencies': dependency_metadata, 'providers': provider_checks}
+
+
+def validate_matrix_paths(config: MatrixConfig) -> None:
+    validate_parallel(config.max_parallel)
+    validate_output_paths(config.work_dir, config.cache_dir, config.protected_inputs, config.report_path)
+    protect_inputs(config.report_path.with_name(config.report_path.name + '.lock'), config.protected_inputs)
+    if config.html_path:
+        validate_output_paths(config.work_dir, config.cache_dir,
+                              [*config.protected_inputs, config.report_path, config.report_path.with_name(config.report_path.name + '.lock')], config.html_path)
 
 
 def _environment_id(environment: MatrixEnvironment, result: VerificationResult) -> str:
+    if environment.server_spec.type != 'paper':
+        return environment.environment_id
     build = result.metadata.get("paper_build")
     if build is None:
         return environment.environment_id
@@ -373,13 +476,15 @@ def _result_entry(environment: MatrixEnvironment, result: VerificationResult) ->
         "id": _environment_id(environment, result),
         "requested": environment.to_dict(),
         "resolved": {
-            "paper": result.metadata.get("minecraft_version") or result.metadata.get("requested_paper"),
-            "paper_build": result.metadata.get("paper_build"),
+            **({'paper': result.metadata.get('minecraft_version') or result.metadata.get('requested_paper'),
+                'paper_build': result.metadata.get('paper_build')} if environment.server_spec.type == 'paper' else {}),
+            'server': result.metadata.get('server', {}),
             "java": result.metadata.get("java_runtime_version") or result.metadata.get("requested_java"),
         },
         "verdict": result.result,
         "failure_stage": result.failure_stage,
         "reason": result.reason,
+        'metadata': result.metadata,
         "primary_evidence": primary_evidence,
         "runtime_report": runtime_report,
         "evidence": [
@@ -401,81 +506,87 @@ def run_matrix(
     verifier: Callable[..., VerificationResult] = verify,
     progress: Callable[[int, int, MatrixEnvironment], None] | None = None,
     preflight: dict[str, Any] | None = None,
+    control: RunControl | None = None,
 ) -> dict[str, Any]:
-    validate_output_paths(config.work_dir, config.cache_dir, [config.source_path, config.plugin], config.report_path)
-    results: list[dict[str, Any]] = []
-    internal_errors = 0
-    plugin_metadata: dict[str, Any] = {"plugin_jar": str(config.plugin)}
-    if preflight and isinstance(preflight.get("plugin"), dict):
-        plugin_metadata.update(preflight["plugin"])
-    for index, environment in enumerate(config.environments, start=1):
-        if progress:
-            progress(index, len(config.environments), environment)
+    validate_matrix_paths(config)
+    # A second invocation using this report fails instead of overwriting a live run.
+    with file_lock(config.report_path.with_name(config.report_path.name + '.lock'), timeout=0):
+        return _run_matrix(config, verifier, progress, preflight, control or RunControl())
+
+
+def _run_matrix(config, verifier, progress, preflight, control):
+    import threading
+    progress_lock = threading.Lock()
+    total = len(config.environments)
+    control.emit('matrix_started', total=total, max_parallel=config.max_parallel)
+
+    def worker(index, environment):
+        control.emit('environment_started', index, provider=environment.server_spec.type)
+        errors = 0
         try:
-            result = verifier(
-                plugin=config.plugin,
-                paper_version=environment.paper,
-                java=environment.java,
-                paper_build=environment.paper_build,
-                work_root=config.work_dir,
-                cache_dir=config.cache_dir,
-                timeout=config.timeout,
-                stability=config.stability_window,
-            )
-        except Exception as exc:  # An environment must not prevent later environments.
-            internal_errors += 1
+            if control.cancelled:
+                result = VerificationResult(result='CANCELLED', failure_stage='cancelled', reason='cancelled before launch')
+            else:
+                if progress:
+                    with progress_lock:
+                        progress(index + 1, total, environment)
+                result = verifier(
+                    plugin=config.plugin, paper_version=environment.paper, java=environment.java,
+                    paper_build=environment.paper_build, work_root=config.work_dir,
+                    cache_dir=config.cache_dir, timeout=config.timeout, stability=config.stability_window,
+                    dependencies=list(config.dependencies), server=environment.server_spec,
+                    control=control, environment_index=index,
+                )
+        except BaseException as exc:
+            if isinstance(exc, KeyboardInterrupt):
+                control.cancel()
+            errors = 1
             result = VerificationResult(
-                result="UNKNOWN_FAILURE",
-                failure_stage="internal",
-                reason=f"{type(exc).__name__}: {exc}",
-                metadata={
-                    "requested_paper": environment.paper,
-                    "requested_java": environment.java,
-                },
-            )
-        if not plugin_metadata.get("plugin_name"):
-            plugin_metadata.update(
-                {
-                    key: value
-                    for key, value in result.metadata.items()
-                    if key.startswith("plugin_") or key in {"api_version", "depend", "softdepend", "loadbefore"}
-                }
-            )
+                result='UNKNOWN_FAILURE', failure_stage='internal',
+                reason=f'{type(exc).__name__}: {exc}',
+                metadata={'requested_java': environment.java})
+        result.metadata.setdefault('server', get_provider(environment.server_spec.type).requested_metadata(environment.server_spec))
         if result.workdir:
-            result.metadata.setdefault('protected_inputs', []).extend([str(config.source_path), str(config.plugin)])
-            runtime_report = Path(result.workdir) / "result.json"
+            result.metadata.setdefault('protected_inputs', []).extend(str(p) for p in config.protected_inputs)
+            runtime_report = Path(result.workdir) / 'result.json'
             if not result.report_path:
                 try:
                     write_report(result, runtime_report)
                 except (OSError, ValueError) as exc:
-                    internal_errors += 1
+                    errors += 1
                     result.metadata['verification_verdict'] = result.result
-                    result.result = 'UNKNOWN_FAILURE'
-                    result.failure_stage = 'report'
+                    result.result, result.failure_stage = 'UNKNOWN_FAILURE', 'report'
                     result.reason = f'could not save runtime report {runtime_report}: {exc}'
         entry = _result_entry(environment, result)
-        if not entry["primary_evidence"]:
-            entry["primary_evidence"] = str(config.report_path)
-        results.append(entry)
+        if not entry['primary_evidence']:
+            entry['primary_evidence'] = str(config.report_path)
+        control.emit('environment_completed', index, verdict=result.result)
+        return entry, errors, result.metadata
 
-    passed = sum(entry["verdict"] == "PASS" for entry in results)
-    failed = len(results) - passed
+    completed = schedule(config.environments, worker, config.max_parallel, control)
+    results = [item[0] for item in completed]
+    plugin_metadata = {'plugin_jar': str(config.plugin)}
+    if preflight and isinstance(preflight.get('plugin'), dict):
+        plugin_metadata.update(preflight['plugin'])
+    for _, _, metadata in completed:
+        if not plugin_metadata.get('plugin_name'):
+            plugin_metadata.update({k: v for k, v in metadata.items()
+                                    if k.startswith('plugin_') or k in {'api_version', 'depend', 'softdepend', 'loadbefore'}})
+    passed = sum(entry['verdict'] == 'PASS' for entry in results)
     report = {
-        "pluginmatrix_version": __version__,
-        "config_source": str(config.source_path),
-        "plugin": plugin_metadata,
-        "config": config.to_dict(),
-        "preflight": preflight or {},
-        "environments": results,
-        "summary": {"total": len(results), "passed": passed, "failed": failed},
-        "internal_errors": internal_errors,
-        "artifacts": {
-            "matrix_report": str(config.report_path),
-            "runtime_root": str(config.work_dir),
-        },
+        'pluginmatrix_version': __version__, 'report_schema': 1,
+        'config_source': str(config.source_path), 'plugin': plugin_metadata,
+        'config': config.to_dict(), 'preflight': preflight or {}, 'environments': results,
+        'summary': {'total': len(results), 'passed': passed, 'failed': len(results) - passed},
+        'internal_errors': sum(item[1] for item in completed), 'cancelled': control.cancelled,
+        'artifacts': {'matrix_report': str(config.report_path), 'runtime_root': str(config.work_dir)},
     }
-    validate_output_paths(config.work_dir, config.cache_dir, [config.source_path, config.plugin], config.report_path)
+    validate_matrix_paths(config)
     atomic_json(config.report_path, report)
+    if config.html_path:
+        from .reports import render_html_report
+        render_html_report(config.report_path, config.html_path)
+    control.emit('matrix_completed', total=total, completed=len(results))
     return report
 
 

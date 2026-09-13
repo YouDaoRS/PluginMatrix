@@ -111,7 +111,7 @@ def inspect_plugin(plugin_path: Path) -> tuple[dict[str, Any], list[Check]]:
                 raise ValueError('JAR contains duplicate entries')
             if any(item.compress_type not in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED) or item.flag_bits & 1 for item in entries):
                 raise ValueError('JAR uses unsupported compression or encryption')
-            if any(item.filename == 'plugin.yml' and item.file_size > 1024 * 1024 for item in entries):
+            if any(item.filename in ('plugin.yml', 'paper-plugin.yml') and item.file_size > 1024 * 1024 for item in entries):
                 raise ValueError('plugin.yml exceeds 1 MiB')
             bad = jar.testzip()
             if bad:
@@ -135,8 +135,13 @@ def _inspect_plugin(plugin_path: Path, jar: zipfile.ZipFile) -> tuple[dict[str, 
         "plugin_jar_size": plugin_path.stat().st_size,
     }
     checks.append(Check("plugin JAR", "PASS"))
+    descriptors = [name for name in ('plugin.yml', 'paper-plugin.yml') if name in jar.namelist()]
+    if len(descriptors) > 1:
+        raise PreflightError(checks, 'dual descriptors are ambiguous; supply exactly one plugin.yml or paper-plugin.yml')
+    descriptor = descriptors[0] if descriptors else 'plugin.yml'
+    metadata['plugin_descriptor'] = descriptor
     try:
-        plugin_yml = jar.read("plugin.yml").decode("utf-8")
+        plugin_yml = jar.read(descriptor).decode("utf-8")
     except KeyError as exc:
         jar.close()
         raise PreflightError(checks + [Check("plugin.yml", "FAIL", "missing")], "plugin.yml is missing") from exc
@@ -144,7 +149,7 @@ def _inspect_plugin(plugin_path: Path, jar: zipfile.ZipFile) -> tuple[dict[str, 
         jar.close()
         raise PreflightError(checks + [Check("plugin.yml", "FAIL", "not UTF-8")], "plugin.yml is not valid UTF-8") from exc
     plugin_yml = textwrap.dedent(plugin_yml.lstrip('\ufeff'))
-    critical = {'name', 'version', 'main', 'api-version', 'depend', 'softdepend', 'loadbefore', 'provides'}
+    critical = {'name', 'version', 'main', 'api-version', 'depend', 'softdepend', 'loadbefore', 'provides', 'folia-supported', 'dependencies', 'bootstrapper', 'loader'}
     seen = set()
     for line in plugin_yml.splitlines():
         if not line or line[0].isspace() or line.startswith('#'):
@@ -156,8 +161,8 @@ def _inspect_plugin(plugin_path: Path, jar: zipfile.ZipFile) -> tuple[dict[str, 
             if key in seen or not re.match(re.escape(key) + r'[ \t]*:', line):
                 raise PreflightError(checks, f'duplicate or unsupported quoted metadata key: {key}')
             seen.add(key)
-    if 'paper-plugin.yml' in jar.namelist():
-        raise PreflightError(checks, 'dual/paper-plugin.yml descriptors are not supported by this verifier')
+    if descriptor == 'paper-plugin.yml' and seen & {'dependencies', 'bootstrapper', 'loader'}:
+        raise PreflightError(checks, 'paper-plugin.yml bootstrapper/loader/nested dependencies are unsupported; use a simple descriptor and explicit local dependencies')
     checks.append(Check("plugin.yml", "PASS"))
 
     name = _yaml_value(plugin_yml, "name")
@@ -168,6 +173,10 @@ def _inspect_plugin(plugin_path: Path, jar: zipfile.ZipFile) -> tuple[dict[str, 
     softdepend = _yaml_list(plugin_yml, "softdepend")
     loadbefore = _yaml_list(plugin_yml, "loadbefore")
     provides = _yaml_list(plugin_yml, 'provides')
+    folia = _yaml_value(plugin_yml, 'folia-supported')
+    declaration = re.search(r'(?m)^folia-supported\s*:\s*(.*?)\s*$', plugin_yml)
+    if declaration and not re.fullmatch(r'(?:true|false)(?:\s+#.*)?', declaration.group(1)):
+        raise PreflightError(checks, 'folia-supported must be an unquoted YAML boolean true or false')
     metadata.update({
         "plugin_name": name,
         "plugin_version": version,
@@ -177,6 +186,7 @@ def _inspect_plugin(plugin_path: Path, jar: zipfile.ZipFile) -> tuple[dict[str, 
         "softdepend": softdepend,
         "loadbefore": loadbefore,
         "provides": provides,
+        "folia_supported": folia == 'true',
     })
     if api_version and not re.fullmatch(r"\d+\.\d+(?:\.\d+)?", api_version):
         jar.close()

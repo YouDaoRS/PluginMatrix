@@ -1,4 +1,4 @@
-"""Build the two repository Paper fixture JARs from auditable source."""
+"""Build project-owned provider fixtures from auditable source."""
 
 from __future__ import annotations
 
@@ -14,25 +14,15 @@ from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 FIXTURES = {
     "smoke": "PluginMatrixSmoke.jar",
     "enable-failure": "PluginMatrixEnableFailure.jar",
+    "folia-success": "PluginMatrixFoliaSuccess.jar",
+    "folia-unsupported": "PluginMatrixFoliaUnsupported.jar",
+    "folia-enable-failure": "PluginMatrixFoliaEnableFailure.jar",
 }
 
 
 def paper_classpath(paper_jar: Path, destination: Path) -> str:
-    with ZipFile(paper_jar) as archive:
-        names = sorted(
-            name
-            for name in archive.namelist()
-            if name.startswith("META-INF/libraries/") and name.endswith(".jar")
-        )
-        if not names:
-            raise RuntimeError("Paper server JAR does not contain META-INF/libraries/*.jar")
-        paths = []
-        for name in names:
-            target = destination / Path(name).relative_to("META-INF/libraries")
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(archive.read(name))
-            paths.append(target)
-    return os.pathsep.join(str(path) for path in paths)
+    from pluginmatrix.probe import _extract_paper_libraries
+    return _extract_paper_libraries(paper_jar, destination)
 
 
 def build_fixture(root: Path, fixture: str, output: Path, javac: str, classpath: str) -> None:
@@ -67,6 +57,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--paper-jar", required=True, type=Path)
     parser.add_argument("--javac", default=shutil.which("javac") or "javac")
+    parser.add_argument('--output-dir', type=Path, help='build into a separate directory')
+    parser.add_argument('--fixture', action='append', choices=FIXTURES, help='select specific fixtures; default all')
     args = parser.parse_args(argv)
     paper_jar = args.paper_jar.resolve()
     if not paper_jar.is_file():
@@ -74,8 +66,10 @@ def main(argv: list[str] | None = None) -> int:
     root = Path(__file__).resolve().parent
     with tempfile.TemporaryDirectory(prefix="pluginmatrix-paper-libraries-") as temporary:
         classpath = paper_classpath(paper_jar, Path(temporary))
-        for fixture, filename in FIXTURES.items():
-            output = root / filename
+        for fixture in args.fixture or FIXTURES:
+            filename = FIXTURES[fixture]
+            output = (args.output_dir or root) / filename
+            output.parent.mkdir(parents=True, exist_ok=True)
             build_fixture(root, fixture, output, args.javac, classpath)
             print(output)
     return 0

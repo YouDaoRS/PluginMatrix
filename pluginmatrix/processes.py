@@ -58,7 +58,8 @@ def _windows_job(process):
 
 def start_process(command, cwd, output):
     options = {'creationflags': 0x4} if os.name == 'nt' else {'start_new_session': True}
-    process = subprocess.Popen(list(command), cwd=cwd, stdout=output, stderr=subprocess.STDOUT, **options)
+    process = subprocess.Popen(list(command), cwd=cwd, stdin=subprocess.DEVNULL,
+                               stdout=output, stderr=subprocess.STDOUT, **options)
     try:
         if os.name == 'nt':
             # Assign before running user code, so even short-lived parents cannot escape tracking.

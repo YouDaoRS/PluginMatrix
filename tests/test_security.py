@@ -282,7 +282,7 @@ class SecurityTests(unittest.TestCase):
 
     def test_unsafe_paper_names_and_missing_checksum_do_not_write(self):
         for name,checksum in [('../outside.jar','0'*64),('C:outside.jar','0'*64),('NUL.jar','0'*64),('COM1.jar','0'*64),('paper.jar',None)]:
-            with patch('pluginmatrix.paper.resolve_paper',return_value={'paper_jar_name':name,'paper_sha256':checksum}), patch('pluginmatrix.paper.urllib.request.urlopen') as network:
+            with patch('pluginmatrix.paper.resolve_paper',return_value={'paper_jar_name':name,'paper_sha256':checksum}), patch('pluginmatrix.artifacts.open_official') as network:
                 with self.assertRaises(PaperDownloadError): ensure_paper('1.20.1',self.root/'cache')
                 network.assert_not_called()
         self.assertFalse((self.root/'outside.jar').exists())

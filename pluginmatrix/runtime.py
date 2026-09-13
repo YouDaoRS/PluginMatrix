@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 import time
+import threading
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -19,6 +20,9 @@ from .model import Check, EvidenceEvent, VerificationResult
 from .paper import PaperDownloadError, ensure_paper
 from .preflight import PreflightError, inspect_plugin, java_target_name
 from .probe import PROBE_FILE_NAME, PROBE_PLUGIN_NAME, build_probe_plugin, read_probe_evidence
+from .providers import ServerSpec, get_provider
+from .control import RunControl, RunCancelled
+from .locking import file_lock
 
 
 READY_MARKERS = ("done (", 'for help, type "help"')
@@ -96,6 +100,9 @@ class RuntimeEvidence:
     expected_version: str | None = None
     expected_main: str | None = None
     expected_source: Path | None = None
+    allowed_sources: tuple[Path, ...] | None = None
+    provider_type: str = 'paper'
+    cancelled: bool = False
 
     def add(self, kind: str, timestamp: float, source: str = "log", detail: str | None = None) -> None:
         if any(event.kind == kind and event.detail == detail for event in self.events):
@@ -129,12 +136,10 @@ class RuntimeEvidence:
         if logger and logger.group(1).casefold() not in {self.plugin_name.casefold(), PROBE_PLUGIN_NAME.casefold(), 'minecraft', 'minecraftserver', 'directoryprovidersource', 'fileprovidersource', 'simplepluginmanager', 'paperplugininstancemanager'}:
             return
 
-        environment_marker = any(marker in lowered for marker in ENVIRONMENT_FAILURE_MARKERS)
-        if any(marker in lowered for marker in ("failed to download", "could not download")):
-            environment_marker = any(
-                token in lowered
-                for token in RUNTIME_DOWNLOAD_CONTEXT_MARKERS
-            )
+        server_events = get_provider(self.provider_type).interpret_server_line(stripped)
+        if logger and logger.group(1).casefold() in {self.plugin_name.casefold(), PROBE_PLUGIN_NAME.casefold()}:
+            server_events = set()
+        environment_marker = 'environment_failure' in server_events
         if environment_marker:
             self.environment_failed = True
             self.failure_reason = _reason_from_line(stripped) or stripped
@@ -143,7 +148,7 @@ class RuntimeEvidence:
             self.failure_reason = _reason_from_line(stripped) or stripped
             self.add("environment_failure", timestamp, detail=self.failure_reason)
 
-        if any(marker in lowered for marker in SERVER_FAILURE_MARKERS):
+        if server_events & {'startup_failure', 'shutdown'}:
             self.server_failed = True
             self.failure_reason = _reason_from_line(stripped) or stripped
             self.add("server_failure", timestamp, detail=self.failure_reason)
@@ -192,7 +197,7 @@ class RuntimeEvidence:
             self.plugin_discovered = True
             self.add("plugin_discovered", timestamp, detail=stripped)
 
-        if any(marker in lowered for marker in READY_MARKERS):
+        if 'ready' in server_events:
             self.server_ready = True
             self.add("server_ready", timestamp, detail=stripped)
 
@@ -214,7 +219,7 @@ class RuntimeEvidence:
             return
         if payload.get('target_present') and self.expected_source is not None:
             actual = Path(str(payload.get('target_source') or '')).resolve()
-            allowed = {self.expected_source.resolve(), (self.expected_source.parent / '.paper-remapped' / self.expected_source.name).resolve()}
+            allowed = {p.resolve() for p in (self.allowed_sources or get_provider(self.provider_type).allowed_sources(None, self.expected_source))}
             if actual not in allowed or not actual.is_file():
                 self.direct_runtime_error = 'runtime probe source does not match the isolated target JAR'
                 self.add('runtime_probe_identity_mismatch', timestamp, source='runtime_probe', detail=json.dumps(payload, sort_keys=True))
@@ -257,6 +262,8 @@ class RuntimeEvidence:
     def verdict(self, process_alive: bool, timed_out: bool) -> tuple[str, str | None, str | None]:
         if self.environment_failed:
             return "ENVIRONMENT_INVALID", "environment", self.failure_reason
+        if self.cancelled:
+            return 'CANCELLED', 'cancelled', 'run cancelled; owned server processes cleaned up'
         if self.plugin_load_failed:
             return "PLUGIN_LOAD_FAILED", "plugin_load", self.failure_reason
         if self.plugin_enable_failed:
@@ -358,7 +365,7 @@ def _seed_paper_runtime(server_dir: Path, runtime_cache: Path) -> bool:
 
 def _cache_paper_runtime(server_dir: Path, runtime_cache: Path, paper_version: str) -> bool:
     reject_links(runtime_cache)
-    if not (server_dir / "versions" / paper_version / f"paper-{paper_version}.jar").is_file():
+    if not any((server_dir / 'versions').rglob('*.jar')):
         return False
     for name in ("cache", "libraries", "versions"):
         source = server_dir / name
@@ -397,6 +404,20 @@ def _allocate_server_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
         probe.bind(("127.0.0.1", 0))
         return int(probe.getsockname()[1])
+
+
+_PORT_LOCK = threading.Lock()
+_ACTIVE_PORTS: set[int] = set()
+
+
+def _lease_port() -> int:
+    with _PORT_LOCK:
+        for _ in range(100):
+            port = _allocate_server_port()
+            if port not in _ACTIVE_PORTS:
+                _ACTIVE_PORTS.add(port)
+                return port
+    raise OSError('could not allocate an independent server port')
 
 
 def _create_run_dir(work_root: Path) -> Path:
@@ -439,6 +460,8 @@ def run_server_process(
     expected_version: str | None = None,
     expected_main: str | None = None, expected_source: Path | None = None,
     run_id: str = '',
+    allowed_sources: tuple[Path, ...] | None = None, provider_type: str = 'paper',
+    control: RunControl | None = None, environment_index: int | None = None,
 ) -> ProcessRun:
     if any(isinstance(value, bool) or not math.isfinite(value) or value <= 0 for value in (timeout, stability)):
         raise ValueError('timeout and stability_window must be positive finite seconds')
@@ -446,6 +469,8 @@ def run_server_process(
                                require_direct_runtime=require_direct_runtime,
                                expected_version=expected_version, expected_main=expected_main,
                                expected_source=expected_source, observation_complete=False)
+    evidence.allowed_sources, evidence.provider_type = allowed_sources, provider_type
+    control = control or RunControl()
     process = None
     started = time.monotonic()
     ready_at = None
@@ -459,8 +484,11 @@ def run_server_process(
     pending = b''
     timed_out = False
     exit_code = None
+    progress_at = 0.0
+    enabled_emitted = False
     log_path.parent.mkdir(parents=True, exist_ok=True)
     try:
+        control.check()
         reject_links(log_path)
         if probe_path:
             reject_links(probe_path)
@@ -469,6 +497,7 @@ def run_server_process(
         with log_path.open('xb', buffering=0) as output, log_path.open('rb') as log:
             process = start_process(command, server_dir, output)
             evidence.mark_process_started(0)
+            control.emit('server_started', environment_index, provider=provider_type)
             def read_log():
                 nonlocal pending
                 # Bound work per poll so heavy logging cannot starve timeout/probe checks.
@@ -484,6 +513,7 @@ def run_server_process(
                 return bool(data)
 
             while True:
+                control.check()
                 backlog = read_log()
                 now = time.monotonic()
                 if evidence.server_ready and ready_at is None:
@@ -508,10 +538,16 @@ def run_server_process(
                                 first_probe = first_probe if first_probe is not None else now
                                 last_probe, sequence, emitted_at = now, current, updated
                                 evidence.observe_probe(payload, now - started)
+                                if evidence.direct_plugin_enabled and not evidence.direct_runtime_error and not enabled_emitted:
+                                    control.emit('plugin_enabled', environment_index)
+                                    enabled_emitted = True
                                 if ready_at is not None and window_start is None and evidence.direct_plugin_enabled and not evidence.direct_runtime_error:
                                     window_start = now
                                     completion_sequence = sequence
                                     evidence.add('stability_window_started', now - started, source='process', detail=f'sequence={sequence}; configured_seconds={stability}')
+                if window_start is not None and now - progress_at >= 1:
+                    control.emit('stability_progress', environment_index, elapsed=round(now-window_start, 2), duration=stability)
+                    progress_at = now
                 exit_code = process.poll()
                 if exit_code is not None:
                     # Retain failure lines emitted immediately before exit.
@@ -549,6 +585,10 @@ def run_server_process(
                     evidence.add('runtime_probe_failure', now - started, source='runtime_probe', detail=evidence.direct_runtime_error)
                     break
                 time.sleep(0.05)
+    except (RunCancelled, KeyboardInterrupt):
+        control.cancel()
+        evidence.cancelled = True
+        evidence.add('run_cancelled', time.monotonic() - started, source='process')
     except (OSError, subprocess.SubprocessError) as exc:
         evidence.environment_failed = True
         evidence.failure_reason = str(exc)
@@ -604,15 +644,26 @@ def verify(
     paper_build: int | None = None,
     paper_jar: Path | None = None,
     paper_metadata: dict[str, Any] | None = None,
+    server: ServerSpec | None = None,
+    control: RunControl | None = None,
+    environment_index: int | None = None,
 ) -> VerificationResult:
     result = VerificationResult()
+    control = control or RunControl()
+    server = server or ServerSpec('paper', paper_version, paper_build)
+    provider = get_provider(server.type)
+    result.metadata['server'] = provider.requested_metadata(server)
+    result.metadata['server_type'] = server.type
     result.metadata.update(pluginmatrix_version=__version__, timeout=timeout, stability_window=stability)
-    result.metadata["requested_paper"] = paper_version
+    if server.type == 'paper':
+        result.metadata["requested_paper"] = paper_version
     result.metadata["requested_java"] = java
     result.metadata['protected_inputs'] = [str(path.resolve()) for path in [plugin, *(dependencies or []), *([paper_jar] if paper_jar else [])]]
+    if server.jar:
+        result.metadata['protected_inputs'].append(str(server.jar.resolve()))
     result.metadata['cache_dir'] = str(cache_dir.resolve())
     try:
-        validate_output_paths(work_root, cache_dir, [plugin, *(dependencies or [])])
+        validate_output_paths(work_root, cache_dir, [plugin, *(dependencies or []), *([server.jar] if server.jar else [])])
         workdir = _create_run_dir(work_root)
     except (OSError, ValueError) as exc:
         result.result, result.failure_stage, result.reason = 'ENVIRONMENT_INVALID', 'environment', str(exc)
@@ -621,14 +672,22 @@ def verify(
     log_path = workdir / "server.log"
     result.log_path = str(log_path.resolve())
     try:
+        control.check()
+        provider.validate(server)
         metadata, checks = inspect_plugin(plugin)
         result.metadata.update(metadata)
         result.checks.extend(checks)
         if any(isinstance(value, bool) or not math.isfinite(value) or value <= 0 for value in (timeout, stability)):
             raise ValueError('timeout and stability_window must be positive finite seconds')
-        if not re.fullmatch(r'\d+\.\d+(?:\.\d+)?', paper_version) or (paper_build is not None and (type(paper_build) is not int or paper_build <= 0)):
-            raise ValueError('invalid Paper version/build')
         result.metadata['dependencies'] = validate_plugin_inputs(plugin, metadata, dependencies or [])
+        unsupported = provider.check_plugin(server, metadata)
+        if unsupported:
+            result.result, result.failure_stage, result.reason = 'PLUGIN_UNSUPPORTED', 'provider_preflight', unsupported
+            result.checks.append(Check('Provider support declaration', 'FAIL', unsupported))
+            return result
+        for dependency in result.metadata['dependencies']:
+            if provider.check_plugin(server, dependency):
+                raise ValueError(f"dependency {dependency['plugin_name']} has no Folia support declaration")
         java_bin, java_version = resolve_java(java)
         result.metadata["java_executable"] = str(Path(java_bin).resolve()) if Path(java_bin).exists() else java_bin
         result.metadata["java_runtime_version"] = java_version
@@ -646,44 +705,61 @@ def verify(
             result.reason = detail
             return result
         if paper_jar is None:
-            paper_jar, resolved_metadata = ensure_paper(paper_version, cache_dir, paper_build)
+            if server.type == 'paper':
+                paper_jar, resolved_metadata = ensure_paper(server.version, cache_dir, server.build, control, environment_index)
+            else:
+                paper_jar, resolved_metadata = provider.prepare(server, cache_dir, control, environment_index)
         else:
+            if server.type != 'paper':
+                raise ValueError('legacy paper_jar override is Paper-only; use server.type=local for custom JARs')
             resolved_metadata = paper_metadata or {"paper_jar_name": paper_jar.name}
-        resolved_metadata = {
-            **resolved_metadata,
-            "paper_jar": str(paper_jar.resolve()),
-            "paper_jar_sha256": sha256_file(paper_jar),
-        }
+        actual_hash = sha256_file(paper_jar)
+        expected_hash = resolved_metadata.get('jar_sha256') or resolved_metadata.get('paper_jar_sha256')
+        if expected_hash and actual_hash != expected_hash:
+            raise ValueError('server JAR changed after provider resolution')
+        resolved_metadata = {**resolved_metadata, 'jar': str(paper_jar.resolve()), 'jar_sha256': actual_hash}
+        if server.type == 'paper':
+            resolved_metadata.update(paper_jar=resolved_metadata['jar'], paper_jar_sha256=resolved_metadata['jar_sha256'])
+            resolved_metadata.setdefault('resolved_build', resolved_metadata.get('paper_build'))
+        result.metadata['server'].update(resolved_metadata)
         result.metadata.update({key: value for key, value in resolved_metadata.items()
                                 if key.startswith('paper_') or key == 'minecraft_version'})
-        result.checks.append(Check("Paper artifact", "PASS", f"build {resolved_metadata.get('paper_build', 'local')}"))
+        result.checks.append(Check('Server artifact', 'PASS', f"{server.type} build {resolved_metadata.get('resolved_build', 'local')}"))
+    except (RunCancelled, KeyboardInterrupt):
+        control.cancel()
+        result.result, result.failure_stage, result.reason = 'CANCELLED', 'cancelled', 'run cancelled before startup'
+        return result
     except PreflightError as exc:
         result.checks.extend(exc.checks)
         result.result = exc.state
         result.failure_stage = "preflight"
         result.reason = str(exc)
         return result
-    except (ValueError, PaperDownloadError) as exc:
+    except (OSError, ValueError, PaperDownloadError) as exc:
         result.result = "ENVIRONMENT_INVALID"
         result.failure_stage = "environment"
         result.reason = str(exc)
         result.checks.append(Check("Environment", "FAIL", str(exc)))
         return result
 
+    server_port = None
     try:
+        control.check()
         server_dir = workdir / "server"
         plugins_dir = server_dir / "plugins"
         plugins_dir.mkdir(parents=True)
-        shutil.copy2(paper_jar, server_dir / "paper.jar")
-        expected_paper_hash = result.metadata.get("paper_jar_sha256")
-        if expected_paper_hash and sha256_file(server_dir / "paper.jar") != expected_paper_hash:
+        server_filename = 'paper.jar' if server.type == 'paper' else 'server.jar'
+        expected_paper_hash = result.metadata['server']['jar_sha256']
+        if atomic_copy(paper_jar, server_dir / server_filename) != expected_paper_hash:
             raise ValueError("Paper JAR changed while preparing the isolated server")
-        runtime_cache = _paper_runtime_cache_dir(cache_dir, {**result.metadata, "requested_paper": paper_version})
-        runtime_cache_seeded = _seed_paper_runtime(server_dir, runtime_cache)
-        result.metadata["paper_runtime_cache"] = {
-            "path": str(runtime_cache.resolve()),
-            "seeded": runtime_cache_seeded,
-        }
+        runtime_cache = provider.runtime_cache(server, result.metadata['server'], cache_dir)
+        cache_info = {'path': str(runtime_cache.resolve()) if runtime_cache else None, 'seeded': False}
+        result.metadata['runtime_cache'] = cache_info
+        if server.type == 'paper':
+            result.metadata['paper_runtime_cache'] = cache_info
+        if runtime_cache:
+            with file_lock(runtime_cache.with_suffix('.lock'), control):
+                cache_info['seeded'] = _seed_paper_runtime(server_dir, runtime_cache)
         shutil.copy2(plugin, plugins_dir / plugin.name)
         if sha256_file(plugins_dir / plugin.name) != result.metadata['plugin_jar_sha256']:
             raise ValueError('target JAR changed after preflight')
@@ -710,13 +786,15 @@ def verify(
         result.metadata['probe_run_id'] = run_id
         try:
             build_probe_plugin(
-                paper_jar,
+                server_dir / server_filename,
                 plugins_dir,
                 str(result.metadata.get("plugin_name") or ""),
                 probe_path,
                 java_bin,
                 java_major,
                 run_id=run_id,
+                regionized=result.metadata['server']['regionized_runtime'],
+                standalone_api=server.runtime == 'bukkit',
             )
         except RuntimeError as exc:
             result.result = "ENVIRONMENT_INVALID"
@@ -725,10 +803,11 @@ def verify(
             result.checks.append(Check("Runtime probe", "FAIL", str(exc)))
             return result
         (server_dir / "eula.txt").write_text("eula=true\n", encoding="utf-8")
-        server_port = _allocate_server_port()
+        control.check()
+        server_port = _lease_port()
         _write_server_properties(server_dir, server_port)
         result.metadata["server_port"] = server_port
-        command = [java_bin, "-jar", "paper.jar", "--nogui"]
+        command = provider.command(server, java_bin, server_filename)
         result.metadata["command"] = command
         process_run = run_server_process(
             command=command,
@@ -743,6 +822,8 @@ def verify(
             expected_version=str(result.metadata.get('plugin_version') or '') or None,
             expected_main=result.metadata['plugin_main'], expected_source=plugins_dir / plugin.name,
             run_id=run_id,
+            allowed_sources=provider.allowed_sources(server, plugins_dir / plugin.name),
+            provider_type=server.type, control=control, environment_index=environment_index,
         )
         evidence = process_run.evidence
         result.evidence = evidence.events
@@ -753,11 +834,17 @@ def verify(
             timed_out=process_run.timed_out,
         )
         try:
-            result.metadata["paper_runtime_cache"]["captured"] = _cache_paper_runtime(server_dir, runtime_cache, paper_version)
+            if runtime_cache and not control.cancelled:
+                with file_lock(runtime_cache.with_suffix('.lock'), control):
+                    cache_info['captured'] = _cache_paper_runtime(server_dir, runtime_cache, server.version)
         except (OSError, ValueError) as exc:
-            result.metadata['paper_runtime_cache']['captured'] = False
+            cache_info['captured'] = False
             result.checks.append(Check('Runtime cache', 'WARN', str(exc)))
         result.checks.extend(_runtime_checks(evidence, process_run))
+        return result
+    except (RunCancelled, KeyboardInterrupt):
+        control.cancel()
+        result.result, result.failure_stage, result.reason = 'CANCELLED', 'cancelled', 'run cancelled'
         return result
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as exc:
         result.result = 'ENVIRONMENT_INVALID'
@@ -765,6 +852,10 @@ def verify(
         result.reason = f'{type(exc).__name__}: {exc}'
         result.checks.append(Check('Environment', 'FAIL', result.reason))
         return result
+    finally:
+        if server_port is not None:
+            with _PORT_LOCK:
+                _ACTIVE_PORTS.discard(server_port)
 
 
 def write_report(result: VerificationResult, path: Path) -> None:
@@ -775,6 +866,8 @@ def write_report(result: VerificationResult, path: Path) -> None:
     inputs.extend(Path(item['plugin_jar']) for item in result.metadata.get('dependencies', []))
     if result.metadata.get("paper_jar"):
         inputs.append(Path(result.metadata["paper_jar"]))
+    if result.metadata.get('server', {}).get('jar'):
+        inputs.append(Path(result.metadata['server']['jar']))
     if result.log_path:
         inputs.append(Path(result.log_path))
     protect_inputs(path, inputs)

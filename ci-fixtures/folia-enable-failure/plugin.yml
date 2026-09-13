@@ -1,0 +1,5 @@
+name: PluginMatrixFoliaEnableFailure
+version: 1.0.0
+main: pluginmatrix.fixture.FoliaEnableFailurePlugin
+api-version: '1.20'
+folia-supported: true

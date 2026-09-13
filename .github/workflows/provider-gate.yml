@@ -1,0 +1,44 @@
+name: Provider Gate
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  providers:
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: python -m pip install -e .
+      - name: Run official provider, local and mixed serial/parallel gates
+        id: gate
+        run: python -m tests.real_provider_gate --java 21
+      - name: Preserve provider evidence
+        if: always() && steps.gate.outputs.gate_root != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: provider-gate-${{ matrix.os }}
+          path: |
+            ${{ steps.gate.outputs.gate_root }}/*.json
+            ${{ steps.gate.outputs.gate_root }}/*.html
+            ${{ steps.gate.outputs.gate_root }}/*.jsonl
+            ${{ steps.gate.outputs.gate_root }}/*.md
+            ${{ steps.gate.outputs.gate_root }}/runs/**/result.json
+            ${{ steps.gate.outputs.gate_root }}/runs/**/server.log
+          if-no-files-found: error
+          retention-days: 14

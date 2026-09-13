@@ -29,6 +29,8 @@ def build_probe_plugin(
     java_executable: str,
     java_major: int,
     run_id: str = "",
+    regionized: bool = False,
+    standalone_api: bool = False,
 ) -> Path:
     """Compile a tiny read-only Bukkit plugin against the exact Paper artifact."""
     javac = resolve_javac(java_executable)
@@ -42,7 +44,9 @@ def build_probe_plugin(
         source = root / "RuntimeProbe.java"
         classes = root / "classes"
         classes.mkdir()
-        classpath = _extract_paper_libraries(paper_jar, root / "libraries")
+        classpath = _extract_paper_libraries(paper_jar, root / "libraries", standalone_api)
+        scheduler = ('getServer().getGlobalRegionScheduler().runAtFixedRate(this, task -> writeEvidence(), 1L, 1L);'
+                     if regionized else 'getServer().getScheduler().runTaskTimer(this, this::writeEvidence, 1L, 1L);')
         source.write_text(
             f'''package pluginmatrix.probe;
 
@@ -57,7 +61,7 @@ public final class RuntimeProbe extends JavaPlugin {{
     private static final String OUTPUT = "{_java_string(evidence_path.name)}";
     private long sequence = 0;
     private long lastEmittedAt = 0;
-    private boolean disabled = false;
+    private volatile boolean disabled = false;
 
     @Override
     public void onEnable() {{
@@ -67,7 +71,7 @@ public final class RuntimeProbe extends JavaPlugin {{
                 if (event.getPlugin().getName().equals(TARGET)) disabled = true;
             }}
         }}, this);
-        getServer().getScheduler().runTaskTimer(this, this::writeEvidence, 1L, 1L);
+        {scheduler}
     }}
 
     private void writeEvidence() {{
@@ -145,6 +149,7 @@ public final class RuntimeProbe extends JavaPlugin {{
             f"version: 0.1.0\n"
             f"main: {PROBE_MAIN_CLASS}\n"
             "api-version: '1.13'\n"
+            + ("folia-supported: true\n" if regionized else "")
         )
         with ZipFile(jar_path, "w", ZIP_DEFLATED) as archive:
             archive.writestr("plugin.yml", plugin_yml)
@@ -161,7 +166,7 @@ def resolve_javac(java_executable: str) -> str | None:
     return shutil.which("javac")
 
 
-def _extract_paper_libraries(paper_jar: Path, destination: Path) -> str:
+def _extract_paper_libraries(paper_jar: Path, destination: Path, standalone_api: bool = False) -> str:
     try:
         with ZipFile(paper_jar) as archive:
             candidates = [
@@ -171,8 +176,10 @@ def _extract_paper_libraries(paper_jar: Path, destination: Path) -> str:
                 and name.endswith(".jar")
             ]
             if not candidates:
+                if standalone_api and 'org/bukkit/plugin/java/JavaPlugin.class' in archive.namelist():
+                    return str(paper_jar.resolve())
                 raise RuntimeError("Paper artifact does not embed libraries for runtime probe compilation")
-            if len(candidates) > 10000 or len(set(candidates)) != len(candidates):
+            if len(candidates) > 10000 or len({name.casefold() for name in candidates}) != len(candidates):
                 raise RuntimeError("Paper artifact contains too many embedded libraries")
             if sum(archive.getinfo(name).file_size for name in candidates) > 512 * 1024 * 1024:
                 raise RuntimeError('embedded Paper libraries exceed 512 MiB')

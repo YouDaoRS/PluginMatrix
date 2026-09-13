@@ -4,7 +4,7 @@
 
 ## 项目定位
 
-PluginMatrix 是一个面向 Minecraft Paper 插件开发者的发布前运行时兼容性验证工具。
+PluginMatrix 是一个面向 Minecraft 插件开发者的发布前运行时兼容性验证工具。
 
 当前核心流程是：
 
@@ -17,16 +17,16 @@ PluginMatrix 是一个面向 Minecraft Paper 插件开发者的发布前运行�
   -> 输出结构化结论与原始日志
 ```
 
-Matrix v0.2 已提供同一个 Verifier 的多个环境串行编排。v0.3 已提供离线 CI 和手动 Matrix workflow；并行执行仍属于后续阶段。
+v0.6 开发沿用同一个 Runtime Verifier，通过 Provider 支持 Paper、Purpur、Folia 和明确运行契约的 local JAR。Matrix 默认串行，可选 1–8 个并发环境。
 
 ## 当前技术边界
 
 - 当前实现语言是 Python，要求 Python 3.10+。
 - 当前 CLI 入口是 `python -m pluginmatrix`，安装后也支持 `pluginmatrix`。
-- 当前只支持 Paper，不要擅自扩展到 Spigot、Folia、Fabric、Forge、Velocity 或其他服务端。
-- Runtime Verifier 单次只验证一个插件、一个 Paper/Java 环境；Matrix 在本地按顺序重复调用它。
+- 官方 Provider 为 Paper、Purpur、Folia；local/custom 必须明确指定受支持运行契约。不要新增其他官方 Provider。
+- Runtime Verifier 单次只验证一个插件、一个服务端/Java 环境；所有 Provider 复用它，禁止复制 verifier。
 - 依赖插件只接受用户明确提供的本地 JAR。
-- Paper 下载使用官方 API，并记录实际 Paper build 和 SHA-256。
+- 内置 Provider 使用官方 API，记录实际 build、来源、官方校验算法与本地 SHA-256。local 不下载服务端，不修改输入。
 - 每次运行必须使用隔离目录，并保留原始 `server.log`。
 - 结果必须有稳定的机器可读状态和 JSON 报告。
 
@@ -34,7 +34,7 @@ Matrix v0.2 已提供同一个 Verifier 的多个环境串行编排。v0.3 已�
 
 支持的顶层结果状态：
 
-`ENVIRONMENT_INVALID`、`SERVER_START_FAILED`、`SERVER_START_TIMEOUT`、`PLUGIN_NOT_DISCOVERED`、`PLUGIN_LOAD_FAILED`、`PLUGIN_ENABLE_FAILED`、`PLUGIN_DISABLED`、`PASS`、`UNKNOWN_FAILURE`
+`ENVIRONMENT_INVALID`、`SERVER_START_FAILED`、`SERVER_START_TIMEOUT`、`PLUGIN_NOT_DISCOVERED`、`PLUGIN_LOAD_FAILED`、`PLUGIN_ENABLE_FAILED`、`PLUGIN_DISABLED`、`PLUGIN_UNSUPPORTED`、`CANCELLED`、`PASS`、`UNKNOWN_FAILURE`
 
 必须尽量区分环境问题与插件问题：
 
@@ -42,6 +42,7 @@ Matrix v0.2 已提供同一个 Verifier 的多个环境串行编排。v0.3 已�
 - `plugin.yml` 缺失、主类缺失、插件加载异常、enable 异常，属于插件相关问题。
 - `PASS` 只表示服务器成功启动，runtime probe 通过 `PluginManager` 找到目标插件并确认其 `isEnabled()`，且在稳定观察窗口内没有被 disable。
 - 不得把 `PASS` 描述为“插件所有功能都兼容”。
+- Folia 未声明支持返回 `PLUGIN_UNSUPPORTED`；Folia PASS 不证明线程安全或跨 region 安全。
 
 ## 开发原则
 
@@ -61,10 +62,10 @@ Matrix v0.2 已提供同一个 Verifier 的多个环境串行编排。v0.3 已�
 - Bot、GUI 自动化、完整 E2E 测试 DSL；
 - AI 日志分析、自动修复或兼容性评分；
 - 自动下载 Vault、WorldEdit 等第三方依赖；
-- Spigot/Folia/Fabric/Forge/Velocity 支持；
+- 新增 Spigot/Fabric/Forge/Velocity 官方 Provider 或自动 BuildTools；
 - 性能基准测试、分布式服务器拓扑或自动生成测试用例；
 - 与 EnhancedFly 绑定的专用逻辑。
-- 并行 Matrix、复杂 Matrix DSL 或跨环境共享状态。
+- 复杂 Matrix DSL 或跨环境共享运行状态。
 
 ## 代码与验证要求
 

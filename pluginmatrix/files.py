@@ -91,3 +91,23 @@ def atomic_copy(source: Path, destination: Path) -> str:
     finally:
         if temporary is not None:
             temporary.unlink(missing_ok=True)
+
+
+def atomic_text(path: Path, content: str, overwrite: bool = True) -> None:
+    reject_links(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', newline='\n',
+                                         dir=path.parent, prefix='.pluginmatrix-', delete=False) as stream:
+            temporary = Path(stream.name)
+            stream.write(content)
+        reject_links(path)
+        if overwrite:
+            os.replace(temporary, path)
+        else:
+            # Atomic no-clobber publication, including races with another init.
+            os.link(temporary, path)
+    finally:
+        if temporary:
+            temporary.unlink(missing_ok=True)
