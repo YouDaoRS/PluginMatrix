@@ -4,7 +4,7 @@ PluginMatrix is an early-stage command-line verifier for Minecraft Paper plugin 
 
 It supports one environment with `test` and a sequential list of environments with `matrix`. It does not support Spigot, Folia, Fabric, Forge, Velocity, parallel Matrix execution, gameplay bots, or complete feature testing.
 
-The current development version is **0.5.1 (unreleased)**, a trust and safety patch for v0.5.0. See [release preparation](docs/V0.5.1_PREPARATION.md) for completed checks and pending hosted validation.
+The current release is **0.5.1**, a trust and safety patch for v0.5.0. See [release preparation](docs/V0.5.1_PREPARATION.md) and the [GitHub Release](https://github.com/YouDaoRS/PluginMatrix/releases/tag/v0.5.1) for the completed validation record.
 
 ## What `PASS` means
 

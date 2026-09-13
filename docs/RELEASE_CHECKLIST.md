@@ -2,7 +2,7 @@
 
 Preparation date: 2026-09-13. Baseline: v0.5.0 / `46b91b0b26e7d88d388df637cb07df2260932271`.
 
-v0.5.1 is an unreleased verdict-trust and safety patch. On 2026-09-13 the owner authorized normal commits/pushes and hosted validation, followed by an annotated tag and GitHub Release only after all core gates pass. Preserve the existing v0.5.0 tag and assets. PyPI, history rewriting, remote deletion and v0.6 work are excluded.
+v0.5.1 is the released verdict-trust and safety patch. On 2026-09-13 the owner authorized normal commits/pushes and hosted validation, followed by the annotated tag and GitHub Release after all core gates passed. Preserve the existing v0.5.0 tag and assets. PyPI, history rewriting, remote deletion and v0.6 work are excluded.
 
 ## Local preparation
 
