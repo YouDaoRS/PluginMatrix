@@ -18,7 +18,7 @@ from . import __version__
 from .files import atomic_json, atomic_copy, protect_inputs, reject_links, sha256_file, validate_output_paths
 from .processes import start_process, stop_process
 from .model import Check, EvidenceEvent, VerificationResult
-from .paper import PaperDownloadError, ensure_paper
+from .paper import ensure_paper
 from .preflight import PreflightError, inspect_plugin, java_target_name
 from .probe import PROBE_FILE_NAME, PROBE_FRESHNESS_SECONDS, PROBE_PLUGIN_NAME, build_probe_plugin, read_probe_evidence
 from .providers import ServerSpec, get_provider
@@ -26,29 +26,11 @@ from .control import RunControl, RunCancelled
 from .locking import file_lock, reject_lock_output
 
 
-READY_MARKERS = ("done (", 'for help, type "help"')
-ENVIRONMENT_FAILURE_MARKERS = (
-    "paperclip.setupclasspath",
-    "unable to access jarfile",
-    "could not reserve enough space",
-)
+STANDARD_PROBE_START_TIMEOUT_SECONDS = 10
 NETWORK_FAILURE_MARKERS = (
     "connection reset",
     "connection refused",
     "unknown host",
-)
-RUNTIME_DOWNLOAD_CONTEXT_MARKERS = (
-    "mojang",
-    "paperclip",
-    "downloadcontext",
-    "server dependency",
-    "paper jar",
-)
-SERVER_FAILURE_MARKERS = (
-    "failed to bind",
-    "address already in use",
-    "server thread stopped",
-    "error during server startup",
 )
 PLUGIN_LOAD_FAILURE_MARKERS = (
     "invalidpluginexception",
@@ -334,19 +316,6 @@ def resolve_java(java: str) -> tuple[str, str]:
     return candidate, version
 
 
-def _append_log(path: Path, text: str) -> None:
-    with path.open("a", encoding="utf-8", errors="replace") as stream:
-        stream.write(text)
-
-
-def _paper_runtime_cache_dir(cache_dir: Path, metadata: dict[str, Any]) -> Path:
-    version = str(metadata.get("minecraft_version") or metadata.get("requested_paper") or "unknown")
-    build = str(metadata.get("paper_build") or "local")
-    if not re.fullmatch(r'\d+\.\d+(?:\.\d+)?', version) or not re.fullmatch(r'(?:[1-9]\d*|local)', build):
-        raise ValueError('invalid Paper version/build for runtime cache path')
-    return cache_dir / "runtime" / f"paper-{version}-{build}"
-
-
 def _seed_paper_runtime(server_dir: Path, runtime_cache: Path) -> bool:
     reject_links(runtime_cache)
     if not runtime_cache.is_dir():
@@ -468,6 +437,7 @@ def run_server_process(
     expected_main: str | None = None, expected_source: Path | None = None,
     run_id: str = '',
     allowed_sources: tuple[Path, ...] | None = None, provider_type: str = 'paper',
+    regionized_runtime: bool = False,
     control: RunControl | None = None, environment_index: int | None = None,
 ) -> ProcessRun:
     if any(isinstance(value, bool) or not math.isfinite(value) or value <= 0 for value in (timeout, stability)):
@@ -493,6 +463,9 @@ def run_server_process(
     exit_code = None
     progress_at = 0.0
     enabled_emitted = False
+    probe_start_timeout = (
+        timeout if regionized_runtime else min(timeout, STANDARD_PROBE_START_TIMEOUT_SECONDS)
+    )
     log_path.parent.mkdir(parents=True, exist_ok=True)
     try:
         control.check()
@@ -571,7 +544,13 @@ def run_server_process(
                         break
                 else:
                     if window_start is None:
-                        if now >= ready_at + min(timeout, 10):
+                        # Folia's Done line precedes cold-world initialisation on
+                        # the shared region scheduler.  Keep its unpublished
+                        # settle period inside the caller's configured startup
+                        # budget; the generic ten-second post-ready cap can stop
+                        # a healthy one-thread runner just before the first safe
+                        # sample.  This does not change probe freshness or PASS.
+                        if now >= ready_at + probe_start_timeout:
                             evidence.direct_runtime_error = 'runtime probe did not produce direct plugin state evidence'
                             break
                     else:
@@ -748,7 +727,7 @@ def verify(
         result.failure_stage = "preflight"
         result.reason = str(exc)
         return result
-    except (OSError, ValueError, PaperDownloadError) as exc:
+    except (OSError, ValueError) as exc:
         result.result = "ENVIRONMENT_INVALID"
         result.failure_stage = "environment"
         result.reason = str(exc)
@@ -836,7 +815,9 @@ def verify(
             expected_main=result.metadata['plugin_main'], expected_source=plugins_dir / plugin.name,
             run_id=run_id,
             allowed_sources=provider.allowed_sources(server, plugins_dir / plugin.name),
-            provider_type=server.type, control=control, environment_index=environment_index,
+            provider_type=server.type,
+            regionized_runtime=bool(result.metadata['server']['regionized_runtime']),
+            control=control, environment_index=environment_index,
         )
         evidence = process_run.evidence
         result.evidence = evidence.events

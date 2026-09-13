@@ -187,7 +187,7 @@ class ParallelTests(unittest.TestCase):
             outcome = run_server_process(
                 [sys.executable, '-u', '-c', code], directory, directory/'server.log',
                 'Example', 'target.jar', 5, .25, directory/'probe.json', True,
-                run_id=str(index), provider_type='folia', control=control,
+                run_id=str(index), provider_type='folia', regionized_runtime=True, control=control,
                 environment_index=index,
             )
             started = next(e for e in outcome.evidence.events if e.kind == 'stability_window_started')
@@ -196,4 +196,7 @@ class ParallelTests(unittest.TestCase):
             self.assertGreaterEqual(completed.timestamp - started.timestamp, .25)
             return outcome.evidence.verdict(outcome.exit_code is None, outcome.timed_out)[0]
 
-        self.assertEqual(schedule(range(3), worker, 3, control), ['PASS'] * 3)
+        # A small patched standard-server cap proves regionized runs consume
+        # their configured startup budget instead of that generic grace.
+        with patch('pluginmatrix.runtime.STANDARD_PROBE_START_TIMEOUT_SECONDS', .5):
+            self.assertEqual(schedule(range(3), worker, 3, control), ['PASS'] * 3)
