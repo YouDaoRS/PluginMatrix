@@ -198,6 +198,17 @@ class RuntimeProcessTests(unittest.TestCase):
         )
         self.assertEqual(result.evidence.verdict(result.exit_code is None, result.timed_out)[0], "ENVIRONMENT_INVALID")
 
+    def test_server_shutdown_during_window_is_not_misclassified_as_plugin_disabled(self):
+        evidence = RuntimeEvidence('Example')
+        evidence.server_ready = True
+        evidence.plugin_discovered = True
+        evidence.plugin_enable_started = True
+        evidence.direct_runtime_observed = True
+        evidence.direct_plugin_enabled = True
+        evidence.observe_line('Stopping server', 1)
+        evidence.observe_line('[Example] Disabling Example v1.0', 1.1)
+        self.assertEqual(evidence.verdict(False, False)[0], 'SERVER_START_FAILED')
+
     def test_server_properties_use_isolated_port(self):
         with TemporaryDirectory() as temp:
             path = _write_server_properties(Path(temp), 28123)
@@ -205,6 +216,7 @@ class RuntimeProcessTests(unittest.TestCase):
             self.assertIn("server-port=28123", properties)
             self.assertIn("server-ip=127.0.0.1", properties)
             self.assertIn("online-mode=false", properties)
+            self.assertIn("level-seed=pluginmatrix", properties)
 
     def test_port_allocator_returns_bindable_local_port(self):
         port = _allocate_server_port()

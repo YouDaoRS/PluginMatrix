@@ -167,3 +167,33 @@ class ParallelTests(unittest.TestCase):
                                         run_id=str(index), control=control, environment_index=index)
             return result.evidence.verdict(result.exit_code is None, result.timed_out)[0]
         self.assertEqual(schedule(range(3), worker, 3, control), ['PASS']*3)
+
+    def test_parallel_folia_startup_stall_precedes_strict_freshness_window(self):
+        """Model Folia's cold-world scheduler saturation in three live processes."""
+        control = RunControl()
+
+        def worker(index, item):
+            directory = self.root/f'folia-{index}'; directory.mkdir()
+            code = (
+                "import time\n"
+                "print('Enabling Example v1.0', flush=True)\n"
+                "print('Done (1s)! For help, type \"help\"', flush=True)\n"
+                # The probe's scheduler-settle handshake deliberately emits no
+                # snapshot while cold world tasks own all Folia tick threads.
+                "time.sleep(2.2)\n"
+                + probe_writer(run_id=str(index))
+                + "\ntime.sleep(10)"
+            )
+            outcome = run_server_process(
+                [sys.executable, '-u', '-c', code], directory, directory/'server.log',
+                'Example', 'target.jar', 5, .25, directory/'probe.json', True,
+                run_id=str(index), provider_type='folia', control=control,
+                environment_index=index,
+            )
+            started = next(e for e in outcome.evidence.events if e.kind == 'stability_window_started')
+            completed = next(e for e in outcome.evidence.events if e.kind == 'stability_window_completed')
+            self.assertGreaterEqual(started.timestamp, 2.0)
+            self.assertGreaterEqual(completed.timestamp - started.timestamp, .25)
+            return outcome.evidence.verdict(outcome.exit_code is None, outcome.timed_out)[0]
+
+        self.assertEqual(schedule(range(3), worker, 3, control), ['PASS'] * 3)

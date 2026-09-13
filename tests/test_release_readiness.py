@@ -166,7 +166,7 @@ class ReleaseReadinessTests(unittest.TestCase):
             self.assertFalse(any(name.startswith("tests/") for name in wheel_entries))
             self.assertIn("Name: pluginmatrix", metadata)
             self.assertIn(f"Version: {__version__}", metadata)
-            self.assertIn("Summary: Real Paper server runtime verification for Minecraft plugins", metadata)
+            self.assertIn("Summary: Real server runtime verification for Minecraft plugins", metadata)
             self.assertIn("License-Expression: Apache-2.0", metadata)
             self.assertIn("License-File: LICENSE", metadata)
             self.assertIn("Requires-Python: >=3.10", metadata)

@@ -133,6 +133,27 @@ class ApplicationTests(unittest.TestCase):
                 render_html_report(source, destination)
             self.assertEqual(destination.read_bytes(), original)
 
+    def test_html_rejects_malformed_nested_report_without_partial_output(self):
+        source = self.root/'result.json'
+        destination = self.root/'result.html'
+        malformed = [
+            {'result': 'PASS', 'metadata': 'not-an-object'},
+            {'environments': [{'id': 'paper', 'metadata': {'server': []}}]},
+            {'environments': [{'id': 'paper', 'artifacts': []}]},
+            {'environments': [], 'config': {'environments': [{'server': []}]}}
+        ]
+        for report in malformed:
+            with self.subTest(report=report):
+                source.write_text(json.dumps(report))
+                with self.assertRaisesRegex(ValueError, 'invalid report'):
+                    render_html_report(source, destination)
+                self.assertFalse(destination.exists())
+
+        source.write_text(json.dumps(malformed[0]))
+        code, output = self.invoke(['report', str(source), '--html', str(destination)])
+        self.assertEqual(code, 2)
+        self.assertIn('invalid report metadata', output)
+
     def test_terminal_control_sequences_are_escaped(self):
         from pluginmatrix.terminal import safe_text
         self.assertEqual(safe_text('a\x1b[31m\n\u202eb'), 'a\\u001b[31m\\u000a\\u202eb')

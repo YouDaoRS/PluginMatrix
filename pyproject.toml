@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pluginmatrix"
-description = "Real Paper server runtime verification for Minecraft plugins"
+description = "Real server runtime verification for Minecraft plugins"
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE"]

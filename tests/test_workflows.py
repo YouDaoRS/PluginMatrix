@@ -55,7 +55,9 @@ class WorkflowTests(unittest.TestCase):
         self.assertNotIn("pull_request_target", workflow)
 
     def test_workflows_do_not_use_deprecated_node20_action_versions(self):
-        workflows = self.read("ci.yml") + self.read("matrix.yml")
+        workflows = ''.join(self.read(name) for name in (
+            "ci.yml", "matrix.yml", "provider-gate.yml", "release-gate.yml"
+        ))
         for deprecated in (
             "actions/checkout@v4",
             "actions/setup-python@v5",
@@ -65,6 +67,22 @@ class WorkflowTests(unittest.TestCase):
             self.assertNotIn(deprecated, workflows)
         self.assertIn("actions/checkout@v7", self.read("ci.yml"))
         self.assertIn("actions/setup-python@v7", self.read("ci.yml"))
+
+    def test_provider_gate_is_manual_cross_platform_and_preserves_complete_evidence(self):
+        workflow = self.read('provider-gate.yml')
+        self.assertIn('workflow_dispatch:', workflow)
+        self.assertNotIn('\n  push:', workflow)
+        self.assertNotIn('\n  pull_request:', workflow)
+        self.assertIn('os: [ubuntu-latest, windows-latest]', workflow)
+        self.assertIn("python-version: '3.11'", workflow)
+        self.assertIn("java-version: '21'", workflow)
+        self.assertIn('python -m tests.real_provider_gate --java 21', workflow)
+        self.assertIn('if: always()', workflow)
+        for artifact in ('*.json', '*.html', '*.jsonl', '*.md',
+                         'runs/**/result.json', 'runs/**/server.log'):
+            with self.subTest(artifact=artifact):
+                self.assertIn(artifact, workflow)
+        self.assertIn('if-no-files-found: error', workflow)
 
     def test_manual_example_is_valid_json_and_java_17(self):
         import json

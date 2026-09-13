@@ -12,6 +12,22 @@ from .providers import PASS_SCOPE, FOLIA_SCOPE
 from .locking import report_locks
 
 
+def _object(value, label: str) -> dict:
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise ValueError(f'invalid report {label}')
+    return value
+
+
+def _array(value, label: str) -> list:
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise ValueError(f'invalid report {label}')
+    return value
+
+
 def load_report(path: Path) -> dict:
     with Path(path).open('rb') as stream:
         data = stream.read(32 * 1024 * 1024 + 1)
@@ -31,9 +47,10 @@ def _environments(report: dict) -> list[dict]:
         if not isinstance(report['environments'], list) or not all(isinstance(e, dict) for e in report['environments']):
             raise ValueError('invalid report environments')
         return report['environments']
-    return [{'id': report.get('metadata', {}).get('server_type', 'paper'),
+    metadata = _object(report.get('metadata'), 'metadata')
+    return [{'id': metadata.get('server_type', 'paper'),
              'verdict': report.get('result'), 'failure_stage': report.get('failure_stage'),
-             'reason': report.get('reason'), 'metadata': report.get('metadata', {}),
+             'reason': report.get('reason'), 'metadata': metadata,
              'evidence': report.get('evidence', []),
              'artifacts': {'runtime_report': report.get('report_path'), 'server_log': report.get('log_path'), 'run_dir': report.get('workdir')}}]
 
@@ -53,22 +70,32 @@ def _report_path(value: str, source: Path) -> Path:
 
 def report_inputs(report: dict, source: Path) -> list[Path]:
     inputs = [source]
-    for value in (report.get('config_source'), report.get('plugin', {}).get('plugin_jar'), report.get('config', {}).get('plugin')):
+    plugin = _object(report.get('plugin'), 'plugin')
+    config = _object(report.get('config'), 'config')
+    options = _object(config.get('options'), 'config options')
+    top_artifacts = _object(report.get('artifacts'), 'artifacts')
+    for value in (report.get('config_source'), plugin.get('plugin_jar'), config.get('plugin')):
         if isinstance(value, str):
             inputs.append(_report_path(value, source))
     for env in _environments(report):
-        metadata = env.get('metadata') or {}
-        values = [*metadata.get('protected_inputs', []), metadata.get('plugin_jar'),
-                  metadata.get('paper_jar'), metadata.get('server', {}).get('jar')]
-        values += list((env.get('artifacts') or {}).values())
-        values += [d.get('plugin_jar') for d in metadata.get('dependencies', [])]
+        metadata = _object(env.get('metadata'), 'environment metadata')
+        server = _object(metadata.get('server'), 'environment server')
+        artifacts = _object(env.get('artifacts'), 'environment artifacts')
+        protected = _array(metadata.get('protected_inputs'), 'protected inputs')
+        dependencies = _array(metadata.get('dependencies'), 'environment dependencies')
+        values = [*protected, metadata.get('plugin_jar'), metadata.get('paper_jar'), server.get('jar')]
+        values += list(artifacts.values())
+        values += [_object(dependency, 'environment dependency').get('plugin_jar') for dependency in dependencies]
         inputs.extend(_report_path(v, source) for v in values if isinstance(v, str))
-    config = report.get('config', {})
-    inputs.extend(_report_path(p, source) for p in config.get('dependencies', []))
-    inputs.extend(_report_path(e['server']['jar'], source) for e in config.get('environments', []) if e.get('server', {}).get('jar'))
+    inputs.extend(_report_path(p, source) for p in _array(config.get('dependencies'), 'config dependencies') if isinstance(p, str))
+    for environment in _array(config.get('environments'), 'config environments'):
+        environment = _object(environment, 'config environment')
+        server = _object(environment.get('server'), 'config environment server')
+        if isinstance(server.get('jar'), str):
+            inputs.append(_report_path(server['jar'], source))
     # A copied/renamed report still references the authoritative original JSON.
-    inputs.extend(_report_path(v, source) for v in report.get('artifacts', {}).values() if isinstance(v, str))
-    report_path = config.get('options', {}).get('report')
+    inputs.extend(_report_path(v, source) for v in top_artifacts.values() if isinstance(v, str))
+    report_path = options.get('report')
     if isinstance(report_path, str):
         inputs.append(_report_path(report_path, source))
     return inputs
@@ -78,13 +105,14 @@ def html_document(report: dict, source: Path, destination: Path) -> str:
     environments = _environments(report)
     rows, sections = [], []
     for index, env in enumerate(environments):
-        metadata = env.get('metadata') or {}
-        server = metadata.get('server') or (env.get('resolved') or {}).get('server') or {}
+        metadata = _object(env.get('metadata'), 'environment metadata')
+        resolved = _object(env.get('resolved'), 'environment resolved data')
+        server = _object(metadata.get('server') or resolved.get('server'), 'environment server')
         rows.append(f'<tr><td><a href="#env-{index}">{_e(env.get("id"))}</a></td>'
                     f'<td>{_e(server.get("server_type", "paper"))}</td><td>{_e(env.get("verdict"))}</td>'
                     f'<td>{_e(env.get("failure_stage"))}</td><td>{_e(env.get("reason"))}</td></tr>')
         artifacts = []
-        for label, value in (env.get('artifacts') or {}).items():
+        for label, value in _object(env.get('artifacts'), 'environment artifacts').items():
             if not isinstance(value, str):
                 continue
             try:
@@ -100,7 +128,7 @@ def html_document(report: dict, source: Path, destination: Path) -> str:
         sections.append(f'<section id="env-{index}"><h2>{_e(env.get("id"))}</h2><p>{_e(limit)}</p>'
                         f'<ul>{"".join(artifacts)}</ul><details><summary>Metadata</summary><pre>{_json(metadata or env.get("resolved", {}))}</pre></details>'
                         f'<details><summary>Evidence</summary><pre>{_json(env.get("evidence", []))}</pre></details></section>')
-    plugin = report.get('plugin') or report.get('metadata') or {}
+    plugin = _object(report.get('plugin') or report.get('metadata'), 'plugin')
     return ('<!doctype html><html lang="en"><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1">'
             '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'; base-uri \'none\'; form-action \'none\'">'
@@ -125,18 +153,23 @@ def _render_html_report(source: Path, destination: Path) -> Path:
     report = load_report(source)
     reject_links(destination)
     protect_inputs(destination, report_inputs(report, source))
-    roots = [report.get('config', {}).get('options', {}).get(k) for k in ('work_dir', 'cache_dir')]
-    roots.append(report.get('artifacts', {}).get('runtime_root'))
+    config = _object(report.get('config'), 'config')
+    options = _object(config.get('options'), 'config options')
+    artifacts = _object(report.get('artifacts'), 'artifacts')
+    roots = [options.get(k) for k in ('work_dir', 'cache_dir')]
+    roots.append(artifacts.get('runtime_root'))
     for env in _environments(report):
-        roots.append((env.get('metadata') or {}).get('cache_dir'))
-        roots.append((env.get('artifacts') or {}).get('run_dir'))
+        roots.append(_object(env.get('metadata'), 'environment metadata').get('cache_dir'))
+        roots.append(_object(env.get('artifacts'), 'environment artifacts').get('run_dir'))
     for root in roots:
-        if root:
+        if isinstance(root, str) and root:
             resolved_root = _report_path(root, source).resolve()
             resolved_output = destination.resolve()
             if (resolved_output == resolved_root or resolved_root in resolved_output.parents
                     or resolved_output in resolved_root.parents):
                 raise ValueError('HTML report must be outside runtime/cache roots')
+        elif root is not None:
+            raise ValueError('invalid report runtime/cache root')
     content = html_document(report, source, destination)
     atomic_text(destination, content)
     return destination.resolve()

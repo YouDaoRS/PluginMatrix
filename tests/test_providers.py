@@ -9,6 +9,7 @@ import unittest
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from pluginmatrix.artifacts import ProviderError, ensure_download, safe_url, read_json
@@ -16,6 +17,7 @@ from pluginmatrix.control import RunControl
 from pluginmatrix.providers import ServerSpec, get_provider, parse_server, inspect_providers, FILL_HOSTS
 from pluginmatrix.runtime import verify, write_report, RuntimeEvidence
 from pluginmatrix.preflight import inspect_plugin, PreflightError
+from pluginmatrix.probe import build_probe_plugin
 from test_regressions import plugin
 
 
@@ -184,6 +186,34 @@ class ProviderTests(unittest.TestCase):
         evidence = RuntimeEvidence('Example')
         evidence.observe_line('[Example] Done (1.0s)!', 0)
         self.assertFalse(evidence.server_ready)
+
+    def test_folia_probe_settles_global_scheduler_before_first_sample(self):
+        server = self.root/'server.jar'
+        with zipfile.ZipFile(server, 'w') as jar:
+            jar.writestr('META-INF/libraries/api.jar', b'api')
+        plugins = self.root/'plugins'; plugins.mkdir()
+        captured = []
+
+        def compile_probe(command, **kwargs):
+            captured.append(Path(command[-1]).read_text(encoding='utf-8'))
+            return SimpleNamespace(returncode=0, stderr='', stdout='')
+
+        with patch('pluginmatrix.probe.resolve_javac', return_value='javac'), \
+             patch('pluginmatrix.probe.subprocess.run', side_effect=compile_probe):
+            build_probe_plugin(server, plugins, 'Example', plugins/'probe.json',
+                               'java', 17, run_id='run', regionized=True)
+        source = captured[0]
+        self.assertIn('private boolean samplingReady = false;', source)
+        self.assertIn('emittedAt - lastCallbackAt <= 2000', source)
+        self.assertIn('emittedAt - samplingStableSince < 2000', source)
+        self.assertLess(source.index('if (!samplingReady)'), source.index('++sequence'))
+
+        captured.clear()
+        with patch('pluginmatrix.probe.resolve_javac', return_value='javac'), \
+             patch('pluginmatrix.probe.subprocess.run', side_effect=compile_probe):
+            build_probe_plugin(server, plugins, 'Example', plugins/'probe.json',
+                               'java', 17, run_id='run', regionized=False)
+        self.assertIn('private boolean samplingReady = true;', captured[0])
 
     def test_local_jar_changed_after_resolution_is_rejected_before_start(self):
         target = plugin(self.root/'target.jar')

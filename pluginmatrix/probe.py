@@ -15,6 +15,8 @@ PROBE_PLUGIN_NAME = "PluginMatrixRuntimeProbe"
 PROBE_MAIN_CLASS = "pluginmatrix.probe.RuntimeProbe"
 PROBE_FILE_NAME = "pluginmatrix-runtime-evidence.json"
 PROBE_SCHEMA = 2
+PROBE_FRESHNESS_SECONDS = 2
+PROBE_FRESHNESS_MS = PROBE_FRESHNESS_SECONDS * 1000
 
 
 def _java_string(value: str) -> str:
@@ -47,6 +49,7 @@ def build_probe_plugin(
         classpath = _extract_paper_libraries(paper_jar, root / "libraries", standalone_api)
         scheduler = ('getServer().getGlobalRegionScheduler().runAtFixedRate(this, task -> writeEvidence(), 1L, 1L);'
                      if regionized else 'getServer().getScheduler().runTaskTimer(this, this::writeEvidence, 1L, 1L);')
+        sampling_ready = 'false' if regionized else 'true'
         source.write_text(
             f'''package pluginmatrix.probe;
 
@@ -61,6 +64,9 @@ public final class RuntimeProbe extends JavaPlugin {{
     private static final String OUTPUT = "{_java_string(evidence_path.name)}";
     private long sequence = 0;
     private long lastEmittedAt = 0;
+    private long lastCallbackAt = 0;
+    private long samplingStableSince = 0;
+    private boolean samplingReady = {sampling_ready};
     private volatile boolean disabled = false;
 
     @Override
@@ -76,6 +82,20 @@ public final class RuntimeProbe extends JavaPlugin {{
 
     private void writeEvidence() {{
         long emittedAt = System.currentTimeMillis();
+        // Folia prints its normal Done line immediately after starting the
+        // shared region scheduler. On a cold world, the first global callback
+        // can run before world-region initialisation occupies every tick
+        // thread. Do not publish that isolated startup callback: establish
+        // a full two-second span of fresh global callbacks first, then keep
+        // the same host-side freshness rule for every published sample.
+        if (!samplingReady) {{
+            boolean consecutive = lastCallbackAt > 0 && emittedAt > lastCallbackAt
+                && emittedAt - lastCallbackAt <= {PROBE_FRESHNESS_MS};
+            if (!consecutive) samplingStableSince = emittedAt;
+            lastCallbackAt = emittedAt;
+            if (!consecutive || emittedAt - samplingStableSince < {PROBE_FRESHNESS_MS}) return;
+            samplingReady = true;
+        }}
         // Catch-up ticks may run in the same millisecond. Do not manufacture a
         // newer observation when the wall clock has not advanced.
         if (emittedAt <= lastEmittedAt) return;

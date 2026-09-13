@@ -20,7 +20,7 @@ from .processes import start_process, stop_process
 from .model import Check, EvidenceEvent, VerificationResult
 from .paper import PaperDownloadError, ensure_paper
 from .preflight import PreflightError, inspect_plugin, java_target_name
-from .probe import PROBE_FILE_NAME, PROBE_PLUGIN_NAME, build_probe_plugin, read_probe_evidence
+from .probe import PROBE_FILE_NAME, PROBE_FRESHNESS_SECONDS, PROBE_PLUGIN_NAME, build_probe_plugin, read_probe_evidence
 from .providers import ServerSpec, get_provider
 from .control import RunControl, RunCancelled
 from .locking import file_lock, reject_lock_output
@@ -269,10 +269,10 @@ class RuntimeEvidence:
             return "PLUGIN_LOAD_FAILED", "plugin_load", self.failure_reason
         if self.plugin_enable_failed:
             return "PLUGIN_ENABLE_FAILED", "plugin_enable", self.failure_reason
-        if self.plugin_disabled:
-            return "PLUGIN_DISABLED", "plugin_runtime", self.failure_reason
         if self.server_failed:
             return "SERVER_START_FAILED", "server_start", self.failure_reason
+        if self.plugin_disabled:
+            return "PLUGIN_DISABLED", "plugin_runtime", self.failure_reason
         if not self.server_ready:
             if process_alive and timed_out:
                 return "SERVER_START_TIMEOUT", "server_start", "server did not become ready before timeout"
@@ -443,6 +443,9 @@ def _write_server_properties(server_dir: Path, port: int) -> Path:
                 f"server-port={port}",
                 "server-ip=127.0.0.1",
                 "online-mode=false",
+                # A fixed empty-world seed makes provider and parallel failures
+                # reproducible instead of coupling them to a random spawn.
+                "level-seed=pluginmatrix",
                 "enable-query=false",
                 "enable-rcon=false",
                 "",
@@ -532,9 +535,9 @@ def run_server_process(
                         elif sequence is not None and (current < sequence or updated < emitted_at):
                             evidence.direct_runtime_error = 'runtime probe sequence/time moved backwards'
                         elif sequence is None or current > sequence:
-                            if updated < launched_wall or abs(time.time() * 1000 - updated) > 2000:
+                            if updated < launched_wall or abs(time.time() * 1000 - updated) > PROBE_FRESHNESS_SECONDS * 1000:
                                 evidence.direct_runtime_error = 'runtime probe timestamp is stale or in the future'
-                            elif last_probe is not None and now - last_probe > 2:
+                            elif last_probe is not None and now - last_probe > PROBE_FRESHNESS_SECONDS:
                                 evidence.direct_runtime_error = 'runtime probe observation gap exceeded 2 seconds'
                             elif emitted_at is not None and updated <= emitted_at:
                                 evidence.direct_runtime_error = 'runtime probe sequence advanced without a newer timestamp'
@@ -572,8 +575,10 @@ def run_server_process(
                             evidence.direct_runtime_error = 'runtime probe did not produce direct plugin state evidence'
                             break
                     else:
-                        if now - last_probe > 2:
-                            evidence.direct_runtime_error = 'runtime probe stopped producing fresh evidence'
+                        if now - last_probe > PROBE_FRESHNESS_SECONDS:
+                            evidence.direct_runtime_error = (
+                                f'runtime probe stopped producing fresh evidence for {PROBE_FRESHNESS_SECONDS} seconds'
+                            )
                             break
                         if now >= window_start + stability:
                             # Require an advancing sample at/after the end, plus a caught-up log.
@@ -582,7 +587,7 @@ def run_server_process(
                                 evidence.add('stability_window_completed', now - started, source='process',
                                              detail=f'configured_seconds={stability}; observed_seconds={now-window_start:.3f}; sequence={sequence}')
                                 break
-                            if now >= window_start + stability + 2:
+                            if now >= window_start + stability + PROBE_FRESHNESS_SECONDS:
                                 evidence.direct_runtime_error = 'missing final probe sample or log could not be fully consumed'
                                 break
                 if evidence.direct_runtime_error:
