@@ -12,6 +12,8 @@ PluginMatrix queries the official Paper API and downloads the selected Paper ser
 
 An `EnhancedFly-2.2.0.jar` previously used for v0.4 hosted validation was removed during the v0.5 audit. Its embedded `plugin.yml` named the same GitHub account as author, but neither this repository nor the adjacent source checkout contained an explicit license or other redistribution grant. That evidence is insufficient for a public repository to redistribute the binary. Historical validation facts remain documented; public examples now use the repository-provided smoke fixture.
 
+Removal refers to the current source tree and release packages, not erasure of historical public objects. On 2026-09-13, a HEAD request to the raw file at commit `c5fe4efedae5156c4e4adf84740e3d8e5d1e72ab` still returned HTTP 200 and Content-Length 17,868,623. The owner must decide how to document redistribution rights or handle historical exposure. No history rewrite, remote deletion or claim of infringement is made by this patch. See `docs/V0.5.1_PREPARATION.md`.
+
 ## Referenced projects
 
 `docs/THIRD_PARTY_REVIEW.md` records projects consulted for high-level design comparison. No code, workflow, tests, comments, or file structure was copied from those projects. In particular, no GPL-3.0 material was copied.

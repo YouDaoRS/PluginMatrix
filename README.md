@@ -4,6 +4,8 @@ PluginMatrix is an early-stage command-line verifier for Minecraft Paper plugin 
 
 It supports one environment with `test` and a sequential list of environments with `matrix`. It does not support Spigot, Folia, Fabric, Forge, Velocity, parallel Matrix execution, gameplay bots, or complete feature testing.
 
+The current development version is **0.5.1 (unreleased)**, a trust and safety patch for v0.5.0. See [release preparation](docs/V0.5.1_PREPARATION.md) for completed checks and pending hosted validation.
+
 ## What `PASS` means
 
 `PASS` means that, for the exact Paper build and Java runtime recorded in the report:
@@ -12,6 +14,12 @@ It supports one environment with `test` and a sequential list of environments wi
 2. The runtime probe found the target through Paper's `PluginManager`.
 3. `Plugin#isEnabled()` was `true`.
 4. The server and plugin remained running during the configured stability window.
+
+The window starts with a valid enabled probe sample after ready. Samples must match the run, name, version, main class and isolated source, advance in sequence/time with no gap over two seconds, and include a new sample at the end. Zero stability is rejected. A stale/malformed probe, incomplete window or cleanup failure cannot produce PASS.
+
+The verifier supports ordinary `plugin.yml` descriptors with simple single-line identity fields and dependency lists. Duplicate/ambiguous keys, unsupported YAML constructs, missing version and dual `paper-plugin.yml` descriptors are rejected explicitly. Plugin names and `provides` aliases must not collide with each other or the probe. Paper-remapped sources are accepted only at the expected isolated `.paper-remapped/<target filename>` path; this path remains a hosted validation item.
+
+These checks are for compatibility of plugins you trust to execute. A run directory and a probe in the same JVM are not a security sandbox against intentionally malicious plugin code or processes that deliberately leave the POSIX process group.
 
 It does **not** prove that commands, events, GUIs, databases, dependencies, performance, player behavior, or other Paper/Java versions work correctly.
 
@@ -52,13 +60,13 @@ Useful options:
 ```text
 --dependency path.jar       Add a locally supplied dependency plugin; repeatable
 --timeout 120               Paper readiness timeout in seconds
---stability-window 5        Observation time after Paper becomes ready
+--stability-window 5        Positive observation time after ready and the first valid enabled sample
 --work-dir path             Root for isolated run directories
 --cache-dir path            Paper download and bootstrap cache
 --report path.json          Runtime JSON report path
 ```
 
-The single-environment command exits `0` only for `PASS`; every other verifier verdict exits `1`.
+The single-environment command exits `0` only for `PASS`; other verifier verdicts exit `1`, invalid CLI configuration exits `2`, and report-save failures exit `3`. Reports must be outside work/cache roots and must not alias input files. Matrix per-environment reports remain under their isolated run directories.
 
 ## Compatibility Matrix
 

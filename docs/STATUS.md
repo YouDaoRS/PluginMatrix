@@ -1,10 +1,20 @@
 # PluginMatrix Development Status
 
-更新日期：2026-09-12
+更新日期：2026-09-13
 
 ## 当前阶段
 
-**v0.5.0 已完成发布准备，正式发布渠道为 GitHub Tag 与 GitHub Release，不发布 PyPI。**
+**当前工作版本为 v0.5.1，尚未发布；这是修复 v0.5.0 verdict 可信度与安全问题的补丁。**
+
+本地修复与发布前验证见 [v0.5.1 准备报告](V0.5.1_PREPARATION.md)。PASS 需要匹配运行 ID、名称、版本、主类、加载来源且持续递增的 probe 证据，从 ready 后首个有效 enabled 样本开始覆盖完整正数稳定窗口；零窗口在配置阶段拒绝。原始日志、串行 Matrix、独立 artifact 架构保持不变。
+
+所有者已授权 v0.5.1 正常提交、push 和 hosted 验证；只有全部核心 Gate 通过才允许 Tag/Release。当前进入最终验证，仍保持 Unreleased。EnhancedFly 历史公开对象另由所有者决定，不属于本次处理范围。
+
+最终独立复核补充修复了块列表中空行/注释后的 `provides` 别名漏读，以及 Paper API Windows 设备文件名。Windows 完整离线测试 104 项（102 通过、2 项 symlink 权限跳过），compileall 和 diff check 通过。新增手动 Release Gate 强制覆盖 Paper 1.21.4/build 232/JDK 21 的 remapped 来源，并在两组 Paper 上验证非法 UTF-8 和晚期 disable；hosted 结果尚待执行。
+
+本地 Windows Python 3.11.9 与 3.10.21 全套各 103 项：101 通过、2 个 symlink 权限跳过；junction、hardlink、Job Object 与进程树清理实际通过。4 个真实 Paper 场景（成功、enable failure、其他插件异常+非法 UTF-8、晚期 disable）全部符合预期。compileall、diff check、sdist/wheel、包内容审计及干净安装 smoke 均通过。较新 Paper `.paper-remapped` 分支仍待实测。
+
+以下 v0.1–v0.5.0 完成项和数字保留为历史基线；当前验收结果以 v0.5.1 准备报告为准。
 
 > 在不改变 Runtime Verifier、串行 Matrix 和手动 workflow 总体架构的前提下，使仓库具备公开源码、干净安装、外部贡献和可重复发布前检查的基础。
 
@@ -18,7 +28,7 @@
 - 可通过 `pip install -e .` 安装；
 - 安装后提供 `pluginmatrix` 命令；
 - `--version`、`--help` 和基本参数校验。
-- v0.5 版本为 `0.5.0`，唯一字面版本维护在 `pluginmatrix.__version__`，打包元数据动态读取该属性；
+- 当前权威版本为 `0.5.1`，维护在 `pluginmatrix.__version__`，打包元数据动态读取该属性；
 - `pyproject.toml` 已补齐 README、Apache-2.0 SPDX、Python 要求、描述、URL、classifiers、keywords 和 release-only 构建工具 extra；没有伪造 authors/maintainers 身份；
 - 已从隔离 checkout 构建 sdist/wheel、审计内容、在全新 venv 安装 wheel，并验证所有要求的 CLI 入口。
 
@@ -194,7 +204,7 @@ GitHub-hosted v0.4 闭环验证（commit `c5fe4ef`）：
 
 此前网络受限的运行也被保留为失败样本：Paper 在下载 `mojang_1.20.1.jar` 时出现 `java.net.SocketException: Connection reset`。该运行不会再被简单归为模糊的插件启动失败，而会保留环境失败证据和原始日志。
 
-## 当前 verdict 规则
+## v0.5.0 历史 verdict 规则（已由 v0.5.1 收紧）
 
 verifier 先在运行过程中生成 evidence，再由 evidence 归纳最终 verdict，优先级如下：
 
@@ -264,7 +274,7 @@ verifier 先在运行过程中生成 evidence，再由 evidence 归纳最终 ver
 - 输出目录可写性是在 preflight 时探测，之后仍可能因权限或磁盘状态变化而失败；
 - v0.4 workflow 已完成静态检查及 GitHub-hosted 成功/失败路径验证。
 
-## 当前阶段结论
+## v0.5.0 历史发布结论
 
 **v0.5.0 已通过技术 Release Gate，并由项目所有者授权通过 GitHub Tag 与 GitHub Release 正式发布。**
 

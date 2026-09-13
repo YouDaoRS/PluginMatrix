@@ -46,44 +46,53 @@ jobs:
           PLUGIN_JAR: ${{ inputs.plugin_jar }}
         run: |
           set +e
-          case "$MATRIX_CONFIG" in
-            /*|../*|*/../*|*/..)
-              echo "::error::Field 'config' has value '$MATRIX_CONFIG'; expected a repository-relative JSON file inside '$GITHUB_WORKSPACE'. Fix: use a path such as examples/ci-matrix.json."
-              echo "exit_code=2" >> "$GITHUB_OUTPUT"
-              exit 0
-              ;;
-          esac
-          case "$PLUGIN_JAR" in
-            /*|../*|*/../*|*/..)
-              echo "::error::Field 'plugin_jar' has value '$PLUGIN_JAR'; expected a repository-relative JAR file inside '$GITHUB_WORKSPACE'. Fix: use a path committed to the selected branch."
-              echo "exit_code=2" >> "$GITHUB_OUTPUT"
-              exit 0
-              ;;
-          esac
-          if [ ! -f "$MATRIX_CONFIG" ]; then
-            echo "::error::Field 'config' resolved to '$GITHUB_WORKSPACE/$MATRIX_CONFIG', but the file was not found. Fix: commit the config to the selected branch and use its repository-relative path."
-            echo "exit_code=2" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          if [ ! -f "$PLUGIN_JAR" ]; then
-            echo "::error::Field 'plugin_jar' resolved to '$GITHUB_WORKSPACE/$PLUGIN_JAR', but the file was not found. Fix: build or legally provide the JAR, commit it to the selected branch, and use its repository-relative path."
-            echo "exit_code=2" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          mkdir -p .ci
-          cp -- "$PLUGIN_JAR" .ci/plugin.jar
-          copy_status=$?
-          if [ "$copy_status" -ne 0 ]; then
-            echo "::error::Field 'plugin_jar' has value '$PLUGIN_JAR', but it could not be copied to '.ci/plugin.jar'. Fix: make the file readable and confirm '.ci' is writable."
-            echo "exit_code=2" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
           python - <<'PY'
-          import json
           import os
+          import shutil
           from pathlib import Path
+          from pluginmatrix.files import atomic_copy, atomic_json, protect_inputs, reject_links
 
-          source = Path(os.environ["MATRIX_CONFIG"])
+          workspace = Path(os.environ["GITHUB_WORKSPACE"]).resolve()
+
+          def safe_error(label, raw, detail):
+              message = f"Field '{label}' has value '{raw}'; {detail}"
+              message = message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+              print(f"::error::{message}")
+
+          def resolve_input(label, raw):
+              candidate = Path(raw)
+              if candidate.is_absolute():
+                  safe_error(label, raw, "expected a repository-relative file inside GITHUB_WORKSPACE")
+                  raise SystemExit(2)
+              path = (workspace / candidate).resolve()
+              try:
+                  path.relative_to(workspace)
+              except ValueError:
+                  safe_error(label, raw, "resolved outside GITHUB_WORKSPACE")
+                  raise SystemExit(2)
+              if not path.is_file():
+                  safe_error(label, raw, f"resolved to '{path}', but the file was not found")
+                  raise SystemExit(2)
+              return path
+
+          config = resolve_input("config", os.environ["MATRIX_CONFIG"])
+          plugin = resolve_input("plugin_jar", os.environ["PLUGIN_JAR"])
+          if config.samefile(plugin):
+              safe_error("plugin_jar", os.environ["PLUGIN_JAR"], "must be different from the Matrix config file")
+              raise SystemExit(2)
+          try:
+              for output in (workspace / '.ci/plugin.jar', workspace / '.ci/matrix.json', workspace / '.pluginmatrix'):
+                  reject_links(output)
+                  protect_inputs(output, [config, plugin])
+              (workspace / ".ci").mkdir(exist_ok=True)
+          except (OSError, ValueError) as exc:
+              safe_error("plugin_jar", os.environ["PLUGIN_JAR"], f"could not be copied to '.ci/plugin.jar' ({exc})")
+              raise SystemExit(2)
+          print(f"Validated config: {str(config)!r}")
+          print(f"Validated plugin: {str(plugin)!r}")
+
+          import json
+          source = config
           document = json.loads(source.read_text(encoding="utf-8"))
           if not isinstance(document, dict):
               raise SystemExit("Matrix config must contain a JSON object")
@@ -102,10 +111,8 @@ jobs:
           options["work_dir"] = "../.pluginmatrix/runs"
           options["cache_dir"] = "../.pluginmatrix/cache"
           options["report"] = "../.pluginmatrix/matrix-report.json"
-          Path(".ci/matrix.json").write_text(
-              json.dumps(document, indent=2) + "\n",
-              encoding="utf-8",
-          )
+          atomic_copy(plugin, workspace / '.ci/plugin.jar')
+          atomic_json(workspace / '.ci/matrix.json', document)
           print(Path(".ci/matrix.json").read_text(encoding="utf-8"))
           PY
           status=$?
@@ -153,11 +160,20 @@ jobs:
           MATRIX_REPORT: .pluginmatrix/matrix-report.json
         run: |
           python -m pluginmatrix.github_summary "$MATRIX_REPORT" "$GITHUB_STEP_SUMMARY"
+          cat "$GITHUB_STEP_SUMMARY"
 
       - name: Preserve Matrix exit code
         if: always()
+        env:
+          PREPARE_EXIT: ${{ steps.prepare.outputs.exit_code || '3' }}
+          MATRIX_EXIT: ${{ steps.matrix.outputs.exit_code || '3' }}
         run: |
-          if [ "${{ steps.prepare.outputs.exit_code || '3' }}" -ne 0 ]; then
-            exit "${{ steps.prepare.outputs.exit_code }}"
-          fi
-          exit "${{ steps.matrix.outputs.exit_code || '3' }}"
+          case "$PREPARE_EXIT" in
+            0) ;;
+            1|2|3) exit "$PREPARE_EXIT" ;;
+            *) exit 3 ;;
+          esac
+          case "$MATRIX_EXIT" in
+            0|1|2|3) exit "$MATRIX_EXIT" ;;
+            *) exit 3 ;;
+          esac

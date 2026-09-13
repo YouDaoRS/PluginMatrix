@@ -6,6 +6,7 @@ import time
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from probe_support import probe_writer
 
 from pluginmatrix.runtime import (
     RuntimeEvidence,
@@ -63,6 +64,8 @@ class RuntimeEvidenceTests(unittest.TestCase):
             },
             0.2,
         )
+        self.assertEqual(evidence.verdict(process_alive=True, timed_out=False)[0], "UNKNOWN_FAILURE")
+        evidence.observation_complete = True
         self.assertEqual(evidence.verdict(process_alive=True, timed_out=False)[0], "PASS")
 
     def test_required_probe_missing_is_not_pass(self):
@@ -103,7 +106,7 @@ class RuntimeProcessTests(unittest.TestCase):
                 "import sys, time\n"
                 + "".join(f"print({line!r}, flush=True)\n" for line in lines)
                 + (
-                    f"open('pluginmatrix-runtime-evidence.json', 'w', encoding='utf-8').write({json.dumps(json.dumps(probe_payload))})\n"
+                    probe_writer('pluginmatrix-runtime-evidence.json', **probe_payload)
                     if probe_payload
                     else ""
                 )
@@ -126,7 +129,8 @@ class RuntimeProcessTests(unittest.TestCase):
 
     def test_normal_start_and_enable_pass(self):
         result, log = self.run_script(
-            ["[Server thread/INFO]: Enabling Example v1.0", '[Server thread/INFO]: Done (1.0s)! For help, type "help"']
+            ["[Server thread/INFO]: Enabling Example v1.0", '[Server thread/INFO]: Done (1.0s)! For help, type "help"'],
+            probe_payload={'target_name': 'Example'},
         )
         self.assertEqual(result.evidence.verdict(result.exit_code is None, result.timed_out)[0], "PASS")
         self.assertTrue(any(event.kind == "server_process_started" for event in result.evidence.events))

@@ -12,6 +12,7 @@ from .matrix import (
     validate_matrix_preconditions,
 )
 from .runtime import verify, write_report
+from .files import validate_output_paths
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -123,6 +124,13 @@ def main(argv: list[str] | None = None) -> int:
     if args.command != "test":
         return 2
     report_path = args.report
+    try:
+        if args.timeout <= 0 or args.stability_window <= 0:
+            raise ValueError('timeout and stability-window must be positive')
+        validate_output_paths(args.work_dir, args.cache_dir, [args.plugin, *args.dependency], report_path)
+    except (OSError, ValueError) as exc:
+        print(f'Configuration error: {exc}')
+        return 2
     result = verify(
         plugin=args.plugin.resolve(),
         paper_version=args.paper,
@@ -135,7 +143,15 @@ def main(argv: list[str] | None = None) -> int:
         paper_build=args.paper_build,
     )
     if report_path is None:
+        if not result.workdir:
+            _print_result(result)
+            return 1
         report_path = Path(result.workdir) / "result.json"
-    write_report(result, report_path.resolve())
+    try:
+        write_report(result, report_path)
+    except (OSError, ValueError) as exc:
+        _print_result(result)
+        print(f'Could not save report {report_path}: {exc}')
+        return 3
     _print_result(result)
     return 0 if result.result == "PASS" else 1

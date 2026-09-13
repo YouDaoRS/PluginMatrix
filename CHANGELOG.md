@@ -2,6 +2,21 @@
 
 PluginMatrix follows the version policy in `docs/VERSIONING.md`. No entry below implies that a Git tag, GitHub Release, or PyPI release exists. Earlier entries without dates were development milestones rather than formal releases.
 
+## 0.5.1 — Unreleased
+
+This patch addresses verdict trust and safety defects found in the independent v0.5.0 review. It retains the existing Runtime Verifier, sequential Matrix, evidence and artifact architecture.
+
+- Reject target/dependency filename, plugin-name, `provides` alias and runtime-probe conflicts before execution; record dependencies and verify copied JAR hashes.
+- Require current-run probe schema, increasing sequence and timestamps, matching name/version/main/source, and fresh samples spanning the entire stability window before PASS. Preserve target disable events and identity failures. Zero stability is now a configuration error; old/custom probe snapshots are unsupported.
+- Preserve raw log bytes; decode with replacement, bound log consumption and exit draining, and fail safely on read/cleanup errors. Other plugins' exceptions and missing dependencies no longer determine the target verdict.
+- Assign suspended Windows children to a Job Object before execution and wait for job cleanup; terminate owned POSIX process groups with bounded cleanup. Linux-specific behavior remains pending GitHub-hosted validation for this patch.
+- Protect input/report/cache/runtime paths, including hardlinks, symlinks and Windows junctions; use atomic report, cache-copy and download writes. A runtime-report failure preserves evidence and does not stop later Matrix environments.
+- Bound JAR/descriptor/library sizes; reject duplicate entries, encryption, unsupported compression, ambiguous descriptors and unsafe library paths. Support inline comments and three-part `api-version` values. Unsupported YAML and dual descriptors fail explicitly.
+- Harden workflow input/output paths and shell exit handling; execute workflow scripts in regression tests and add Windows/Linux Python 3.10/3.11 offline CI coverage.
+- Record the still-public historical EnhancedFly JAR as an owner decision, separate from clean release-package contents. Do not modify v0.5.0 history, tag or Release.
+
+See `docs/V0.5.1_PREPARATION.md` and `docs/RELEASE_CHECKLIST.md` for verification evidence and remaining release gates.
+
 ## 0.5.0 — 2026-09-12
 
 - Prepared the repository for public source review without adding runtime-verification capability.

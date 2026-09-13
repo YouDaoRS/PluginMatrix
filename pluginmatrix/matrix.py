@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from . import __version__
+from .files import protect_inputs, atomic_json, reject_links, validate_output_paths
 from .model import VerificationResult
 from .preflight import PreflightError, inspect_plugin
 from .probe import resolve_javac
@@ -81,6 +82,11 @@ def _resolve_path(value: object, base: Path, label: str, must_exist: bool = Fals
     path = Path(value).expanduser()
     if not path.is_absolute():
         path = base / path
+    if not must_exist:
+        try:
+            reject_links(path)
+        except ValueError as exc:
+            raise MatrixConfigError(f"field '{label}': {exc}") from exc
     path = path.resolve()
     if must_exist and not path.is_file():
         raise MatrixConfigError(
@@ -165,10 +171,10 @@ def load_matrix_config(path: Path) -> MatrixConfig:
             f"field 'options.timeout' has value {timeout!r}; expected a positive integer number of seconds. "
             "Fix: use a value such as 120."
         )
-    if isinstance(stability, bool) or not isinstance(stability, int) or stability < 0:
+    if isinstance(stability, bool) or not isinstance(stability, int) or stability <= 0:
         raise MatrixConfigError(
-            f"field 'options.stability_window' has value {stability!r}; expected a non-negative integer "
-            "number of seconds. Fix: use 0 or a value such as 5."
+            f"field 'options.stability_window' has value {stability!r}; expected a positive integer "
+            "number of seconds. Fix: use a value such as 5; zero is unsupported."
         )
     work_dir = _resolve_path(options.get("work_dir", ".pluginmatrix/runs"), path.parent, "options.work_dir")
     cache_dir = _resolve_path(options.get("cache_dir", ".pluginmatrix/cache"), path.parent, "options.cache_dir")
@@ -229,6 +235,14 @@ def _check_report_path(path: Path) -> str | None:
     return None
 
 
+def _is_within(path: Path, directory: Path) -> bool:
+    try:
+        path.relative_to(directory)
+    except ValueError:
+        return False
+    return True
+
+
 def validate_matrix_preconditions(
     config: MatrixConfig,
     java_resolver: Callable[[str], tuple[str, str]] = resolve_java,
@@ -237,15 +251,24 @@ def validate_matrix_preconditions(
     """Validate local prerequisites without starting Paper or downloading artifacts."""
 
     errors: list[str] = []
+    try:
+        validate_output_paths(config.work_dir, config.cache_dir, [config.source_path, config.plugin], config.report_path)
+    except ValueError as exc:
+        raise MatrixConfigError(str(exc)) from exc
     if config.work_dir == config.cache_dir:
         errors.append(
             f"fields 'options.work_dir' and 'options.cache_dir' both resolve to '{config.work_dir}'. "
             "Expected separate run and download-cache directories. Fix: give the two fields distinct paths."
         )
-    if config.report_path in {config.work_dir, config.cache_dir} or config.report_path.is_dir():
+    if (
+        config.report_path.is_dir()
+        or _is_within(config.report_path, config.work_dir)
+        or _is_within(config.report_path, config.cache_dir)
+    ):
         errors.append(
-            f"field 'options.report' resolves to '{config.report_path}', which is a directory or conflicts "
-            "with another output directory. Fix: choose a JSON file path such as '.pluginmatrix/matrix-report.json'."
+            f"field 'options.report' resolves to '{config.report_path}', which is a directory or is inside "
+            "another output directory. Fix: choose a JSON file path outside 'work_dir' and 'cache_dir', such "
+            "as '.pluginmatrix/matrix-report.json'."
         )
     else:
         report_error = _check_report_path(config.report_path)
@@ -373,6 +396,7 @@ def run_matrix(
     progress: Callable[[int, int, MatrixEnvironment], None] | None = None,
     preflight: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    validate_output_paths(config.work_dir, config.cache_dir, [config.source_path, config.plugin], config.report_path)
     results: list[dict[str, Any]] = []
     internal_errors = 0
     plugin_metadata: dict[str, Any] = {"plugin_jar": str(config.plugin)}
@@ -412,9 +436,17 @@ def run_matrix(
                 }
             )
         if result.workdir:
+            result.metadata.setdefault('protected_inputs', []).extend([str(config.source_path), str(config.plugin)])
             runtime_report = Path(result.workdir) / "result.json"
             if not result.report_path:
-                write_report(result, runtime_report)
+                try:
+                    write_report(result, runtime_report)
+                except (OSError, ValueError) as exc:
+                    internal_errors += 1
+                    result.metadata['verification_verdict'] = result.result
+                    result.result = 'UNKNOWN_FAILURE'
+                    result.failure_stage = 'report'
+                    result.reason = f'could not save runtime report {runtime_report}: {exc}'
         entry = _result_entry(environment, result)
         if not entry["primary_evidence"]:
             entry["primary_evidence"] = str(config.report_path)
@@ -436,8 +468,8 @@ def run_matrix(
             "runtime_root": str(config.work_dir),
         },
     }
-    config.report_path.parent.mkdir(parents=True, exist_ok=True)
-    config.report_path.write_text(json.dumps(report, indent=2, ensure_ascii=True), encoding="utf-8")
+    validate_output_paths(config.work_dir, config.cache_dir, [config.source_path, config.plugin], config.report_path)
+    atomic_json(config.report_path, report)
     return report
 
 

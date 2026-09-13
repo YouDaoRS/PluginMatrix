@@ -1,0 +1,70 @@
+name: Release Gate
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  paper:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - paper: '1.20.1'
+            build: 196
+            java: '17'
+            remapped: ''
+          - paper: '1.21.4'
+            build: 232
+            java: '21'
+            remapped: '--require-remapped'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - run: python -m pip install -e .
+      - name: Download and verify official Paper
+        id: paper
+        env:
+          PAPER_VERSION: ${{ matrix.paper }}
+          PAPER_BUILD: ${{ matrix.build }}
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          from pluginmatrix.paper import ensure_paper
+          jar, metadata = ensure_paper(os.environ['PAPER_VERSION'], Path('.pluginmatrix/cache'), int(os.environ['PAPER_BUILD']))
+          print(metadata)
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f'jar={jar.resolve()}\n')
+          PY
+      - name: Run real success, failure, invalid-byte and late-disable gates
+        id: gate
+        env:
+          PAPER_JAR: ${{ steps.paper.outputs.jar }}
+          PAPER_VERSION: ${{ matrix.paper }}
+          PAPER_BUILD: ${{ matrix.build }}
+          JAVA_MAJOR: ${{ matrix.java }}
+          REMAPPED: ${{ matrix.remapped }}
+        run: python tests/real_paper_gate.py --paper-jar "$PAPER_JAR" --cache .pluginmatrix/cache --java "$JAVA_MAJOR" --paper-version "$PAPER_VERSION" --paper-build "$PAPER_BUILD" $REMAPPED
+      - name: Preserve gate evidence
+        if: always() && steps.gate.outputs.gate_root != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-gate-${{ matrix.paper }}
+          path: |
+            ${{ steps.gate.outputs.gate_root }}/*.json
+            ${{ steps.gate.outputs.gate_root }}/runs/**/result.json
+            ${{ steps.gate.outputs.gate_root }}/runs/**/server.log
+          if-no-files-found: error
+          retention-days: 14

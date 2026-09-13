@@ -34,7 +34,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("id: prepare", workflow)
         self.assertIn("echo \"exit_code=2\"", workflow)
         self.assertIn("expected a repository-relative", workflow)
-        self.assertIn('cp -- "$PLUGIN_JAR" .ci/plugin.jar', workflow)
+        self.assertIn("atomic_copy(plugin, workspace / '.ci/plugin.jar')", workflow)
         self.assertIn('document["plugin"] = "plugin.jar"', workflow)
         self.assertIn('options["work_dir"] = "../.pluginmatrix/runs"', workflow)
         self.assertIn('options["report"] = "../.pluginmatrix/matrix-report.json"', workflow)

@@ -5,6 +5,8 @@ import os
 import shutil
 import subprocess
 import tempfile
+import re
+import zlib
 from pathlib import Path
 from zipfile import BadZipFile, ZIP_DEFLATED, ZipFile
 
@@ -12,6 +14,7 @@ from zipfile import BadZipFile, ZIP_DEFLATED, ZipFile
 PROBE_PLUGIN_NAME = "PluginMatrixRuntimeProbe"
 PROBE_MAIN_CLASS = "pluginmatrix.probe.RuntimeProbe"
 PROBE_FILE_NAME = "pluginmatrix-runtime-evidence.json"
+PROBE_SCHEMA = 2
 
 
 def _java_string(value: str) -> str:
@@ -25,6 +28,7 @@ def build_probe_plugin(
     evidence_path: Path,
     java_executable: str,
     java_major: int,
+    run_id: str = "",
 ) -> Path:
     """Compile a tiny read-only Bukkit plugin against the exact Paper artifact."""
     javac = resolve_javac(java_executable)
@@ -51,9 +55,17 @@ import org.bukkit.plugin.java.JavaPlugin;
 public final class RuntimeProbe extends JavaPlugin {{
     private static final String TARGET = "{target}";
     private static final String OUTPUT = "{_java_string(evidence_path.name)}";
+    private long sequence = 0;
+    private boolean disabled = false;
 
     @Override
     public void onEnable() {{
+        getServer().getPluginManager().registerEvents(new org.bukkit.event.Listener() {{
+            @org.bukkit.event.EventHandler
+            public void onDisable(org.bukkit.event.server.PluginDisableEvent event) {{
+                if (event.getPlugin().getName().equals(TARGET)) disabled = true;
+            }}
+        }}, this);
         getServer().getScheduler().runTaskTimer(this, this::writeEvidence, 1L, 1L);
     }}
 
@@ -62,8 +74,19 @@ public final class RuntimeProbe extends JavaPlugin {{
         String name = plugin == null ? "" : plugin.getDescription().getName();
         String version = plugin == null ? "" : plugin.getDescription().getVersion();
         boolean enabled = plugin != null && plugin.isEnabled();
+        String main = plugin == null ? "" : plugin.getClass().getName();
+        String origin = "";
+        try {{
+            if (plugin != null) origin = Path.of(plugin.getClass().getProtectionDomain().getCodeSource().getLocation().toURI()).toRealPath().toString();
+        }} catch (Exception ignored) {{ }}
         String json = "{{" +
             "\\"probe\\":\\"pluginmatrix\\"," +
+            "\\"schema\\":{PROBE_SCHEMA},\\"run_id\\":\\"{_java_string(run_id)}\\"," +
+            "\\"emitted_at_ms\\":" + System.currentTimeMillis() + "," +
+            "\\"sequence\\":" + (++sequence) + "," +
+            "\\"target_main\\":\\"" + escape(main) + "\\"," +
+            "\\"target_source\\":\\"" + escape(origin) + "\\"," +
+            "\\"target_ever_disabled\\":" + disabled + "," +
             "\\"target_present\\":" + (plugin != null) + "," +
             "\\"target_name\\":\\"" + escape(name) + "\\"," +
             "\\"target_version\\":\\"" + escape(version) + "\\"," +
@@ -88,7 +111,13 @@ public final class RuntimeProbe extends JavaPlugin {{
     }}
 
     private static String escape(String value) {{
-        return value.replace("\\\\", "\\\\\\\\").replace("\\"", "\\\\\\"");
+        StringBuilder result = new StringBuilder();
+        for (char c : value.toCharArray()) {{
+            if (c == 34 || c == 92) result.append((char) 92).append(c);
+            else if (c < 32) result.append(String.format("%cu%04x", 92, (int)c));
+            else result.append(c);
+        }}
+        return result.toString();
     }}
 }}
 ''',
@@ -137,23 +166,50 @@ def _extract_paper_libraries(paper_jar: Path, destination: Path) -> str:
             ]
             if not candidates:
                 raise RuntimeError("Paper artifact does not embed libraries for runtime probe compilation")
+            if len(candidates) > 10000 or len(set(candidates)) != len(candidates):
+                raise RuntimeError("Paper artifact contains too many embedded libraries")
+            if sum(archive.getinfo(name).file_size for name in candidates) > 512 * 1024 * 1024:
+                raise RuntimeError('embedded Paper libraries exceed 512 MiB')
             extracted: list[Path] = []
             for name in candidates:
-                jar_path = destination / Path(name).relative_to("META-INF/libraries")
+                parts = name.split('/')[2:]
+                if any(part in ('', '.', '..') or not re.fullmatch(r'[A-Za-z0-9_.+-]+', part) or part.endswith('.') or re.match(r'(?i)^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)', part) for part in parts):
+                    raise RuntimeError(f"unsafe embedded library path: {name}")
+                relative = Path(*parts)
+                info = archive.getinfo(name)
+                if info.file_size > 256 * 1024 * 1024:
+                    raise RuntimeError(f"embedded library is too large: {name}")
+                jar_path = destination / relative
                 jar_path.parent.mkdir(parents=True, exist_ok=True)
                 with archive.open(name) as source, jar_path.open("wb") as output:
                     shutil.copyfileobj(source, output)
                 extracted.append(jar_path)
             return os.pathsep.join(str(path) for path in extracted)
-    except (OSError, BadZipFile) as exc:
+    except (OSError, BadZipFile, ValueError, NotImplementedError, zlib.error, EOFError) as exc:
         raise RuntimeError(f"could not extract Paper libraries for runtime probe: {exc}") from exc
 
 
 def read_probe_evidence(path: Path) -> dict[str, object] | None:
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
+        from .files import reject_links
+        reject_links(path)
+        with path.open('rb') as stream:
+            data = stream.read(16385)
+        if len(data) > 16384:
+            return None
+        payload = json.loads(data.decode('utf-8'))
+    except (OSError, ValueError, RecursionError):
         return None
-    if payload.get("probe") != "pluginmatrix":
+    if not isinstance(payload, dict) or payload.get("probe") != "pluginmatrix":
+        return None
+    if payload.get('schema') != PROBE_SCHEMA or not isinstance(payload.get('run_id'), str):
+        return None
+    if any(type(payload.get(key)) is not int or payload[key] <= 0 for key in ('sequence', 'emitted_at_ms')):
+        return None
+    if any(type(payload.get(key)) is not bool for key in ('target_present', 'target_enabled', 'target_ever_disabled')):
+        return None
+    if any(not isinstance(payload.get(key), str) for key in ('target_name', 'target_version', 'target_main', 'target_source')):
+        return None
+    if payload['target_enabled'] and not payload['target_present']:
         return None
     return payload
