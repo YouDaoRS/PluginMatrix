@@ -1,8 +1,8 @@
 # Release checklists
 
-## v0.6 development gate — not a release authorization
+## v0.6.0rc1 Release Candidate Gate — not a release authorization
 
-This work is `0.6.0.dev0`. The stable v0.5.0/v0.5.1 tags, releases and history remain unchanged. Development commits are local; no Tag, Release, PyPI upload or history rewrite is part of this task.
+This work is the unpublished `0.6.0rc1` candidate. The stable v0.5.0/v0.5.1 tags, releases and history remain unchanged. No Tag, Release, PyPI upload or history rewrite is part of this task.
 
 - [x] Preserve one Runtime Verifier and v0.5.1 identity/freshness/stability/cleanup guarantees.
 - [x] Implement Paper/Purpur/Folia/local Providers, mixed Matrix, CLI usability, HTML and application services.
@@ -10,13 +10,13 @@ This work is `0.6.0.dev0`. The stable v0.5.0/v0.5.1 tags, releases and history r
 - [x] Keep default serial behavior, bounded parallelism, ordered results and cooperative cancellation with process-tree cleanup.
 - [x] Add offline provider/CLI/HTML/injection/cache/concurrency/cancellation regression tests.
 - [x] Real Windows JDK 21 Gate: Paper 1.21.4/232, Purpur 1.21.4/2416, Folia 1.21.4/6; success/enable failure, Folia unsupported, mixed parallelism 1/3, local JAR, remapped CodeSource, JSON/HTML/Summary/log artifacts.
-- [ ] Independent review of the final development commits.
-- [ ] Fresh GitHub-hosted Linux/Windows Python 3.10/3.11 CI on the release candidate. Existing offline CI covers both OSes and versions; it has not been run remotely for this development commit.
-- [ ] Fresh hosted real Provider Gate (`provider-gate.yml`) and existing legacy Paper Release Gate, after authorization to push/run remotely.
-- [ ] Resolve review findings and select a release candidate/final version separately.
-- [ ] Build formal publishable assets from the final committed release revision, inspect archives, fresh-install and compare public-download hashes after any separately authorized publication.
+- [x] Complete Astra critical-path review, resolve its P1/P2 findings, then perform the bounded ordinary review and Folia root-cause investigation.
+- [x] Run fresh GitHub-hosted Linux/Windows Python 3.10/3.11 CI on the release candidate, including actual Linux symlink/hardlink/FIFO/path-alias/POSIX process-group coverage.
+- [x] Run the real Provider Gate (`provider-gate.yml`) and legacy Paper Release Gate on GitHub-hosted runners; preserve all reports/logs/summaries on success and expected failure.
+- [x] Resolve findings and select the unpublished `0.6.0rc1` version.
+- [x] Build sdist/wheel from a fresh checkout of the final candidate, inspect archives and metadata, and fresh-install the exact wheel for CLI smoke checks.
 
-Development evidence and precise limitations: [STATUS.md](STATUS.md). Passing the local development gates permits independent review; it is not a claim that the hosted release gate has completed.
+Candidate evidence and precise limitations: [STATUS.md](STATUS.md). Passing this gate permits an independent final v0.6 Release Gate; it is not authorization to publish.
 
 ## Historical v0.5.1 Final Release Gate
 

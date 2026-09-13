@@ -196,7 +196,7 @@ class ParallelTests(unittest.TestCase):
             self.assertGreaterEqual(completed.timestamp - started.timestamp, .25)
             return outcome.evidence.verdict(outcome.exit_code is None, outcome.timed_out)[0]
 
-        # A small patched standard-server cap proves regionized runs consume
-        # their configured startup budget instead of that generic grace.
+        # A small patched standard-server cap proves regionized runs retain
+        # their original startup deadline instead of using that generic grace.
         with patch('pluginmatrix.runtime.STANDARD_PROBE_START_TIMEOUT_SECONDS', .5):
             self.assertEqual(schedule(range(3), worker, 3, control), ['PASS'] * 3)

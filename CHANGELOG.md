@@ -2,7 +2,7 @@
 
 PluginMatrix follows the version policy in `docs/VERSIONING.md`. No entry below implies that a Git tag, GitHub Release, or PyPI release exists. Earlier entries without dates were development milestones rather than formal releases.
 
-## 0.6.0.dev0 — Unreleased
+## 0.6.0rc1 — Unreleased release candidate
 
 - Introduce Server Provider contracts for official Paper, Purpur and experimental Folia, plus explicitly declared local/custom JAR runtime profiles; retain one Runtime Verifier.
 - Preserve legacy Paper configuration/CLI/report keys. Reject mixed legacy/new fields and unknown configuration keys explicitly.
@@ -11,8 +11,10 @@ PluginMatrix follows the version policy in `docs/VERSIONING.md`. No entry below 
 - Add init, validate, doctor, providers, static HTML report rendering, and application API with bounded progress events and cancellation.
 - Add bounded Matrix parallelism (default 1, maximum 8), ordered reports, independent ports/artifacts, shared cancellation and complete worker/process-tree draining.
 - Disable interactive server console and inherited stdin; raw log consumption remains strict. Add project-owned Folia fixtures and explicit provider gates outside offline test discovery.
+- Stabilize Folia cold starts without relaxing PASS: withhold isolated early callbacks until a continuous two-second scheduler span, keep the host-side two-second freshness rule, and use the configured startup deadline while Folia completes world initialization. Use a fixed empty-world seed for reproducible gates.
+- Fail closed on malformed nested saved reports, normalize local server path aliases on Windows, preserve server-shutdown verdict precedence, and extend hosted gates to audit JSON, HTML, summaries, logs, runtime reports, progress events and artifact references.
 
-No Tag, GitHub Release or PyPI publication is part of this development version. Validation results and limitations are tracked in docs/STATUS.md.
+No Tag, GitHub Release or PyPI publication is part of this release candidate. Validation results and limitations are tracked in docs/STATUS.md.
 
 ## 0.5.1 — 2026-09-13
 

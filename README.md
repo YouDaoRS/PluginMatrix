@@ -2,9 +2,9 @@
 
 PluginMatrix is an early-stage command-line verifier for Minecraft plugin JARs. It prepares an isolated server/Java environment, starts a real server, observes plugin discovery and lifecycle evidence, and writes an authoritative JSON report alongside the original `server.log` and optional static HTML.
 
-The **0.6.0.dev0 development version** adds Paper, Purpur, Folia and user-supplied local server Providers. One Runtime Verifier serves all Providers. Matrix defaults to serial execution and optionally runs 1–8 environments concurrently. There is no GUI, cloud service, automatic JDK management, gameplay bot or complete feature testing.
+The **0.6.0rc1 release candidate** adds Paper, Purpur, Folia and user-supplied local server Providers. One Runtime Verifier serves all Providers. Matrix defaults to serial execution and optionally runs 1–8 environments concurrently. There is no GUI, cloud service, automatic JDK management, gameplay bot or complete feature testing.
 
-The public stable release remains **0.5.1**. This development version is not a release. See [development status](docs/STATUS.md), [architecture](docs/ARCHITECTURE.md), and the [v0.5.1 validation record](docs/V0.5.1_PREPARATION.md).
+The public stable release remains **0.5.1**. This candidate is validated but unpublished: no v0.6 tag, GitHub Release or PyPI publication exists. See [candidate status](docs/STATUS.md), [architecture](docs/ARCHITECTURE.md), and the [v0.5.1 validation record](docs/V0.5.1_PREPARATION.md).
 
 ## What `PASS` means
 
@@ -19,7 +19,7 @@ The window starts with a valid enabled probe sample after ready. Samples must ma
 
 The verifier supports simple `plugin.yml` and standalone `paper-plugin.yml` descriptors. Duplicate/ambiguous keys, unsupported YAML, missing version and dual descriptors are rejected explicitly. Complex Paper bootstrapper/loader/nested dependency descriptors remain unsupported. Plugin names and `provides` aliases must not collide with each other or the probe. Remapped sources are accepted only at the expected isolated `.paper-remapped/<target filename>` path when allowed by the Provider.
 
-Folia requires the unquoted boolean `folia-supported: true`; its absence returns `PLUGIN_UNSUPPORTED` before download/startup. The Folia probe runs on the global region scheduler. **Folia PASS does not prove thread safety, cross-region safety or complete gameplay compatibility.**
+Folia requires the unquoted boolean `folia-supported: true`; its absence returns `PLUGIN_UNSUPPORTED` before download/startup. The Folia probe runs on the global region scheduler and withholds startup samples until that scheduler has produced a continuous fresh two-second span. Cold-world initialization remains inside the configured startup deadline; the full stability window begins only with the first published sample. **Folia PASS does not prove thread safety, cross-region safety or complete gameplay compatibility.**
 
 These checks are for compatibility of plugins you trust to execute. A run directory and a probe in the same JVM are not a security sandbox against intentionally malicious plugin code or processes that deliberately leave the POSIX process group.
 
@@ -61,7 +61,7 @@ Useful options:
 
 ```text
 --dependency path.jar       Add a locally supplied dependency plugin; repeatable
---timeout 120               Paper readiness timeout in seconds
+--timeout 120               Server startup and initial-probe timeout in seconds
 --stability-window 5        Positive observation time after ready and the first valid enabled sample
 --work-dir path             Root for isolated run directories
 --cache-dir path            Paper download and bootstrap cache

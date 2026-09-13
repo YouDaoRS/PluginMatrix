@@ -10,6 +10,6 @@ A safety patch can reject previously accepted inputs that cannot produce trustwo
 
 The single authoritative version is `pluginmatrix.__version__` in `pluginmatrix/__init__.py`. `pyproject.toml` reads that attribute dynamically; it must not contain a second literal project version. CLI `--version`, wheel metadata, sdist metadata, and JSON reports derive from the same value.
 
-Unreleased work for the next minor version uses the PEP 440 suffix `.devN`. The multi-provider development line is `0.6.0.dev0`; it does not replace the public stable `0.5.1` release. Move to a release candidate or final literal only as part of an explicitly authorized Release Gate. This development task creates no tags or published packages.
+Unreleased work for the next minor version uses the PEP 440 suffix `.devN`. After an explicitly authorized Release Candidate Gate, the multi-provider line uses `0.6.0rcN`; the current candidate is `0.6.0rc1`. It does not replace the public stable `0.5.1` release. Moving to a final literal, creating a tag or publishing any package remains a separate owner-authorized release operation.
 
 `CHANGELOG.md` may describe an implemented version as **Unreleased**. Updating the version or changelog does not create a release. A formal release would additionally require the owner-approved release checklist, a deliberate tag/Release decision, and any selected distribution channel. PluginMatrix currently has no published PyPI release policy or automated release workflow.

@@ -463,9 +463,7 @@ def run_server_process(
     exit_code = None
     progress_at = 0.0
     enabled_emitted = False
-    probe_start_timeout = (
-        timeout if regionized_runtime else min(timeout, STANDARD_PROBE_START_TIMEOUT_SECONDS)
-    )
+    standard_probe_start_timeout = min(timeout, STANDARD_PROBE_START_TIMEOUT_SECONDS)
     log_path.parent.mkdir(parents=True, exist_ok=True)
     try:
         control.check()
@@ -545,12 +543,18 @@ def run_server_process(
                 else:
                     if window_start is None:
                         # Folia's Done line precedes cold-world initialisation on
-                        # the shared region scheduler.  Keep its unpublished
-                        # settle period inside the caller's configured startup
-                        # budget; the generic ten-second post-ready cap can stop
-                        # a healthy one-thread runner just before the first safe
-                        # sample.  This does not change probe freshness or PASS.
-                        if now >= ready_at + probe_start_timeout:
+                        # the shared region scheduler. Keep that initialisation
+                        # and the unpublished settle period inside the caller's
+                        # original startup deadline; the generic ten-second
+                        # post-ready cap can stop a healthy one-thread runner just
+                        # before the first safe sample. This does not change probe
+                        # freshness or PASS.
+                        probe_start_deadline = (
+                            started + timeout
+                            if regionized_runtime
+                            else ready_at + standard_probe_start_timeout
+                        )
+                        if now >= probe_start_deadline:
                             evidence.direct_runtime_error = 'runtime probe did not produce direct plugin state evidence'
                             break
                     else:
