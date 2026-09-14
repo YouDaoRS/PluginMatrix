@@ -56,7 +56,7 @@ class WorkflowTests(unittest.TestCase):
 
     def test_workflows_do_not_use_deprecated_node20_action_versions(self):
         workflows = ''.join(self.read(name) for name in (
-            "ci.yml", "matrix.yml", "provider-gate.yml", "release-gate.yml"
+            "ci.yml", "matrix.yml", "provider-gate.yml", "release-gate.yml", "publish-pypi.yml"
         ))
         for deprecated in (
             "actions/checkout@v4",
@@ -67,6 +67,29 @@ class WorkflowTests(unittest.TestCase):
             self.assertNotIn(deprecated, workflows)
         self.assertIn("actions/checkout@v7", self.read("ci.yml"))
         self.assertIn("actions/setup-python@v7", self.read("ci.yml"))
+
+    def test_pypi_publish_uses_release_assets_and_trusted_publishing(self):
+        workflow = self.read("publish-pypi.yml")
+        self.assertIn("workflow_dispatch:", workflow)
+        self.assertNotIn("\n  push:", workflow)
+        self.assertNotIn("\n  release:", workflow)
+        self.assertIn("environment: ${{ inputs.target }}", workflow)
+        self.assertIn("id-token: write", workflow)
+        self.assertIn("contents: read", workflow)
+        self.assertIn('gh release download "$RELEASE_TAG"', workflow)
+        self.assertIn('release.get("target_commitish")', workflow)
+        self.assertIn('asset["name"]: asset', workflow)
+        self.assertIn('hashlib.sha256(path.read_bytes()).hexdigest()', workflow)
+        self.assertIn('f"pluginmatrix-{version}-py3-none-any.whl"', workflow)
+        self.assertIn('f"pluginmatrix-{version}.tar.gz"', workflow)
+        self.assertIn('metadata["Name"] != "pluginmatrix"', workflow)
+        self.assertIn("pypa/gh-action-pypi-publish@release/v1", workflow)
+        self.assertIn("https://test.pypi.org/legacy/", workflow)
+        self.assertIn("https://upload.pypi.org/legacy/", workflow)
+        self.assertIn("skip-existing: false", workflow)
+        self.assertNotIn("python -m build", workflow)
+        self.assertNotIn("password:", workflow)
+        self.assertNotIn("api-token", workflow.lower())
 
     def test_provider_gate_is_manual_cross_platform_and_preserves_complete_evidence(self):
         workflow = self.read('provider-gate.yml')

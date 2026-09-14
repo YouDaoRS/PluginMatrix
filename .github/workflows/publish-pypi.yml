@@ -1,0 +1,124 @@
+name: Publish Python Package
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Package index to publish to
+        required: true
+        type: choice
+        options:
+          - testpypi
+          - pypi
+      tag:
+        description: Existing GitHub Release tag whose assets will be published
+        required: true
+        default: v0.6.0
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: publish-${{ inputs.target }}-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish ${{ inputs.tag }} to ${{ inputs.target }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.target }}
+    steps:
+      - name: Check out the released source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+
+      - name: Download and verify the existing GitHub Release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          mkdir dist
+          gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" > release.json
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern '*.whl' --pattern '*.tar.gz' --dir dist
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          import subprocess
+          import tarfile
+          import zipfile
+          from email.parser import BytesParser
+          from pathlib import Path
+
+          tag = os.environ["RELEASE_TAG"]
+          if not tag.startswith("v") or not tag[1:]:
+              raise SystemExit(f"release tag must have the form v<VERSION>: {tag!r}")
+          version = tag[1:]
+          expected_names = {
+              f"pluginmatrix-{version}-py3-none-any.whl",
+              f"pluginmatrix-{version}.tar.gz",
+          }
+          release = json.loads(Path("release.json").read_text(encoding="utf-8"))
+          if release.get("draft") or release.get("prerelease"):
+              raise SystemExit("refusing to publish a draft or prerelease GitHub Release")
+          if release.get("tag_name") != tag:
+              raise SystemExit("GitHub Release tag does not match the requested tag")
+          release_commit = release.get("target_commitish")
+          tag_commit = subprocess.check_output(
+              ["git", "rev-parse", f"{tag}^{{}}"], text=True
+          ).strip()
+          if release_commit != tag_commit:
+              raise SystemExit(
+                  f"GitHub Release target {release_commit!r} does not match tag commit {tag_commit!r}"
+              )
+
+          paths = {path.name: path for path in Path("dist").iterdir() if path.is_file()}
+          if set(paths) != expected_names:
+              raise SystemExit(
+                  f"expected exactly {sorted(expected_names)!r}, downloaded {sorted(paths)!r}"
+              )
+          assets = {asset["name"]: asset for asset in release.get("assets", [])}
+          for name, path in paths.items():
+              digest = assets.get(name, {}).get("digest")
+              if not isinstance(digest, str) or not digest.startswith("sha256:"):
+                  raise SystemExit(f"GitHub Release asset {name!r} has no SHA-256 digest")
+              actual = hashlib.sha256(path.read_bytes()).hexdigest()
+              if actual != digest.removeprefix("sha256:"):
+                  raise SystemExit(f"SHA-256 mismatch for {name!r}")
+              print(f"{actual}  {name}")
+
+          wheel = paths[f"pluginmatrix-{version}-py3-none-any.whl"]
+          with zipfile.ZipFile(wheel) as archive:
+              metadata_name = next(
+                  name for name in archive.namelist() if name.endswith(".dist-info/METADATA")
+              )
+              wheel_metadata = BytesParser().parsebytes(archive.read(metadata_name))
+          sdist = paths[f"pluginmatrix-{version}.tar.gz"]
+          with tarfile.open(sdist, "r:gz") as archive:
+              pkg_info = next(
+                  member for member in archive.getmembers() if member.name.endswith("/PKG-INFO")
+              )
+              extracted = archive.extractfile(pkg_info)
+              if extracted is None:
+                  raise SystemExit("sdist PKG-INFO could not be read")
+              sdist_metadata = BytesParser().parsebytes(extracted.read())
+          for kind, metadata in (("wheel", wheel_metadata), ("sdist", sdist_metadata)):
+              if metadata["Name"] != "pluginmatrix" or metadata["Version"] != version:
+                  raise SystemExit(
+                      f"{kind} identity mismatch: {metadata['Name']!r} {metadata['Version']!r}"
+                  )
+          PY
+
+      - name: Publish the verified Release assets with Trusted Publishing
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+          repository-url: ${{ inputs.target == 'testpypi' && 'https://test.pypi.org/legacy/' || 'https://upload.pypi.org/legacy/' }}
+          skip-existing: false
+          verbose: true
