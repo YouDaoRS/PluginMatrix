@@ -19,11 +19,11 @@ class ReleaseReadinessTests(unittest.TestCase):
     def test_version_has_one_authoritative_literal(self):
         pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
         package_init = (ROOT / "pluginmatrix" / "__init__.py").read_text(encoding="utf-8")
-        self.assertEqual(__version__, "0.6.0")
+        self.assertEqual(__version__, "0.7.0.dev1")
         self.assertIn('dynamic = ["version"]', pyproject)
         self.assertIn('version = {attr = "pluginmatrix.__version__"}', pyproject)
         self.assertNotIn('version = "0.5.1"', pyproject)
-        self.assertIn('__version__ = "0.6.0"', package_init)
+        self.assertIn('__version__ = "0.7.0.dev1"', package_init)
 
     def test_required_open_source_files_and_templates_exist(self):
         required = (
@@ -36,6 +36,9 @@ class ReleaseReadinessTests(unittest.TestCase):
             "docs/RELEASE_CHECKLIST.md",
             "docs/PUBLISHING.md",
             "docs/VERSIONING.md",
+            "standalone/pluginmatrix.spec",
+            "standalone/build.py",
+            ".github/workflows/standalone.yml",
             ".github/ISSUE_TEMPLATE/bug_report.yml",
             ".github/ISSUE_TEMPLATE/feature_request.yml",
             ".github/pull_request_template.md",
@@ -167,6 +170,8 @@ class ReleaseReadinessTests(unittest.TestCase):
             self.assertTrue(any(name.endswith("/examples/matrix.json") for name in sdist_entries))
             self.assertTrue(any(name.endswith("/ci-fixtures/smoke/plugin.yml") for name in sdist_entries))
             self.assertTrue(any(name == "pluginmatrix/cli.py" for name in wheel_entries))
+            self.assertTrue(any(name == "pluginmatrix/webui/index.html" for name in wheel_entries))
+            self.assertTrue(any(name == "pluginmatrix/webui/app.js" for name in wheel_entries))
             self.assertFalse(any(name.startswith("tests/") for name in wheel_entries))
             self.assertIn("Name: pluginmatrix", metadata)
             self.assertIn(f"Version: {__version__}", metadata)

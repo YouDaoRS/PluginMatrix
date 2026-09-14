@@ -39,4 +39,6 @@ result = run_single(
 
 Events: `matrix_started`, `environment_started`, `download_started`, `download_completed`, `server_started`, `plugin_enabled`, `stability_progress` (at most once per second per environment), `environment_completed`, `matrix_completed`. `data` may contain provider identifier, counts, concurrency, elapsed/duration, cache-hit flag or verdict. Cross-environment events follow actual progress, while final report environments always follow configuration order. A cache hit emits download events with `cached=true`; local sources do not emit download events.
 
-The services do not install Java, upload anything, spawn a GUI, or manage accounts/background daemons. No separate verifier is needed for a future GUI.
+The services do not install Java, upload anything, spawn a GUI, or manage accounts/background daemons. No separate verifier is needed for a GUI.
+
+The v0.7 `pluginmatrix.web` module is a thin GUI adapter: it converts bounded loopback requests to these services and forwards their `RunControl`/`ProgressEvent` objects. It does not add an alternate result model. A UI task marked `completed` exposes the exact returned runtime or Matrix verdicts; transport/configuration failures are marked separately as failed UI tasks.

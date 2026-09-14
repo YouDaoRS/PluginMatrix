@@ -1,0 +1,91 @@
+name: Standalone Distribution
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'pluginmatrix/**'
+      - 'standalone/**'
+      - 'pyproject.toml'
+      - '.github/workflows/standalone.yml'
+  pull_request:
+    paths:
+      - 'pluginmatrix/**'
+      - 'standalone/**'
+      - 'pyproject.toml'
+      - '.github/workflows/standalone.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.platform }}-${{ matrix.architecture }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2022
+            platform: windows
+            architecture: x86_64
+          - os: ubuntu-22.04
+            platform: linux
+            architecture: x86_64
+          - os: macos-15-intel
+            platform: macos
+            architecture: x86_64
+          - os: macos-15
+            platform: macos
+            architecture: arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install package and standalone builder
+        run: python -m pip install -e ".[standalone]"
+      - name: Build and smoke-test compressed bundle
+        run: python standalone/build.py --java 17
+      - name: Exercise Provider, runtime probe, report, log, and Web resources from frozen CLI
+        run: python standalone/verify_frozen.py --bundle dist/standalone --java 17
+      - name: Upload standalone archive and verification evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: standalone-${{ matrix.platform }}-${{ matrix.architecture }}
+          path: |
+            dist/standalone/pluginmatrix-*.zip
+            dist/standalone/pluginmatrix-*.tar.gz
+            dist/standalone/pluginmatrix-*.sha256
+            .pluginmatrix/standalone-gate/result.json
+            .pluginmatrix/standalone-gate/result.html
+            .pluginmatrix/standalone-gate/runs/**/server.log
+            .pluginmatrix/standalone-gate/web-state/reports/*
+            .pluginmatrix/standalone-gate/web-state/runs/**/server.log
+          if-no-files-found: error
+          retention-days: 14
+
+  checksums:
+    name: Combined checksums
+    needs: build
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: standalone-*
+          path: standalone-assets
+          merge-multiple: true
+      - name: Create combined checksum file
+        run: find standalone-assets -name 'pluginmatrix-*.sha256' -type f -print0 | sort -z | xargs -0 cat > standalone-assets/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v7
+        with:
+          name: standalone-checksums
+          path: standalone-assets/SHA256SUMS.txt
+          if-no-files-found: error

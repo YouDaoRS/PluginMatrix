@@ -1,8 +1,8 @@
 # PluginMatrix
 
-PluginMatrix is an early-stage command-line verifier for Minecraft plugin JARs. It prepares an isolated server/Java environment, starts a real server, observes plugin discovery and lifecycle evidence, and writes an authoritative JSON report alongside the original `server.log` and optional static HTML.
+PluginMatrix is an early-stage local runtime verifier for Minecraft plugin JARs. It prepares an isolated server/Java environment, starts a real server, observes plugin discovery and lifecycle evidence, and writes an authoritative JSON report alongside the original `server.log` and optional static HTML.
 
-Version **0.6.0** adds Paper, Purpur, Folia and user-supplied local server Providers. One Runtime Verifier serves all Providers. Matrix defaults to serial execution and optionally runs 1–8 environments concurrently. There is no GUI, cloud service, automatic JDK management, gameplay bot or complete feature testing.
+The current source version is **0.7.0.dev1**. It adds a loopback-only local Web UI and platform-native standalone archives while retaining the same application API, Provider registry, Runtime Verifier, progress events, reports, and bounded 1–8 environment Matrix scheduler. There is no cloud service, account system, automatic JDK management, gameplay bot, or complete feature testing.
 
 The public stable release is **0.6.0**, available from [PyPI](https://pypi.org/project/pluginmatrix/0.6.0/) and the immutable [GitHub Release](https://github.com/YouDaoRS/PluginMatrix/releases/tag/v0.6.0). GitHub remains the source, release-asset and checksum channel. See [release status](docs/STATUS.md), [publishing policy](docs/PUBLISHING.md), [architecture](docs/ARCHITECTURE.md), and the [v0.5.1 validation record](docs/V0.5.1_PREPARATION.md).
 
@@ -42,6 +42,16 @@ pluginmatrix providers
 ```
 
 Upgrade to a later published version with `pipx upgrade pluginmatrix`. PyPI versions are immutable; an existing version is never overwritten.
+
+For the local Web UI, run:
+
+```console
+pluginmatrix web
+```
+
+The printed URL is bound to `127.0.0.1` only and normally opens in the default browser. Use `pluginmatrix web --no-browser --port 0` to print a randomly allocated local URL without opening it. The UI accepts Paper, Purpur, Folia, and explicit local contracts; single or Matrix runs; dependencies; Java/build/stability/concurrency settings; cancellation; live progress; configuration import/generation; and links to allowlisted reports and logs. Browser-selected JARs are copied into a session-temporary local directory and are never sent to a remote service. Enter full local paths when generating a configuration that must remain usable after the UI exits.
+
+Development builds also produce PyInstaller `onedir` archives named for Windows x86-64, Linux x86-64, and macOS x86-64/arm64. Unpack the archive and run `pluginmatrix` (`pluginmatrix.exe` on Windows); both the CLI and `web` command are available without a preinstalled Python. A full installed JDK is still required, and no Java runtime, server JAR, or third-party plugin is bundled. These development artifacts are not a v0.7 release.
 
 For development from a clean checkout:
 

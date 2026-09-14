@@ -1,4 +1,10 @@
-# PluginMatrix v0.6.0 Release Status
+# PluginMatrix v0.7 Development Status
+
+更新日期：2026-09-14。当前源码版本为 **0.7.0.dev1**，开发分支为 `codex/v0.7-local-web-ui`；公开稳定版本仍是 **v0.6.0**。没有创建 v0.7 tag、GitHub Release 或 PyPI 发布。
+
+v0.7 已实现 loopback-only Web UI、同一 application API/Provider/Runtime Verifier 的单环境与 Matrix 运行、实时进度、取消、配置导入/生成及 artifact 白名单访问。已加入 PyInstaller `onedir` 原生打包和 Windows x86-64、Linux x86-64、macOS x86-64/arm64 workflow；当前平台与 hosted 结果会在开发 Gate 后记录，不能提前视为发布结论。
+
+## v0.6.0 Release Status
 
 更新日期：2026-09-14。
 

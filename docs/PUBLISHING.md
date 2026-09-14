@@ -15,7 +15,7 @@ Trusted Publishers are restricted to repository `YouDaoRS/PluginMatrix`, workflo
 
 ## Standalone application assets
 
-Future standalone executables remain a separate GitHub Release asset family and do not change the Python package version or PyPI contents. When implemented, use explicit platform/architecture names such as:
+Standalone executables are a separate GitHub Release asset family and do not change the Python package version or PyPI contents. PyInstaller `onedir` bundles are built and tested on the matching native platform; PyInstaller is not a cross-compiler. Use explicit platform/architecture names such as:
 
 ```text
 pluginmatrix-<version>-windows-x86_64.zip
@@ -26,3 +26,7 @@ SHA256SUMS.txt
 ```
 
 Generate each platform artifact in an isolated platform job, preserve its build provenance and checksum, and attach it to the existing matching GitHub Release only after the same release gate. Do not upload executables, archives, JREs or GUI bundles to PyPI, and do not add GUI functionality merely to create this packaging structure.
+
+`.github/workflows/standalone.yml` builds Windows x86-64, Linux x86-64, macOS x86-64 and macOS arm64 archives. Every job checks the frozen version, Provider registry, Java/Javac access, local Web UI resources, and one real Paper/probe/report/log path. `BUILD-INFO.json`, `LICENSE`, `THIRD_PARTY_NOTICES.md`, and the build interpreter's `PYTHON-LICENSE.txt` are included; JARs are rejected by the archive audit. The workflow only uploads CI artifacts and combined checksums. It never creates a tag, GitHub Release, signature, installer, notarization, update channel, or PyPI upload.
+
+The PyPI workflow downloads wheel and sdist by exact versioned names rather than wildcarding `*.tar.gz`, so standalone tarballs attached to a future matching GitHub Release cannot enter or disrupt the Python-package publication set.

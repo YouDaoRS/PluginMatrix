@@ -1,5 +1,17 @@
 # Release checklists
 
+## v0.7 standalone/UI development gate — pending
+
+- [x] Keep the Web UI on the application API and preserve one Runtime Verifier/verdict implementation.
+- [x] Add loopback, Host/Origin/session/CSRF, bounded-input, injection, artifact allowlist and multi-task slot controls.
+- [x] Route UI cancellation and service shutdown through `RunControl`, retaining complete JVM process-tree draining.
+- [x] Add native PyInstaller `onedir` build/archive/audit scripts and a four-target hosted workflow without Java/server/plugin bundling or publication.
+- [ ] Pass Windows/Linux/macOS x86-64 and macOS arm64 frozen CLI/Web/JDK/real probe jobs from the final candidate commit.
+- [ ] Complete independent Astra critical-path review of HTTP parsing/authentication, artifact TOCTOU handling, UI cancellation/shutdown, frozen subprocess environments and release-asset isolation.
+- [ ] Resolve review findings, run final bounded offline CI/compile/package checks, and record candidate hashes.
+
+No tag, GitHub Release, PyPI upload, code signing, MSI, notarization, auto-update, cloud service or v0.8 work is authorized by this development checklist.
+
 ## v0.6.0 Final Release Gate — completed 2026-09-14
 
 Owner authorization covers the normal release commit/push, annotated `v0.6.0` tag and GitHub Release. PyPI, force pushes, history rewriting, old Release changes, EnhancedFly history work, v0.7 and GUI work remain excluded. The v0.5.0/v0.5.1 tags, releases and history remain unchanged.

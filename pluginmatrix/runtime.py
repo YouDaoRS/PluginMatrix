@@ -23,6 +23,7 @@ from .preflight import PreflightError, inspect_plugin, java_target_name
 from .probe import PROBE_FILE_NAME, PROBE_FRESHNESS_SECONDS, PROBE_PLUGIN_NAME, build_probe_plugin, read_probe_evidence
 from .providers import ServerSpec, get_provider
 from .control import RunControl, RunCancelled
+from .external import run_external
 from .locking import file_lock, reject_lock_output
 
 
@@ -290,7 +291,7 @@ def resolve_java(java: str) -> tuple[str, str]:
     else:
         candidate = shutil.which(java) or java
     try:
-        completed = subprocess.run([candidate, "-version"], capture_output=True, text=True, timeout=10)
+        completed = run_external([candidate, "-version"], capture_output=True, text=True, timeout=10)
     except (OSError, subprocess.SubprocessError) as exc:
         raise ValueError(
             f"Java value {java!r} did not resolve to an available executable ({exc}). "

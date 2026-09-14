@@ -31,6 +31,7 @@ Changelog = "https://github.com/YouDaoRS/PluginMatrix/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 release = ["build>=1,<2", "setuptools>=77", "wheel>=0.40"]
+standalone = ["pyinstaller==6.22.2"]
 
 [project.scripts]
 pluginmatrix = "pluginmatrix.cli:main"
@@ -41,3 +42,6 @@ version = {attr = "pluginmatrix.__version__"}
 [tool.setuptools.packages.find]
 include = ["pluginmatrix*"]
 exclude = ["tests*"]
+
+[tool.setuptools.package-data]
+"pluginmatrix.webui" = ["*.html", "*.js", "*.css"]

@@ -1,9 +1,9 @@
-# PluginMatrix 0.6 development architecture
+# PluginMatrix 0.7 development architecture
 
 One Runtime Verifier remains the only lifecycle/verdict implementation. Provider implementations are selected from a fixed registry; arbitrary code is not loaded from config.
 
 ```text
-CLI / future GUI
+CLI / loopback Web UI
         |
 application.py: validation, run services, report loading/rendering
         |
@@ -52,6 +52,20 @@ Folia can print `Done` before cold worlds finish initialization. Its global sche
 Output validation includes config/plugin/dependencies/local-server inputs, hardlinks, symlinks/junctions, report/HTML, runtime and cache roots. Report writes and downloads are atomic. APIs, filenames, checksum values and embedded archive paths remain untrusted. HTML is derived from JSON, escapes text and percent-encodes relative artifact links, has no script or external assets and uses a restrictive CSP. Terminal control/bidirectional characters are escaped.
 
 This is not a hostile-code sandbox. Trusted plugins execute with the same JVM and OS account as the probe. Deliberately malicious code can forge evidence or leave a POSIX process group. No telemetry, plugin/log uploads, automatic JDK installation or platform service is added.
+
+## Local Web UI
+
+`pluginmatrix.web` is a transport/UI adapter. It normalizes bounded HTTP input into `ServerSpec` and Matrix JSON, then calls `application.run_single` or `application.run_matrix`; it never assigns a verdict. Each job owns one `RunControl`, a bounded event deque, summary references and an allowlist of completed artifact files. Multiple UI jobs may coexist, but their reserved `max_parallel` values cannot exceed the existing global limit of eight.
+
+The server binds only `127.0.0.1`. Exact Host/Origin validation, a SameSite/HttpOnly session cookie and an unguessable CSRF header token protect state-changing endpoints from DNS rebinding and browser CSRF. JAR bodies are streamed into a session-only local temporary directory under the existing 512 MiB bound. JSON remains limited to 1 MiB. Artifact URLs contain opaque job/artifact IDs, not filesystem paths; file identity is rechecked after opening. UI rendering uses `textContent`, and saved HTML remains the existing escaped, no-script renderer.
+
+Server shutdown first stops accepting requests, then cancels active controls and joins their non-daemon job threads. Runtime cleanup therefore remains the same Windows Job Object/POSIX process-group `finally` path used by CLI cancellation.
+
+## Standalone runtime
+
+`standalone/pluginmatrix.spec` produces a PyInstaller `onedir` bundle. The build is deliberately native rather than cross-compiled and is archived as a platform/architecture-specific zip or tarball. `pluginmatrix.external` restores PyInstaller-modified system library lookup when spawning installed Java/Javac or platform opener processes; Runtime Verifier process ownership remains unchanged.
+
+The standalone workflow checks version, all Provider metadata, Web assets, Java/Javac discovery and a real Paper success path with probe evidence and JSON/HTML/log output on every target. It does not repeat Purpur/Folia/local Provider gates. Archives contain no JARs and are never uploaded to PyPI.
 
 ## Official references (contract research)
 

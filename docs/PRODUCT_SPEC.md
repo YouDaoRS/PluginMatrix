@@ -2,7 +2,7 @@
 
 ## 1. 项目定义
 
-PluginMatrix 是一个面向 Minecraft 插件开发者的发布前运行时兼容性验证工具。当前 v0.6 开发范围为 Paper、Purpur、Folia 和用户明确声明运行契约的 local JAR，复用同一个可信 Runtime Verifier。下列 v0.1–v0.5 小节保留历史需求演进，当前范围以第 14 节为准。
+PluginMatrix 是一个面向 Minecraft 插件开发者的发布前运行时兼容性验证工具。当前 v0.7 开发范围在 Paper、Purpur、Folia 和明确 local 合同的同一 Runtime Verifier 之上增加本地 Web UI 与独立程序包。下列小节保留历史需求演进，当前范围以第 15 节为准。
 
 它接收插件 JAR，在真实 Paper 服务器中运行，并尽可能准确地区分：
 
@@ -210,3 +210,15 @@ Provider 负责配置/能力、官方 version/build/download 解析、完整性�
 - `pluginmatrix.application` 提供可复用服务接口，`RunControl` 支持取消与有界结构化 progress events；不引入 GUI、账号、后台服务、遥测或上传。
 
 `CANCELLED` 与 `PLUGIN_UNSUPPORTED` 是新增的稳定顶层状态。原 exit code 0/1/2/3 含义保持；取消属于已完成但未全部通过（1），报告或内部错误为 3。任何清理失败都不能 PASS。
+
+## 15. v0.7 Local Web UI and Standalone Distribution
+
+本地 Web UI 是 `pluginmatrix.application` 的适配层，不复制 Provider、Runtime Verifier、Matrix 调度、进度、取消或报告语义。它默认且仅监听 loopback，使用浏览器完成单环境/Matrix 参数配置、会话内本地 JAR 导入、现有 JSON 配置导入与配置生成，并实时呈现结构化 progress event 和应用层返回的 verdict/failure stage/artifact。
+
+- UI 任务共享最多 8 个环境执行槽；任务历史和 progress event 队列有界。取消调用该任务的 `RunControl.cancel()`，服务退出会取消并等待所有任务完成 JVM 进程树清理。
+- HTTP 请求校验 loopback 客户端、Host、Origin、会话 Cookie 和 CSRF token；JSON/JAR、路径、文件名、数组和数值均有限制。动态结果只通过 JSON 与 DOM `textContent` 呈现；页面和 artifact 响应使用 CSP、no-sniff 和 no-referrer。
+- artifact 下载只接受已完成任务登记的随机 ID，并在打开后核对路径、link/reparse 状态以及完成时的 device/inode/size；不存在任意路径读取接口。
+- 浏览器选择的 JAR 只复制到本机进程的会话临时目录，退出后删除；插件、配置、日志和报告不发送到远端。直接输入的本地路径继续由现有输入/输出冲突保护验证。
+- UI 中 PASS 与 CLI 完全同源、同义；Folia 页面和报告继续明确排除线程安全、跨 region 安全和完整业务兼容。
+
+独立分发使用成熟的 PyInstaller `onedir` 模式。Windows、Linux、macOS 分别在原生 runner 构建，macOS 分 x86-64 与 arm64。冻结包内 CLI 与 Web UI 共用同一入口，包含版本、Web 资源、Provider metadata、项目许可证/notice、CPython license 和 build provenance；不包含 JDK/JRE、Paper/Purpur/Folia 或任何插件 JAR。发布候选先提供 zip/tar.gz 与 SHA-256，不做签名、安装器、notarization、自动更新或自动发布。

@@ -74,6 +74,11 @@ def build_parser() -> argparse.ArgumentParser:
     html = subparsers.add_parser('report', help='render saved JSON as static HTML without recalculating verdicts')
     html.add_argument('source', type=Path)
     html.add_argument('--html', required=True, type=Path)
+    web = subparsers.add_parser('web', help='start the loopback-only local Web UI')
+    web.add_argument('--port', type=int, default=8642, help='loopback TCP port; use 0 to select a free port')
+    web.add_argument('--no-browser', action='store_true', help='print the local URL without opening a browser')
+    web.add_argument('--state-dir', type=Path, default=Path('.pluginmatrix/web'))
+    web.add_argument('--cache-dir', type=Path, default=Path('.pluginmatrix/cache'))
     return parser
 
 
@@ -145,6 +150,13 @@ def _print_matrix_result(report: dict, report_path: Path) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.command == 'web':
+        try:
+            from .web import serve
+            return serve(args.port, not args.no_browser, args.state_dir, args.cache_dir)
+        except (OSError, ValueError) as exc:
+            print(f'Could not start local Web UI: {exc}')
+            return 2
     if args.command in {'init', 'validate', 'doctor', 'providers', 'report'}:
         try:
             return _utility(args)

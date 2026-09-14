@@ -207,7 +207,7 @@ class ProviderTests(unittest.TestCase):
             return SimpleNamespace(returncode=0, stderr='', stdout='')
 
         with patch('pluginmatrix.probe.resolve_javac', return_value='javac'), \
-             patch('pluginmatrix.probe.subprocess.run', side_effect=compile_probe):
+             patch('pluginmatrix.probe.run_external', side_effect=compile_probe):
             build_probe_plugin(server, plugins, 'Example', plugins/'probe.json',
                                'java', 17, run_id='run', regionized=True)
         source = captured[0]
@@ -218,7 +218,7 @@ class ProviderTests(unittest.TestCase):
 
         captured.clear()
         with patch('pluginmatrix.probe.resolve_javac', return_value='javac'), \
-             patch('pluginmatrix.probe.subprocess.run', side_effect=compile_probe):
+             patch('pluginmatrix.probe.run_external', side_effect=compile_probe):
             build_probe_plugin(server, plugins, 'Example', plugins/'probe.json',
                                'java', 17, run_id='run', regionized=False)
         self.assertIn('private boolean samplingReady = true;', captured[0])

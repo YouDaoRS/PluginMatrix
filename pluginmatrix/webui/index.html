@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="pluginmatrix-token" content="{{SESSION_TOKEN}}" />
+    <title>PluginMatrix</title>
+    <link rel="stylesheet" href="/assets/style.css" />
+  </head>
+  <body>
+    <header>
+      <div>
+        <span class="eyebrow">LOCAL RUNTIME VERIFIER</span>
+        <h1>PluginMatrix</h1>
+      </div>
+      <span class="version">v{{VERSION}}</span>
+    </header>
+    <main>
+      <section class="notice">
+        <strong>Local only.</strong> Files selected here are copied only to this
+        local process and are never uploaded to a remote service. PASS has the
+        same narrow meaning as the CLI: ready, matching identity and CodeSource,
+        enabled, and stable probe evidence. Folia PASS does not prove thread or
+        cross-region safety.
+      </section>
+
+      <section class="panel">
+        <div class="section-title">
+          <div>
+            <span class="step">01</span>
+            <h2>Inputs</h2>
+          </div>
+          <div class="mode">
+            <label
+              ><input type="radio" name="mode" value="single" checked />
+              Single</label
+            ><label
+              ><input type="radio" name="mode" value="matrix" /> Matrix</label
+            >
+          </div>
+        </div>
+        <div class="grid two">
+          <label
+            >Plugin JAR path<input
+              id="plugin-path"
+              type="text"
+              placeholder="C:\\plugins\\MyPlugin.jar or /home/me/MyPlugin.jar"
+          /></label>
+          <label
+            >Or select plugin JAR<input
+              id="plugin-file"
+              type="file"
+              accept=".jar"
+          /></label>
+        </div>
+        <label
+          >Dependency JAR paths <span class="hint">one path per line</span
+          ><textarea
+            id="dependency-paths"
+            rows="3"
+            placeholder="C:\\plugins\\Vault.jar"
+          ></textarea>
+        </label>
+        <label
+          >Or select dependency JARs<input
+            id="dependency-files"
+            type="file"
+            accept=".jar"
+            multiple
+        /></label>
+      </section>
+
+      <section class="panel">
+        <div class="section-title">
+          <div>
+            <span class="step">02</span>
+            <h2>Environments</h2>
+          </div>
+          <button id="add-environment" type="button" class="secondary">
+            Add environment
+          </button>
+        </div>
+        <div id="environments"></div>
+      </section>
+
+      <section class="panel">
+        <div class="section-title">
+          <div>
+            <span class="step">03</span>
+            <h2>Run options</h2>
+          </div>
+        </div>
+        <div class="grid three">
+          <label
+            >Startup timeout (seconds)<input
+              id="timeout"
+              type="number"
+              min="1"
+              max="3600"
+              value="120"
+          /></label>
+          <label
+            >Stability window (seconds)<input
+              id="stability"
+              type="number"
+              min="1"
+              max="600"
+              value="5"
+          /></label>
+          <label
+            >Concurrent environments<input
+              id="parallel"
+              type="number"
+              min="1"
+              max="8"
+              value="1"
+          /></label>
+        </div>
+        <div class="actions">
+          <button id="run" type="button">Run verification</button>
+          <button id="generate" type="button" class="secondary">
+            Generate JSON config
+          </button>
+        </div>
+        <div class="config-tools">
+          <label
+            >Import existing JSON config by local path<input
+              id="config-path"
+              type="text"
+              placeholder="C:\\project\\matrix.json or /home/me/matrix.json"
+          /></label>
+          <button id="import-config" type="button" class="secondary">
+            Import
+          </button>
+        </div>
+        <label
+          >Generated / imported configuration<textarea
+            id="configuration"
+            rows="10"
+            spellcheck="false"
+          ></textarea>
+        </label>
+        <button id="download-config" type="button" class="ghost">
+          Download JSON
+        </button>
+      </section>
+
+      <section class="panel results">
+        <div class="section-title">
+          <div>
+            <span class="step">04</span>
+            <h2>Progress & results</h2>
+          </div>
+          <button id="cancel" type="button" class="danger" disabled>
+            Cancel task
+          </button>
+        </div>
+        <p id="status" class="status">No task running.</p>
+        <div id="progress" class="progress-list"></div>
+        <div id="result"></div>
+        <div id="artifacts"></div>
+      </section>
+    </main>
+    <template id="environment-template">
+      <article class="environment">
+        <div class="environment-head">
+          <strong>Environment <span class="environment-number"></span></strong
+          ><button type="button" class="remove ghost">Remove</button>
+        </div>
+        <div class="grid four">
+          <label
+            >Provider<select class="provider">
+              <option value="paper">Paper</option>
+              <option value="purpur">Purpur</option>
+              <option value="folia">Folia</option>
+              <option value="local">local</option>
+            </select></label
+          >
+          <label
+            >Minecraft version<input
+              class="minecraft"
+              type="text"
+              value="1.21.4"
+          /></label>
+          <label
+            >Build <span class="hint">latest or number</span
+            ><input class="build" type="text" value="latest"
+          /></label>
+          <label
+            >Java version / executable<input
+              class="java"
+              type="text"
+              value="21"
+          /></label>
+          <label
+            >Heap MiB<input
+              class="heap"
+              type="number"
+              min="256"
+              max="32768"
+              value="1024"
+          /></label>
+        </div>
+        <div class="local-fields hidden">
+          <div class="grid two">
+            <label
+              >Local server JAR path<input class="server-path" type="text"
+            /></label>
+            <label
+              >Or select local server JAR<input
+                class="server-file"
+                type="file"
+                accept=".jar"
+            /></label>
+            <label
+              >Declared server name<input
+                class="server-name"
+                type="text"
+                placeholder="My server"
+            /></label>
+            <label
+              >Runtime contract<select class="runtime">
+                <option value="paperclip">paperclip</option>
+                <option value="bukkit">bukkit</option>
+                <option value="folia">folia</option>
+              </select></label
+            >
+          </div>
+        </div>
+      </article>
+    </template>
+    <script src="/assets/app.js" defer></script>
+  </body>
+</html>

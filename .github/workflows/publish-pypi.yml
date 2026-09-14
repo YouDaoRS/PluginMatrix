@@ -44,8 +44,10 @@ jobs:
           set -euo pipefail
           mkdir dist
           gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" > release.json
+          version="${RELEASE_TAG#v}"
           gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
-            --pattern '*.whl' --pattern '*.tar.gz' --dir dist
+            --pattern "pluginmatrix-${version}-py3-none-any.whl" \
+            --pattern "pluginmatrix-${version}.tar.gz" --dir dist
           python - <<'PY'
           import hashlib
           import json

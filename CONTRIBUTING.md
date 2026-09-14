@@ -13,11 +13,13 @@ python -m venv .venv
 
 On Linux or macOS, use `.venv/bin/python` instead. The `release` extra contains packaging tools used by release-readiness tests; PluginMatrix itself has no third-party runtime dependencies.
 
+Use `python -m pip install -e ".[standalone]"` only when working on the PyInstaller distribution. Standalone changes should run `python standalone/build.py` on the current native platform; platform release confidence comes from `.github/workflows/standalone.yml`, not cross-compilation.
+
 Run the offline checks before opening a pull request:
 
 ```powershell
 python -m unittest discover -s tests -v
-python -m compileall pluginmatrix tests ci-fixtures/build_fixtures.py
+python -m compileall pluginmatrix tests standalone ci-fixtures/build_fixtures.py
 ```
 
 These checks must not download Paper or start a server. Changes to runtime verdict logic also need focused tests for the affected success or failure state and, when practical, a real isolated Paper validation.

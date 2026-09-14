@@ -2,6 +2,10 @@
 
 The PluginMatrix Python package uses only the Python standard library and does not bundle Paper, a JDK, or third-party plugin code.
 
+Standalone archives are built with PyInstaller and include the platform's CPython interpreter and standard library. Each archive includes `PYTHON-LICENSE.txt` from the exact interpreter used to build it and `BUILD-INFO.json` naming the Python and PyInstaller versions. PyInstaller's GPL exception permits distribution of the generated bundle under the application's license; PyInstaller itself is a build dependency and is not installed by the bundle. See the [PyInstaller license](https://pyinstaller.org/en/stable/license.html) and [Python license](https://docs.python.org/3/license.html).
+
+Standalone archives do not include Java, Paper, Purpur, Folia, or plugin JARs. Those remain installed/provided or downloaded at runtime under their own terms.
+
 ## Downloaded at runtime
 
 PluginMatrix queries the official Paper API and downloads the selected Paper server artifact. The artifact is stored in the user's cache, is not part of the Python wheel or source distribution, and remains subject to Paper's and its dependencies' own terms. Paper bootstrap may download additional Mojang runtime files.

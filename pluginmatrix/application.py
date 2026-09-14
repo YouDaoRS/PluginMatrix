@@ -19,6 +19,7 @@ from .reports import load_report, render_html_report, _render_html_report
 from .locking import report_locks, validate_report_locks
 from .runtime import verify as _verify, resolve_java, write_report
 from .probe import resolve_javac
+from .external import run_external
 
 API_VERSION = 1
 
@@ -120,7 +121,7 @@ def doctor(java: str = 'java', directory: Path = Path('.pluginmatrix'), network:
         executable, version = resolve_java(java)
         add('java', 'required', True, version)
         javac = resolve_javac(executable)
-        compiler = subprocess.run([javac, '-version'], capture_output=True, text=True, timeout=10) if javac else None
+        compiler = run_external([javac, '-version'], capture_output=True, text=True, timeout=10) if javac else None
         compiler_output = ((compiler.stdout or '') + (compiler.stderr or '')).strip() if compiler else 'javac missing'
         add('jdk', 'required', bool(compiler and compiler.returncode == 0), compiler_output)
     except (OSError, ValueError, subprocess.SubprocessError) as exc:

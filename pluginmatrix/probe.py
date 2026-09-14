@@ -10,6 +10,8 @@ import zlib
 from pathlib import Path
 from zipfile import BadZipFile, ZIP_DEFLATED, ZipFile
 
+from .external import run_external
+
 
 PROBE_PLUGIN_NAME = "PluginMatrixRuntimeProbe"
 PROBE_MAIN_CLASS = "pluginmatrix.probe.RuntimeProbe"
@@ -153,7 +155,7 @@ public final class RuntimeProbe extends JavaPlugin {{
 ''',
             encoding="utf-8",
         )
-        completed = subprocess.run(
+        completed = run_external(
             [javac, "--release", str(java_major), "-cp", classpath, "-d", str(classes), str(source)],
             capture_output=True,
             text=True,

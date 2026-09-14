@@ -18,6 +18,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("pull_request:", workflow)
         self.assertIn("python -m unittest discover -s tests -v", workflow)
         self.assertIn("python -m compileall pluginmatrix tests", workflow)
+        self.assertIn("pluginmatrix tests standalone ci-fixtures/build_fixtures.py", workflow)
         self.assertIn("ci-fixtures/build_fixtures.py", workflow)
         self.assertIn('python -m pip install -e ".[release]"', workflow)
         self.assertNotIn("pluginmatrix matrix", workflow)
@@ -56,7 +57,7 @@ class WorkflowTests(unittest.TestCase):
 
     def test_workflows_do_not_use_deprecated_node20_action_versions(self):
         workflows = ''.join(self.read(name) for name in (
-            "ci.yml", "matrix.yml", "provider-gate.yml", "release-gate.yml", "publish-pypi.yml"
+            "ci.yml", "matrix.yml", "provider-gate.yml", "release-gate.yml", "publish-pypi.yml", "standalone.yml"
         ))
         for deprecated in (
             "actions/checkout@v4",
@@ -77,6 +78,8 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("id-token: write", workflow)
         self.assertIn("contents: read", workflow)
         self.assertIn('gh release download "$RELEASE_TAG"', workflow)
+        self.assertIn('--pattern "pluginmatrix-${version}.tar.gz"', workflow)
+        self.assertNotIn("--pattern '*.tar.gz'", workflow)
         self.assertIn('release.get("target_commitish")', workflow)
         self.assertIn('asset["name"]: asset', workflow)
         self.assertIn('hashlib.sha256(path.read_bytes()).hexdigest()', workflow)
@@ -93,6 +96,21 @@ class WorkflowTests(unittest.TestCase):
         self.assertNotIn("python -m build", workflow)
         self.assertNotIn("password:", workflow)
         self.assertNotIn("api-token", workflow.lower())
+
+    def test_standalone_builds_and_tests_native_archives_on_each_platform(self):
+        workflow = self.read("standalone.yml")
+        self.assertIn("workflow_dispatch:", workflow)
+        self.assertIn("windows-2022", workflow)
+        self.assertIn("ubuntu-22.04", workflow)
+        self.assertIn("macos-15-intel", workflow)
+        self.assertIn("macos-15", workflow)
+        self.assertIn("architecture: arm64", workflow)
+        self.assertIn('python -m pip install -e ".[standalone]"', workflow)
+        self.assertIn("python standalone/build.py --java 17", workflow)
+        self.assertIn("python standalone/verify_frozen.py", workflow)
+        self.assertIn("PluginMatrixSmoke.jar", (ROOT / "standalone" / "verify_frozen.py").read_text(encoding="utf-8"))
+        self.assertIn("actions/upload-artifact@v7", workflow)
+        self.assertNotIn("release upload", workflow.lower())
 
     def test_provider_gate_is_manual_cross_platform_and_preserves_complete_evidence(self):
         workflow = self.read('provider-gate.yml')
