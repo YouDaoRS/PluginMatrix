@@ -2,9 +2,9 @@
 
 PluginMatrix is an early-stage command-line verifier for Minecraft plugin JARs. It prepares an isolated server/Java environment, starts a real server, observes plugin discovery and lifecycle evidence, and writes an authoritative JSON report alongside the original `server.log` and optional static HTML.
 
-The **0.6.0rc1 release candidate** adds Paper, Purpur, Folia and user-supplied local server Providers. One Runtime Verifier serves all Providers. Matrix defaults to serial execution and optionally runs 1–8 environments concurrently. There is no GUI, cloud service, automatic JDK management, gameplay bot or complete feature testing.
+Version **0.6.0** adds Paper, Purpur, Folia and user-supplied local server Providers. One Runtime Verifier serves all Providers. Matrix defaults to serial execution and optionally runs 1–8 environments concurrently. There is no GUI, cloud service, automatic JDK management, gameplay bot or complete feature testing.
 
-The public stable release remains **0.5.1**. This candidate is validated but unpublished: no v0.6 tag, GitHub Release or PyPI publication exists. See [candidate status](docs/STATUS.md), [architecture](docs/ARCHITECTURE.md), and the [v0.5.1 validation record](docs/V0.5.1_PREPARATION.md).
+The public stable release is **0.6.0** on GitHub. PluginMatrix is not published to PyPI. See [release status](docs/STATUS.md), [architecture](docs/ARCHITECTURE.md), and the [v0.5.1 validation record](docs/V0.5.1_PREPARATION.md).
 
 ## What `PASS` means
 

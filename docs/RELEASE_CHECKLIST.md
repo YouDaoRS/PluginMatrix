@@ -1,8 +1,8 @@
 # Release checklists
 
-## v0.6.0rc1 Release Candidate Gate — not a release authorization
+## v0.6.0 Final Release Gate — completed 2026-09-14
 
-This work is the unpublished `0.6.0rc1` candidate. The stable v0.5.0/v0.5.1 tags, releases and history remain unchanged. No Tag, Release, PyPI upload or history rewrite is part of this task.
+Owner authorization covers the normal release commit/push, annotated `v0.6.0` tag and GitHub Release. PyPI, force pushes, history rewriting, old Release changes, EnhancedFly history work, v0.7 and GUI work remain excluded. The v0.5.0/v0.5.1 tags, releases and history remain unchanged.
 
 - [x] Preserve one Runtime Verifier and v0.5.1 identity/freshness/stability/cleanup guarantees.
 - [x] Implement Paper/Purpur/Folia/local Providers, mixed Matrix, CLI usability, HTML and application services.
@@ -13,10 +13,16 @@ This work is the unpublished `0.6.0rc1` candidate. The stable v0.5.0/v0.5.1 tags
 - [x] Complete Astra critical-path review, resolve its P1/P2 findings, then perform the bounded ordinary review and Folia root-cause investigation.
 - [x] Run fresh GitHub-hosted Linux/Windows Python 3.10/3.11 CI on the release candidate, including actual Linux symlink/hardlink/FIFO/path-alias/POSIX process-group coverage.
 - [x] Run the real Provider Gate (`provider-gate.yml`) and legacy Paper Release Gate on GitHub-hosted runners; preserve all reports/logs/summaries on success and expected failure.
-- [x] Resolve findings and select the unpublished `0.6.0rc1` version.
-- [x] Build sdist/wheel from a fresh checkout of the final candidate, inspect archives and metadata, and fresh-install the exact wheel for CLI smoke checks.
+- [x] Resolve findings and select `30cbe2548c06e30dd8a12e93acaa7b20206f67b5` as the final code candidate; confirm Astra review commit `c2a42fe` is in its history.
+- [x] Confirm CI and Provider Gate results resolve to the selected candidate SHA, with no untracked source/tests or release-blocking generated artifacts in the v0.5.1 diff.
+- [x] Set the authoritative version to `0.6.0`, date the changelog, and align README/status/versioning documentation with the released capability.
+- [x] Run the bounded offline release checks, `compileall`, packaging tests and `git diff --check`; do not repeat real Provider gates for version/documentation-only changes.
+- [x] Require final-commit GitHub CI to pass before tagging.
+- [x] Build sdist/wheel from clean final-commit source, inspect archives, METADATA, version, license, exclusions and SHA-256, then fresh-install the exact wheel for both CLI entry points.
+- [x] Create and push annotated `v0.6.0`, publish the verified assets in one GitHub Release, redownload them publicly, match SHA-256 and install the public wheel in a new venv.
+- [x] Reconfirm v0.5.0/v0.5.1 are unchanged and the release branch is clean and synchronized with origin.
 
-Candidate evidence and precise limitations: [STATUS.md](STATUS.md). Passing this gate permits an independent final v0.6 Release Gate; it is not authorization to publish.
+Final evidence and precise limitations: [STATUS.md](STATUS.md). GitHub Release is the only package publication channel for v0.6.0.
 
 ## Historical v0.5.1 Final Release Gate
 

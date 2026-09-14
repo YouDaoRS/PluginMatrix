@@ -1,10 +1,10 @@
-# PluginMatrix v0.6 Release Candidate Status
+# PluginMatrix v0.6.0 Release Status
 
 更新日期：2026-09-14。
 
-当前候选版本为 **0.6.0rc1**；公开稳定版本仍为 **v0.5.1**。候选分支是 `codex/multi-server-core`。本轮不创建 Tag 或 GitHub Release，不发布 PyPI，不修改 v0.5.0/v0.5.1 或历史。
+当前公开稳定版本为 **v0.6.0**，发布分支是 `codex/multi-server-core`。最终版本仅发布到 GitHub Release，不发布 PyPI，不修改 v0.5.0/v0.5.1 或历史。
 
-结论：v0.6 Release Candidate Gate 已覆盖关键路径复核、普通代码审查、Windows/Linux × Python 3.10/3.11 离线测试、真实官方 Provider/local/串并行 Matrix、旧 Paper Gate、报告与归档审计。候选保持未发布，可进入独立的 v0.6 最终 Release Gate。
+结论：以 `30cbe2548c06e30dd8a12e93acaa7b20206f67b5` 为代码候选基线的 v0.6 Final Release Gate 已完成。关键路径复核、Windows/Linux × Python 3.10/3.11 离线测试、真实官方 Provider/local/串并行 Matrix、旧 Paper Gate、报告、打包、公开资产和干净安装均通过；最终版本提交只包含版本与发布文档调整，因此没有重复真实服务器 Gate。
 
 ## Folia 并行故障闭环
 
@@ -33,11 +33,11 @@
 | Gate | 结果 |
 | --- | --- |
 | Windows Python 3.10.21 / 3.11.9 | 各 162 项全部通过（本机 3 项为 POSIX/权限型跳过）；`compileall` 通过 |
-| GitHub-hosted CI | Ubuntu/Windows × Python 3.10/3.11 全绿；Linux 实际执行 FIFO、symlink、hardlink、路径别名和 parent/child/grandchild POSIX process-group 测试；Windows 实际执行 junction、hardlink、Job Object 和取消清理 |
+| GitHub-hosted CI | 候选基线和最终版本提交的 Ubuntu/Windows × Python 3.10/3.11 全绿；Linux 实际执行 FIFO、symlink、hardlink、路径别名和 parent/child/grandchild POSIX process-group 测试；Windows 实际执行 junction、hardlink、Job Object 和取消清理 |
 | 本机 JDK 21 Provider Gate | 14/14 预期结论：Paper/Purpur/Folia success 与 enable-failure、Folia unsupported、local、`max_parallel=1/3` 混合 Matrix；官方 success 都确认 `.paper-remapped` CodeSource |
 | Hosted Release Gate | Paper 1.20.1/196/JDK17、Paper 1.21.4/232/JDK21，以及 Ubuntu/Windows Provider Gate；真实 Paper/Purpur/Folia success/enable-failure、local 和串并行混合 Matrix |
 | Artifacts | 单环境 JSON/HTML/server.log；Matrix JSON/HTML/Summary；每环境 result.json/server.log；progress 事件和引用存在且可解析 |
-| 构建 | 从最终提交在全新 checkout 构建 sdist/wheel，审计归档/metadata/版本/排除项，并在全新 venv 运行两个 CLI 入口及 providers/doctor smoke |
+| 构建与公开资产 | 从最终提交的干净源码构建 sdist/wheel，审计归档/metadata/版本/许可证/排除项与 SHA-256；全新 venv 中两个 CLI 入口及 providers/doctor smoke 通过，公开 Release 下载资产 hash 一致且 wheel 可安装 |
 
 Hosted 结果见分支的 [CI history](https://github.com/YouDaoRS/PluginMatrix/actions/workflows/ci.yml?query=branch%3Acodex%2Fmulti-server-core) 和 [Release Gate history](https://github.com/YouDaoRS/PluginMatrix/actions/workflows/release-gate.yml?query=branch%3Acodex%2Fmulti-server-core)。本机完整 Provider 证据位于 `C:\Users\11580\AppData\Local\Temp\pluginmatrix-06-gate-jhssxmgr`；最终 Folia 复验位于 `C:\Users\11580\AppData\Local\Temp\pluginmatrix-folia-recheck-486b52508dc446f9bb1eb6d95a32628f`。这些路径是本机证据，不属于源码包。
 
@@ -46,4 +46,4 @@ Hosted 结果见分支的 [CI history](https://github.com/YouDaoRS/PluginMatrix/
 - Folia 1.21.4 build 6 的上游渠道为 ALPHA。Folia PASS 只证明该版本/构建中被接受、enable 并在观察窗口保持 enabled。
 - local 是显式 `paperclip`/`bukkit`/`folia` 运行合同，不承诺所有未知 fork；Purpur 上游 MD5 与本地 SHA-256 在报告中分开表达。
 - 取消是协作式且有界：进行中的 HTTP 最多等待其 30 秒 timeout，javac 最多 60 秒；PluginMatrix 不是 hostile-code sandbox。
-- v0.6 尚未发布。最终 Release Gate 需要独立复核 RC 证据和 owner 的单独发布授权；本状态不授权 tag、Release 或 PyPI。
+- v0.6.0 的发布信心仅适用于 Gate 中记录的具体 Provider/build、Java 和平台组合；GitHub Release 是唯一公开包渠道。
