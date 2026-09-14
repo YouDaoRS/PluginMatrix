@@ -63,8 +63,28 @@ class ProviderTests(unittest.TestCase):
             self.assertTrue(info['download_url'].endswith('/2416/download'))
             self.assertEqual(info['checksum_algorithm'], 'md5')
         with patch('pluginmatrix.providers.read_json', return_value=payload):
-            with self.assertRaises(ProviderError):
-                get_provider('purpur').resolve(ServerSpec('purpur', '1.21.4', 1))
+                with self.assertRaises(ProviderError):
+                    get_provider('purpur').resolve(ServerSpec('purpur', '1.21.4', 1))
+
+    def test_provider_catalogs_normalize_versions_and_builds(self):
+        paper_project = {'project': {'id': 'paper'}, 'versions': {
+            '1.21': ['1.21.4', '1.21.4-rc1', '1.21.1'], '1.20': ['1.20.6']}}
+        with patch('pluginmatrix.providers.read_json', return_value=paper_project):
+            self.assertEqual(get_provider('paper').catalog_versions(), ['1.21.4', '1.21.1', '1.20.6'])
+        with patch('pluginmatrix.providers.read_json', return_value=[build(10), build(11, 'ALPHA')]):
+            catalog = get_provider('paper').catalog_builds('1.21.4')
+        self.assertEqual([item['id'] for item in catalog['builds']], [11, 10])
+        self.assertEqual(catalog['recommended_build'], 10)
+
+        purpur_project = {'project': 'purpur', 'versions': ['1.20.6', '1.21.4']}
+        with patch('pluginmatrix.providers.read_json', return_value=purpur_project):
+            self.assertEqual(get_provider('purpur').catalog_versions(), ['1.21.4', '1.20.6'])
+        purpur_builds = {'project': 'purpur', 'version': '1.21.4',
+                         'builds': {'latest': '11', 'all': ['10', '11']}}
+        with patch('pluginmatrix.providers.read_json', return_value=purpur_builds):
+            catalog = get_provider('purpur').catalog_builds('1.21.4')
+        self.assertEqual(catalog['recommended_build'], 11)
+        self.assertEqual([item['id'] for item in catalog['builds']], [11, 10])
 
     def test_malformed_apis_and_unsafe_urls_fail_closed(self):
         bad = [None, {}, [], [None], [build(True)], [build(channel='unknown')],

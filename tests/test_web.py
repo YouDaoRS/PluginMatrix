@@ -101,6 +101,7 @@ class WebApplicationTests(unittest.TestCase):
             self.app.cancel(job.id)
             job.thread.join(timeout=5)
         self.assertTrue(job.control.cancelled)
+        self.assertEqual(job.status, "cancelled")
         self.assertEqual(job.snapshot()["summary"]["environments"][0]["verdict"], "CANCELLED")
 
     def test_uploaded_files_are_opaque_bounded_local_copies(self):
@@ -323,6 +324,8 @@ class WebHTTPTests(unittest.TestCase):
         self.assertEqual(script_response.status, 200)
         self.assertIn("textContent", script)
         self.assertNotIn("innerHTML", script)
+        self.assertIn('"zh-CN"', script)
+        self.assertIn('localStorage.setItem("pluginmatrix-language"', script)
         connection.close()
         connection = self.connection()
         connection.request("GET", "/api/providers", headers={"Host": f"127.0.0.1:{self.port}", "Cookie": cookie})
@@ -332,6 +335,29 @@ class WebHTTPTests(unittest.TestCase):
         self.assertIn("default-src 'none'", response.getheader("Content-Security-Policy"))
         self.assertEqual([item["type"] for item in providers["providers"]], ["paper", "purpur", "folia", "local"])
         connection.close()
+
+    def test_java_and_provider_catalog_routes_use_application_services(self):
+        cookie, _, _ = self.session()
+        headers = {"Host": f"127.0.0.1:{self.port}", "Cookie": cookie}
+        with patch('pluginmatrix.web.application.discover_java_runtimes', return_value={
+                'schema': 1, 'runtimes': [{'path': 'java', 'version': '21', 'major': 21, 'jdk': True}],
+                'recommended': 'java'}), patch('pluginmatrix.web.application.inspect_provider_catalog', return_value={
+                'schema': 1, 'provider': 'paper', 'available': True, 'versions': ['1.21.4'],
+                'builds': [], 'recommended_build': None, 'recommended_java': None}) as catalog:
+            connection = self.connection(); connection.request('GET', '/api/java', headers=headers)
+            response = connection.getresponse(); java = json.loads(response.read()); connection.close()
+            self.assertEqual(java['runtimes'][0]['major'], 21)
+            connection = self.connection(); connection.request('GET', '/api/providers/paper/versions', headers=headers)
+            response = connection.getresponse(); versions = json.loads(response.read()); connection.close()
+            self.assertEqual(versions['versions'], ['1.21.4'])
+            connection = self.connection(); connection.request('GET', '/api/providers/paper/versions/1.21.4/builds', headers=headers)
+            response = connection.getresponse(); response.read(); connection.close()
+        self.assertEqual(catalog.call_count, 2)
+
+        connection = self.connection()
+        connection.request('GET', '/api/providers/unknown/versions', headers=headers)
+        response = connection.getresponse(); response.read(); connection.close()
+        self.assertEqual(response.status, 400)
 
     def test_host_cookie_origin_token_and_request_injection_are_rejected(self):
         cookie, token, _ = self.session()

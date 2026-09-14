@@ -6,10 +6,14 @@ import hashlib
 import json
 import os
 import platform
+import queue
+import re
 import shutil
 import subprocess
 import sys
 import tarfile
+import tempfile
+import threading
 import time
 import urllib.request
 import zipfile
@@ -164,6 +168,8 @@ def smoke(bundle: Path, value: str, java: str | None) -> None:
         )
         if doctor.returncode != 0:
             raise RuntimeError(f"frozen Java/Javac check failed:\n{doctor.stdout}\n{doctor.stderr}")
+    if os.name == "nt":
+        smoke_windows_double_click(executable, bundle, value)
     import socket
 
     with socket.socket() as probe:
@@ -195,6 +201,34 @@ def smoke(bundle: Path, value: str, java: str | None) -> None:
         if process.poll() is None:
             process.terminate()
         process.communicate(timeout=10)
+
+
+def smoke_windows_double_click(executable: Path, bundle: Path, value: str) -> None:
+    """Exercise the exact no-argument Windows entry without opening a browser."""
+    with tempfile.TemporaryDirectory(prefix="double-click-", dir=bundle.parent) as temporary:
+        environment = dict(os.environ, LOCALAPPDATA=temporary, PLUGINMATRIX_NO_BROWSER="1")
+        process = subprocess.Popen(
+            [executable], cwd=bundle, env=environment, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+        )
+        lines = queue.Queue()
+        reader = threading.Thread(target=lambda: lines.put(process.stdout.readline()), daemon=True)
+        reader.start()
+        try:
+            try:
+                line = lines.get(timeout=15).strip()
+            except queue.Empty as exc:
+                raise RuntimeError("frozen no-argument Web UI did not print its local URL") from exc
+            match = re.fullmatch(r"PluginMatrix Web UI: (http://127\.0\.0\.1:[1-9][0-9]*/)", line)
+            if not match:
+                raise RuntimeError(f"unexpected frozen no-argument startup output: {line!r}")
+            with urllib.request.urlopen(match.group(1) + "health", timeout=5) as response:
+                health = json.load(response)
+            if health != {"status": "ok", "version": value}:
+                raise RuntimeError(f"frozen no-argument Web UI is unhealthy: {health!r}")
+        finally:
+            if process.poll() is None:
+                process.terminate()
+            process.communicate(timeout=10)
 
 
 def main(argv: list[str] | None = None) -> int:

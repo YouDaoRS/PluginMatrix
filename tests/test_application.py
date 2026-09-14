@@ -5,6 +5,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from pluginmatrix import application
@@ -90,6 +91,49 @@ class ApplicationTests(unittest.TestCase):
         value = json.loads(output)
         self.assertEqual(code, 2)
         self.assertEqual({c['level'] for c in value['checks']}, {'required', 'warning', 'informational'})
+
+    def test_provider_catalog_cache_and_java_requirements(self):
+        provider = application.get_provider('paper')
+        with patch.object(provider, 'catalog_versions', return_value=['1.21.4']):
+            result = application.inspect_provider_catalog('paper', cache_dir=self.root/'cache')
+        self.assertEqual(result['source'], 'network')
+        self.assertEqual(result['versions'], ['1.21.4'])
+        with patch.object(provider, 'catalog_versions', side_effect=ValueError('offline')):
+            cached = application.inspect_provider_catalog('paper', cache_dir=self.root/'cache', max_age=-1)
+        self.assertEqual(cached['source'], 'stale_cache')
+        self.assertIn('offline', cached['warning'])
+        for version, expected in [('1.11.2', 8), ('1.16.4', 11), ('1.16.5', 16),
+                                  ('1.20.4', 17), ('1.20.5', 21), ('1.21.4', 21), ('26.1', 25)]:
+            with self.subTest(version=version):
+                self.assertEqual(application.minecraft_java_requirement(version), expected)
+
+    def test_provider_catalog_replaces_corrupt_regular_cache_from_network(self):
+        cache = self.root / 'cache'
+        path = cache / 'metadata' / 'paper-versions.json'
+        path.parent.mkdir(parents=True)
+        path.write_text('{broken', encoding='utf-8')
+        provider = application.get_provider('paper')
+        with patch.object(provider, 'catalog_versions', return_value=['1.21.4']):
+            result = application.inspect_provider_catalog('paper', cache_dir=cache)
+        self.assertEqual(result['source'], 'network')
+        self.assertEqual(result['versions'], ['1.21.4'])
+        self.assertIn('cache is invalid', result['warning'])
+        self.assertEqual(json.loads(path.read_text(encoding='utf-8'))['data']['versions'], ['1.21.4'])
+
+    def test_java_discovery_returns_paths_versions_and_jdk_state(self):
+        java = self.root / ('java.exe' if os.name == 'nt' else 'java')
+        javac = self.root / ('javac.exe' if os.name == 'nt' else 'javac')
+        java.write_bytes(b'java'); javac.write_bytes(b'javac')
+        environment = {'PATH': f'"{self.root}"'}
+        with patch.dict(os.environ, environment, clear=True), \
+             patch('pluginmatrix.application.resolve_java', return_value=(str(java), '21.0.8')), \
+             patch('pluginmatrix.application.resolve_javac', return_value=str(javac)), \
+             patch('pluginmatrix.application.run_external', return_value=SimpleNamespace(returncode=0, stdout='javac 21.0.8', stderr='')):
+            result = application.discover_java_runtimes()
+        self.assertEqual(len(result['runtimes']), 1)
+        self.assertEqual(result['runtimes'][0]['major'], 21)
+        self.assertTrue(result['runtimes'][0]['jdk'])
+        self.assertEqual(result['recommended'], str(java.resolve()))
 
     def test_legacy_config_and_explicit_paper_are_semantically_equal(self):
         path = self.root/'legacy.json'

@@ -121,6 +121,42 @@ def resolve_fill(project: str, version: str, build_id: int | None = None) -> dic
                 download_url=source, api_url=url, checksum_algorithm='sha256', checksum=checksum.lower())
 
 
+def _version_key(value: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in value.split('.'))
+
+
+def _catalog_versions(value: object, project: str) -> list[str]:
+    if not isinstance(value, dict):
+        raise ProviderError('official API returned malformed project metadata')
+    versions = value.get('versions')
+    if project == 'purpur':
+        if value.get('project') != project or not isinstance(versions, list):
+            raise ProviderError('Purpur API returned malformed version metadata')
+        candidates = versions
+    else:
+        identity = value.get('project')
+        if not isinstance(identity, dict) or identity.get('id') != project or not isinstance(versions, dict):
+            raise ProviderError('PaperMC API returned malformed version metadata')
+        candidates = [version for group in versions.values() if isinstance(group, list) for version in group]
+    normalized = {version for version in candidates
+                  if isinstance(version, str) and re.fullmatch(r'\d+\.\d+(?:\.\d+)?', version)}
+    if not normalized:
+        raise ProviderError(f'official API returned no supported {project} versions')
+    return sorted(normalized, key=_version_key, reverse=True)
+
+
+def _fill_catalog_builds(value: object) -> dict:
+    if (not isinstance(value, list) or not value
+            or any(not isinstance(item, dict) or type(item.get('id')) is not int or item['id'] <= 0
+                   or item.get('channel') not in ('STABLE', 'BETA', 'ALPHA', 'EXPERIMENTAL')
+                   for item in value)):
+        raise ProviderError('official API returned malformed build metadata')
+    builds = sorted(({'id': item['id'], 'channel': item['channel'], 'time': item.get('time')}
+                     for item in value), key=lambda item: item['id'], reverse=True)
+    stable = [item for item in builds if item['channel'] == 'STABLE']
+    return {'builds': builds, 'recommended_build': (stable or builds)[0]['id']}
+
+
 class ServerProvider:
     metadata: ProviderMetadata
 
@@ -146,6 +182,15 @@ class ServerProvider:
     def resolve(self, spec: ServerSpec) -> dict:
         self.validate(spec)
         return {**self.requested_metadata(spec), **resolve_fill(spec.type, spec.version, spec.build)}
+
+    def catalog_versions(self) -> list[str]:
+        return _catalog_versions(read_json(self.metadata.api, FILL_HOSTS), self.metadata.type)
+
+    def catalog_builds(self, version: str) -> dict:
+        if not re.fullmatch(r'\d+\.\d+(?:\.\d+)?', version):
+            raise ProviderError('Minecraft version must use numbers such as 1.21.4')
+        url = f'https://fill.papermc.io/v3/projects/{self.metadata.type}/versions/{version}/builds'
+        return _fill_catalog_builds(read_json(url, FILL_HOSTS))
 
     def prepare(self, spec: ServerSpec, cache: Path, control=None, environment_index=None) -> tuple[Path, dict]:
         info = self.resolve(spec)
@@ -227,6 +272,26 @@ class PurpurProvider(ServerProvider):
                 'checksum_algorithm': 'md5', 'checksum': checksum.lower(),
                 'integrity_note': 'Official Purpur API supplies MD5, not SHA-256; PluginMatrix additionally records and pins local SHA-256.'}
 
+    def catalog_versions(self) -> list[str]:
+        return _catalog_versions(read_json(self.metadata.api, PURPUR_HOSTS), self.metadata.type)
+
+    def catalog_builds(self, version: str) -> dict:
+        if not re.fullmatch(r'\d+\.\d+(?:\.\d+)?', version):
+            raise ProviderError('Minecraft version must use numbers such as 1.21.4')
+        value = read_json(f'https://api.purpurmc.org/v2/purpur/{version}', PURPUR_HOSTS)
+        builds = value.get('builds') if isinstance(value, dict) else None
+        if (not isinstance(value, dict) or value.get('project') != 'purpur' or value.get('version') != version
+                or not isinstance(builds, dict) or not isinstance(builds.get('all'), list)
+                or not isinstance(builds.get('latest'), str) or not builds['latest'].isdigit()
+                or any(not isinstance(item, str) or not item.isdigit() or int(item) <= 0 for item in builds['all'])):
+            raise ProviderError('Purpur API returned malformed build metadata')
+        normalized = sorted({int(item) for item in builds['all']}, reverse=True)
+        latest = int(builds['latest'])
+        if not normalized or latest not in normalized:
+            raise ProviderError('Purpur API returned an inconsistent latest build')
+        return {'builds': [{'id': item, 'channel': None, 'time': None} for item in normalized],
+                'recommended_build': latest}
+
 
 class FoliaProvider(ServerProvider):
     metadata = ProviderMetadata('folia', 'Folia', 'experimental', True, True,
@@ -254,6 +319,12 @@ class LocalProvider(ServerProvider):
         if control:
             control.check()
         return spec.jar, self.resolve(spec)
+
+    def catalog_versions(self) -> list[str]:
+        return []
+
+    def catalog_builds(self, version: str) -> dict:
+        return {'builds': [], 'recommended_build': None}
 
 
 _PROVIDERS = {p.metadata.type: p for p in (PaperProvider(), PurpurProvider(), FoliaProvider(), LocalProvider())}

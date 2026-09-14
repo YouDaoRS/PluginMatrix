@@ -1,4 +1,17 @@
-# PluginMatrix v0.7.0 Release Status
+# PluginMatrix v0.7.1 Development Status
+
+更新日期：2026-09-14。当前工作版本为 **0.7.1.dev1**，公开稳定版本仍为 **v0.7.0**。本轮只准备 v0.7.1 候选，不创建 Tag、GitHub Release 或 PyPI 发布。
+
+## v0.7.1 Usability Preparation
+
+- Windows standalone 无参数启动现在自动选择可用 loopback 端口并打开 Web UI，状态与缓存写入用户本地目录；启动失败通过可理解的原生对话框说明原因和 `pluginmatrix.exe web --port 0` 回退命令。显式 CLI 子命令保持不变。
+- Web UI 通过现有 Provider 官方 API 枚举 Minecraft 版本与 build，元数据使用受限本地缓存；在线、缓存、过期缓存与完全不可用状态均明确展示，安全的损坏 JSON 可在线恢复，且始终保留手动输入。
+- application 层发现本机 Java/JDK、版本、路径和匹配 `javac`，界面依据所选 Minecraft 版本提示文档基线，并保留手动 executable 高级入口。不会下载、安装或修改 Java。
+- English / 简体中文静态与动态界面文本已覆盖，语言选择保存在浏览器本地。进度事件改为普通用户状态，内部事件和原始字段仅在“技术详情”中展开。
+- PASS、失败、取消真实流程均已通过本机 Web 验收；完成和取消后不再显示可操作的 Cancel 按钮，Provider 与结果标题统一使用展示名称。Runtime Verifier 和 PASS 语义未修改。
+- 本机 Windows Python 3.11 完整离线测试 192 项通过、7 项按平台能力跳过；`compileall`、JavaScript 语法/DOM 安全检查和 `git diff --check` 通过。真实浏览器验收覆盖 1280px/390px、语言持久化、在线与缓存 Provider metadata、JDK 路径/版本提示、Paper PASS、无效 Java 失败和运行中取消。
+- Windows x86-64 standalone `0.7.1.dev1` 构建、归档审计、冻结 CLI/Provider/doctor/Web health、无参数双击入口与真实冻结 CLI/Web Paper PASS 均通过；最终本地开发归档 SHA-256 为 `d0cc0013fe39b421cd77dd9b95abe2a5e3baf76828260bc9d3153f8f356dedeb`，不属于发布资产。
+- 本地候选已具备 v0.7.1 发布条件；正式发布前仍需让当前提交通过 GitHub-hosted Ubuntu/Windows 离线 CI 和四平台 standalone workflow，并按现有发布流程重新构建、审计和记录正式资产。不得复用本地开发归档发布。
 
 更新日期：2026-09-14。当前公开稳定版本为 **v0.7.0**。最终发布提交 `2421a4213ca7cbbd8669926dc7fb365f8512913b` 已从 `codex/v0.7-local-web-ui` fast-forward 到 `main`，annotated tag、GitHub Release、TestPyPI 和 PyPI 发布均已完成。
 

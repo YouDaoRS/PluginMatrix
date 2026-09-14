@@ -2,6 +2,14 @@
 
 PluginMatrix follows the version policy in `docs/VERSIONING.md`. No entry below implies that a Git tag, GitHub Release, or PyPI release exists. Earlier entries without dates were development milestones rather than formal releases.
 
+## 0.7.1 - Unreleased
+
+- Make the Windows standalone executable launch the local Web UI on an automatically selected loopback port when opened without command-line arguments, using a clear native error message when startup fails; explicit CLI subcommands remain unchanged.
+- Add cached official Provider catalogs for available Minecraft versions and builds. The Web UI prefers live metadata, identifies fresh/stale cache fallback, safely refreshes corrupt regular cache files, and retains manual entry when metadata cannot be loaded.
+- Discover installed Java runtimes and matching `javac`, show version and executable path, recommend the documented Java baseline for the selected Minecraft version, and retain an advanced manual executable field.
+- Add a lightweight English and Simplified Chinese UI translation layer with a remembered language choice. Replace raw progress event names/JSON with user-facing progress and expandable technical details.
+- Normalize Provider/result names and terminal task behavior. Completed, failed, and cancelled tasks no longer expose an actionable Cancel button, and cancellation is represented separately from successful task completion without changing verifier verdict semantics.
+
 ## 0.7.0 — 2026-09-14
 
 - Add a loopback-only local Web UI for single and Matrix verification, local JAR import/path selection, dependencies, all existing Providers, Java/build/stability/concurrency controls, live progress, cancellation, results, and allowlisted report/log access.

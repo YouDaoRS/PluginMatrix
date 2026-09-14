@@ -28,7 +28,7 @@ from .control import RunControl
 from .files import atomic_text, reject_links
 from .external import run_external
 from .matrix import MatrixConfigError
-from .providers import parse_server
+from .providers import get_provider, parse_server
 from .scheduler import MAX_PARALLEL, validate_parallel
 
 
@@ -439,6 +439,9 @@ class WebApplication:
                     "environments": [{
                         "id": environment["server"].type,
                         "provider": environment["server"].type,
+                        "provider_name": get_provider(environment["server"].type).metadata.name,
+                        "minecraft_version": environment["server"].version,
+                        "java": result.metadata.get("java_runtime_version") or environment["java"],
                         "verdict": result.result,
                         "failure_stage": result.failure_stage,
                         "reason": result.reason,
@@ -456,19 +459,7 @@ class WebApplication:
                 report = application.run_matrix(config, control=job.control)
                 summary = {
                     **report.get("summary", {}),
-                    "environments": [
-                        {
-                            "id": item.get("id"),
-                            "provider": (item.get("metadata", {}).get("server", {}) or item.get("resolved", {}).get("server", {})).get("server_type"),
-                            "verdict": item.get("verdict"),
-                            "failure_stage": item.get("failure_stage"),
-                            "reason": item.get("reason"),
-                            "report_path": item.get("artifacts", {}).get("runtime_report"),
-                            "log_path": item.get("artifacts", {}).get("server_log"),
-                            "run_dir": item.get("artifacts", {}).get("run_dir"),
-                        }
-                        for item in report.get("environments", [])
-                    ],
+                    "environments": [self._summary_environment(item) for item in report.get("environments", [])],
                 }
                 candidates = [("Matrix JSON report", report_path), ("Matrix HTML report", html_path)]
                 for index, item in enumerate(report.get("environments", []), start=1):
@@ -481,7 +472,8 @@ class WebApplication:
             with job._lock:
                 job.summary = summary
                 job.artifacts = registered
-                job.status = "completed"
+                verdicts = [item.get("verdict") for item in summary.get("environments", [])]
+                job.status = "cancelled" if verdicts and all(value == "CANCELLED" for value in verdicts) else "completed"
         except BaseException as exc:
             with job._lock:
                 job.error = f"{type(exc).__name__}: {exc}"[:4096]
@@ -520,11 +512,37 @@ class WebApplication:
             artifacts[artifact_id] = Artifact(artifact_id, label, path, content_type, *_identity(info))
         return artifacts
 
+    @staticmethod
+    def _summary_environment(item: dict) -> dict:
+        metadata = item.get("metadata", {}) if isinstance(item.get("metadata"), dict) else {}
+        resolved = item.get("resolved", {}) if isinstance(item.get("resolved"), dict) else {}
+        requested = item.get("requested", {}) if isinstance(item.get("requested"), dict) else {}
+        server = metadata.get("server", {}) or resolved.get("server", {})
+        provider_type = server.get("server_type")
+        try:
+            provider_name = get_provider(provider_type).metadata.name
+        except (TypeError, ValueError):
+            provider_name = provider_type
+        requested_server = requested.get("server", {}) if isinstance(requested.get("server"), dict) else {}
+        return {
+            "id": item.get("id"),
+            "provider": provider_type,
+            "provider_name": provider_name,
+            "minecraft_version": server.get("minecraft_version") or requested_server.get("version") or requested.get("paper"),
+            "java": resolved.get("java") or requested.get("java"),
+            "verdict": item.get("verdict"),
+            "failure_stage": item.get("failure_stage"),
+            "reason": item.get("reason"),
+            "report_path": item.get("artifacts", {}).get("runtime_report"),
+            "log_path": item.get("artifacts", {}).get("server_log"),
+            "run_dir": item.get("artifacts", {}).get("run_dir"),
+        }
+
     def _discard_old_jobs(self) -> None:
         if len(self._jobs) < MAX_JOBS:
             return
         for job_id, job in list(self._jobs.items()):
-            if job.status in {"completed", "failed"}:
+            if job.status in {"completed", "cancelled", "failed"}:
                 del self._jobs[job_id]
                 if len(self._jobs) < MAX_JOBS:
                     return
@@ -650,10 +668,23 @@ class LocalRequestHandler(BaseHTTPRequestHandler):
             if route.path == "/api/providers":
                 self._json({"schema": 1, "providers": application.inspect_providers()})
                 return
+            if route.path == "/api/java":
+                self._json(application.discover_java_runtimes())
+                return
             if route.path == "/api/jobs":
                 self._json({"schema": 1, "jobs": self.server.app.list_jobs()})
                 return
             parts = route.path.strip("/").split("/")
+            if len(parts) == 4 and parts[:2] == ["api", "providers"] and parts[3] == "versions":
+                self._json(application.inspect_provider_catalog(parts[2], cache_dir=self.server.app.cache_dir))
+                return
+            if len(parts) == 6 and parts[:2] == ["api", "providers"] and parts[3] == "versions" and parts[5] == "builds":
+                try:
+                    version = unquote(parts[4], errors="strict")
+                except UnicodeError as exc:
+                    raise WebError(HTTPStatus.BAD_REQUEST, "Provider version path is not valid UTF-8") from exc
+                self._json(application.inspect_provider_catalog(parts[2], version, self.server.app.cache_dir))
+                return
             if len(parts) == 3 and parts[:2] == ["api", "jobs"]:
                 after_values = {}
                 if route.query:
@@ -677,6 +708,8 @@ class LocalRequestHandler(BaseHTTPRequestHandler):
             self._error(exc.status, str(exc))
         except (BrokenPipeError, ConnectionResetError):
             return
+        except (OSError, ValueError) as exc:
+            self._error(HTTPStatus.BAD_REQUEST, str(exc)[:4096])
         except Exception:
             self._error(HTTPStatus.INTERNAL_SERVER_ERROR, "local Web UI request failed")
 
@@ -873,5 +906,5 @@ def _open_browser(url: str) -> None:
         else:
             command = ["open" if sys.platform == "darwin" else "xdg-open", url]
             run_external(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
-    except OSError:
-        pass
+    except OSError as exc:
+        print(f"Could not open the browser automatically ({exc}). Open this local URL: {url}", file=sys.stderr, flush=True)

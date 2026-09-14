@@ -10,221 +10,110 @@
   <body>
     <header>
       <div>
-        <span class="eyebrow">LOCAL RUNTIME VERIFIER</span>
+        <span class="eyebrow" data-i18n="eyebrow">LOCAL RUNTIME VERIFIER</span>
         <h1>PluginMatrix</h1>
       </div>
-      <span class="version">v{{VERSION}}</span>
+      <div class="header-meta">
+        <label class="language-label">
+          <span data-i18n="language">Language</span>
+          <select id="language">
+            <option value="en">English</option>
+            <option value="zh-CN">简体中文</option>
+          </select>
+        </label>
+        <span class="version">v{{VERSION}}</span>
+      </div>
     </header>
     <main>
       <section class="notice">
-        <strong>Local only.</strong> Files selected here are copied only to this
-        local process and are never uploaded to a remote service. PASS has the
-        same narrow meaning as the CLI: ready, matching identity and CodeSource,
-        enabled, and stable probe evidence. Folia PASS does not prove thread or
-        cross-region safety.
+        <strong data-i18n="localOnly">Local only.</strong>
+        <span data-i18n="scopeNotice">Files selected here are copied only to this local process and are never uploaded to a remote service. PASS has the same narrow meaning as the CLI: ready, matching identity and CodeSource, enabled, and stable probe evidence. Folia PASS does not prove thread or cross-region safety.</span>
       </section>
 
       <section class="panel">
         <div class="section-title">
-          <div>
-            <span class="step">01</span>
-            <h2>Inputs</h2>
-          </div>
+          <div><span class="step">01</span><h2 data-i18n="inputs">Inputs</h2></div>
           <div class="mode">
-            <label
-              ><input type="radio" name="mode" value="single" checked />
-              Single</label
-            ><label
-              ><input type="radio" name="mode" value="matrix" /> Matrix</label
-            >
+            <label><input type="radio" name="mode" value="single" checked /><span data-i18n="single">Single</span></label>
+            <label><input type="radio" name="mode" value="matrix" /><span data-i18n="matrix">Matrix</span></label>
           </div>
         </div>
         <div class="grid two">
-          <label
-            >Plugin JAR path<input
-              id="plugin-path"
-              type="text"
-              placeholder="C:\\plugins\\MyPlugin.jar or /home/me/MyPlugin.jar"
-          /></label>
-          <label
-            >Or select plugin JAR<input
-              id="plugin-file"
-              type="file"
-              accept=".jar"
-          /></label>
+          <label><span data-i18n="pluginPath">Plugin JAR path</span><input id="plugin-path" type="text" placeholder="C:\plugins\MyPlugin.jar or /home/me/MyPlugin.jar" /></label>
+          <label><span data-i18n="selectPlugin">Or select plugin JAR</span><input id="plugin-file" type="file" accept=".jar" /></label>
         </div>
-        <label
-          >Dependency JAR paths <span class="hint">one path per line</span
-          ><textarea
-            id="dependency-paths"
-            rows="3"
-            placeholder="C:\\plugins\\Vault.jar"
-          ></textarea>
-        </label>
-        <label
-          >Or select dependency JARs<input
-            id="dependency-files"
-            type="file"
-            accept=".jar"
-            multiple
-        /></label>
+        <label><span data-i18n="dependencyPaths">Dependency JAR paths</span> <span class="hint" data-i18n="onePerLine">one path per line</span><textarea id="dependency-paths" rows="3" placeholder="C:\plugins\Vault.jar"></textarea></label>
+        <label><span data-i18n="selectDependencies">Or select dependency JARs</span><input id="dependency-files" type="file" accept=".jar" multiple /></label>
       </section>
 
       <section class="panel">
         <div class="section-title">
-          <div>
-            <span class="step">02</span>
-            <h2>Environments</h2>
-          </div>
-          <button id="add-environment" type="button" class="secondary">
-            Add environment
-          </button>
+          <div><span class="step">02</span><h2 data-i18n="environments">Environments</h2></div>
+          <button id="add-environment" type="button" class="secondary" data-i18n="addEnvironment">Add environment</button>
         </div>
         <div id="environments"></div>
       </section>
 
       <section class="panel">
-        <div class="section-title">
-          <div>
-            <span class="step">03</span>
-            <h2>Run options</h2>
-          </div>
-        </div>
+        <div class="section-title"><div><span class="step">03</span><h2 data-i18n="runOptions">Run options</h2></div></div>
         <div class="grid three">
-          <label
-            >Startup timeout (seconds)<input
-              id="timeout"
-              type="number"
-              min="1"
-              max="3600"
-              value="120"
-          /></label>
-          <label
-            >Stability window (seconds)<input
-              id="stability"
-              type="number"
-              min="1"
-              max="600"
-              value="5"
-          /></label>
-          <label
-            >Concurrent environments<input
-              id="parallel"
-              type="number"
-              min="1"
-              max="8"
-              value="1"
-          /></label>
+          <label><span data-i18n="startupTimeout">Startup timeout (seconds)</span><input id="timeout" type="number" min="1" max="3600" value="120" /></label>
+          <label><span data-i18n="stabilityWindow">Stability window (seconds)</span><input id="stability" type="number" min="1" max="600" value="5" /></label>
+          <label><span data-i18n="concurrentEnvironments">Concurrent environments</span><input id="parallel" type="number" min="1" max="8" value="1" /></label>
         </div>
         <div class="actions">
-          <button id="run" type="button">Run verification</button>
-          <button id="generate" type="button" class="secondary">
-            Generate JSON config
-          </button>
+          <button id="run" type="button" data-i18n="runVerification">Run verification</button>
+          <button id="generate" type="button" class="secondary" data-i18n="generateConfig">Generate JSON config</button>
         </div>
         <div class="config-tools">
-          <label
-            >Import existing JSON config by local path<input
-              id="config-path"
-              type="text"
-              placeholder="C:\\project\\matrix.json or /home/me/matrix.json"
-          /></label>
-          <button id="import-config" type="button" class="secondary">
-            Import
-          </button>
+          <label><span data-i18n="importConfigPath">Import existing JSON config by local path</span><input id="config-path" type="text" placeholder="C:\project\matrix.json or /home/me/matrix.json" /></label>
+          <button id="import-config" type="button" class="secondary" data-i18n="import">Import</button>
         </div>
-        <label
-          >Generated / imported configuration<textarea
-            id="configuration"
-            rows="10"
-            spellcheck="false"
-          ></textarea>
-        </label>
-        <button id="download-config" type="button" class="ghost">
-          Download JSON
-        </button>
+        <label><span data-i18n="configuration">Generated / imported configuration</span><textarea id="configuration" rows="10" spellcheck="false"></textarea></label>
+        <button id="download-config" type="button" class="ghost" data-i18n="downloadJson">Download JSON</button>
       </section>
 
       <section class="panel results">
         <div class="section-title">
-          <div>
-            <span class="step">04</span>
-            <h2>Progress & results</h2>
-          </div>
-          <button id="cancel" type="button" class="danger" disabled>
-            Cancel task
-          </button>
+          <div><span class="step">04</span><h2 data-i18n="progressResults">Progress &amp; results</h2></div>
+          <button id="cancel" type="button" class="danger hidden" disabled data-i18n="cancelTask">Cancel task</button>
         </div>
-        <p id="status" class="status">No task running.</p>
+        <p id="status" class="status" data-i18n="noTask">No task running.</p>
         <div id="progress" class="progress-list"></div>
         <div id="result"></div>
         <div id="artifacts"></div>
       </section>
     </main>
+
     <template id="environment-template">
       <article class="environment">
         <div class="environment-head">
-          <strong>Environment <span class="environment-number"></span></strong
-          ><button type="button" class="remove ghost">Remove</button>
+          <strong><span data-i18n="environment">Environment</span> <span class="environment-number"></span></strong>
+          <button type="button" class="remove ghost" data-i18n="remove">Remove</button>
         </div>
         <div class="grid four">
-          <label
-            >Provider<select class="provider">
-              <option value="paper">Paper</option>
-              <option value="purpur">Purpur</option>
-              <option value="folia">Folia</option>
-              <option value="local">local</option>
-            </select></label
-          >
-          <label
-            >Minecraft version<input
-              class="minecraft"
-              type="text"
-              value="1.21.4"
-          /></label>
-          <label
-            >Build <span class="hint">latest or number</span
-            ><input class="build" type="text" value="latest"
-          /></label>
-          <label
-            >Java version / executable<input
-              class="java"
-              type="text"
-              value="21"
-          /></label>
-          <label
-            >Heap MiB<input
-              class="heap"
-              type="number"
-              min="256"
-              max="32768"
-              value="1024"
-          /></label>
+          <label><span data-i18n="provider">Provider</span><select class="provider">
+            <option value="paper">Paper</option><option value="purpur">Purpur</option><option value="folia">Folia</option><option value="local" data-i18n="localServer">Local server</option>
+          </select></label>
+          <label><span data-i18n="minecraftVersion">Minecraft version</span><input class="minecraft" type="text" value="1.21.4" /><datalist class="version-options"></datalist></label>
+          <label><span data-i18n="build">Build</span> <span class="hint" data-i18n="latestOrNumber">latest or number</span><input class="build" type="text" value="latest" /><datalist class="build-options"></datalist></label>
+          <label><span data-i18n="heap">Heap MiB</span><input class="heap" type="number" min="256" max="32768" value="1024" /></label>
         </div>
+        <p class="catalog-status hint" data-i18n="catalogLoading">Loading available versions…</p>
+        <div class="java-row">
+          <label><span data-i18n="javaRuntime">Java runtime</span><select class="java-select"></select></label>
+          <button type="button" class="java-advanced-toggle ghost" data-i18n="manualJava">Specify executable manually</button>
+        </div>
+        <div class="java-advanced hidden">
+          <label><span data-i18n="javaExecutable">Java version, command, or executable path</span><input class="java" type="text" value="21" /></label>
+        </div>
+        <p class="java-hint hint" data-i18n="javaLoading">Discovering installed Java runtimes…</p>
         <div class="local-fields hidden">
           <div class="grid two">
-            <label
-              >Local server JAR path<input class="server-path" type="text"
-            /></label>
-            <label
-              >Or select local server JAR<input
-                class="server-file"
-                type="file"
-                accept=".jar"
-            /></label>
-            <label
-              >Declared server name<input
-                class="server-name"
-                type="text"
-                placeholder="My server"
-            /></label>
-            <label
-              >Runtime contract<select class="runtime">
-                <option value="paperclip">paperclip</option>
-                <option value="bukkit">bukkit</option>
-                <option value="folia">folia</option>
-              </select></label
-            >
+            <label><span data-i18n="localJarPath">Local server JAR path</span><input class="server-path" type="text" /></label>
+            <label><span data-i18n="selectLocalJar">Or select local server JAR</span><input class="server-file" type="file" accept=".jar" /></label>
+            <label><span data-i18n="serverName">Declared server name</span><input class="server-name" type="text" placeholder="My server" /></label>
+            <label><span data-i18n="runtimeContract">Runtime contract</span><select class="runtime"><option value="paperclip">paperclip</option><option value="bukkit">bukkit</option><option value="folia">folia</option></select></label>
           </div>
         </div>
       </article>

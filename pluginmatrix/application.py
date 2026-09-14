@@ -4,24 +4,32 @@ from __future__ import annotations
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
+import time
 from dataclasses import replace
 from pathlib import Path
 
 from .control import ProgressEvent, RunControl
-from .files import atomic_text, protect_inputs, validate_output_paths
+from .files import atomic_json, atomic_text, protect_inputs, reject_links, validate_output_paths
 from .matrix import (MatrixConfig, MatrixConfigError, load_matrix_config, validate_matrix_preconditions,
                      validate_matrix_paths, matrix_exit_code, run_matrix as _run_matrix, _check_writable_directory)
 from .providers import ServerSpec, get_provider, inspect_providers, parse_server
 from .reports import load_report, render_html_report, _render_html_report
-from .locking import report_locks, validate_report_locks
+from .locking import file_lock, report_locks, validate_report_locks
 from .runtime import verify as _verify, resolve_java, write_report
 from .probe import resolve_javac
 from .external import run_external
 
 API_VERSION = 1
+PROVIDER_CATALOG_TTL = 6 * 60 * 60
+MAX_PROVIDER_CACHE_BYTES = 1024 * 1024
+
+
+class _ReplaceableProviderCacheError(ValueError):
+    """A regular bounded cache file whose contents may be refreshed safely."""
 
 
 def validate_configuration(path: Path, network: bool = False) -> dict:
@@ -148,3 +156,176 @@ def doctor(java: str = 'java', directory: Path = Path('.pluginmatrix'), network:
         add('network', 'informational', True, 'not checked (--offline)')
     valid = all(c['status'] == 'PASS' for c in checks if c['level'] == 'required')
     return {'schema': 1, 'checks': checks, 'exit_code': 0 if valid else 2}
+
+
+def minecraft_java_requirement(version: str) -> int | None:
+    """Return Paper's documented Java baseline for a release version."""
+    if not isinstance(version, str) or not re.fullmatch(r'\d+\.\d+(?:\.\d+)?', version):
+        return None
+    parts = tuple(int(part) for part in version.split('.'))
+    if parts[0] >= 26:
+        return 25
+    if parts[0] != 1 or len(parts) < 2:
+        return None
+    minor = parts[1]
+    patch = parts[2] if len(parts) > 2 else 0
+    if minor >= 21 or minor == 20 and patch >= 5:
+        return 21
+    if minor >= 17:
+        return 17
+    if minor == 16 and patch >= 5:
+        return 16
+    if minor >= 12:
+        return 11
+    return 8
+
+
+def inspect_provider_catalog(provider_type: str, version: str | None = None,
+                             cache_dir: Path = Path('.pluginmatrix/cache'),
+                             max_age: int = PROVIDER_CATALOG_TTL) -> dict:
+    """Return normalized Provider versions/builds with bounded disk-cache fallback."""
+    provider = get_provider(provider_type)
+    if version is not None and not re.fullmatch(r'\d+\.\d+(?:\.\d+)?', version):
+        raise ValueError('Minecraft version must use numbers such as 1.21.4')
+    if provider_type == 'local':
+        return {'schema': 1, 'provider': provider_type, 'provider_name': provider.metadata.name,
+                'available': True, 'source': 'local', 'versions': [], 'builds': [],
+                'recommended_build': None, 'recommended_java': None}
+    key = f'{provider_type}-versions' if version is None else f'{provider_type}-{version}-builds'
+    path = Path(cache_dir).expanduser().absolute() / 'metadata' / f'{key}.json'
+    query = {'provider': provider_type, 'version': version}
+    now = time.time()
+    cached = None
+    cache_warning = None
+    try:
+        try:
+            cached = _read_provider_cache(path, query)
+        except _ReplaceableProviderCacheError as exc:
+            cache_warning = str(exc)
+        if cached and now - cached['fetched_at'] <= max_age:
+            return _catalog_response(provider, version, cached, 'cache')
+        with file_lock(path.with_name(path.name + '.lock'), timeout=35):
+            try:
+                refreshed = _read_provider_cache(path, query)
+            except _ReplaceableProviderCacheError as exc:
+                cache_warning = str(exc)
+                refreshed = None
+            if refreshed and now - refreshed['fetched_at'] <= max_age:
+                return _catalog_response(provider, version, refreshed, 'cache')
+            data = provider.catalog_builds(version) if version is not None else {
+                'versions': provider.catalog_versions()
+            }
+            record = {'schema': 1, 'query': query, 'fetched_at': time.time(), 'data': data}
+            atomic_json(path, record)
+            response = _catalog_response(provider, version, record, 'network')
+            if cache_warning:
+                response['warning'] = cache_warning[:1024]
+            return response
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        if cached:
+            response = _catalog_response(provider, version, cached, 'stale_cache')
+            response['warning'] = str(exc)[:1024]
+            return response
+        return {'schema': 1, 'provider': provider_type, 'provider_name': provider.metadata.name,
+                'available': False, 'source': 'unavailable', 'versions': [], 'builds': [],
+                'recommended_build': None,
+                'recommended_java': minecraft_java_requirement(version) if version else None,
+                'error': str(exc)[:1024]}
+
+
+def _read_provider_cache(path: Path, query: dict) -> dict | None:
+    reject_links(path)
+    if not path.exists():
+        return None
+    info = path.stat()
+    if not path.is_file() or info.st_nlink != 1 or info.st_size > MAX_PROVIDER_CACHE_BYTES:
+        raise ValueError('Provider metadata cache is not a bounded regular file')
+    try:
+        value = json.loads(path.read_text(encoding='utf-8'))
+    except (OSError, ValueError, RecursionError) as exc:
+        raise _ReplaceableProviderCacheError(f'Provider metadata cache is invalid: {exc}') from exc
+    if (not isinstance(value, dict) or value.get('schema') != 1 or value.get('query') != query
+            or type(value.get('fetched_at')) not in (int, float) or not isinstance(value.get('data'), dict)):
+        raise _ReplaceableProviderCacheError('Provider metadata cache does not match the requested catalog')
+    return value
+
+
+def _catalog_response(provider, version: str | None, record: dict, source: str) -> dict:
+    data = record['data']
+    return {'schema': 1, 'provider': provider.metadata.type, 'provider_name': provider.metadata.name,
+            'available': True, 'source': source, 'fetched_at': record['fetched_at'],
+            'versions': data.get('versions', []), 'builds': data.get('builds', []),
+            'recommended_build': data.get('recommended_build'),
+            'recommended_java': minecraft_java_requirement(version) if version else None}
+
+
+def discover_java_runtimes() -> dict:
+    """Discover a bounded set of installed Java runtimes without installing or modifying them."""
+    candidates: list[tuple[Path, str]] = []
+    executable_name = 'java.exe' if os.name == 'nt' else 'java'
+    for variable in ('JAVA_HOME', 'JDK_HOME'):
+        if os.environ.get(variable):
+            candidates.append((Path(os.environ[variable]) / 'bin' / executable_name, variable))
+    for directory in os.environ.get('PATH', '').split(os.pathsep):
+        directory = directory.strip().strip('"')
+        if directory:
+            candidates.append((Path(directory) / executable_name, 'PATH'))
+    patterns: list[tuple[Path, str, str]] = []
+    if os.name == 'nt':
+        for root_name in ('ProgramFiles', 'ProgramFiles(x86)', 'LOCALAPPDATA'):
+            root = os.environ.get(root_name)
+            if not root:
+                continue
+            base = Path(root)
+            patterns.extend((base, pattern, 'installed JDK') for pattern in (
+                'Java/*/bin/java.exe', 'Eclipse Adoptium/*/bin/java.exe', 'Microsoft/jdk-*/bin/java.exe',
+                'Amazon Corretto/*/bin/java.exe', 'BellSoft/LibericaJDK-*/bin/java.exe',
+                'Azul Systems/Zulu*/bin/java.exe', 'Programs/Eclipse Adoptium/*/bin/java.exe'))
+    elif sys.platform == 'darwin':
+        patterns.extend((Path(root), pattern, 'installed JDK') for root, pattern in (
+            ('/Library/Java/JavaVirtualMachines', '*/Contents/Home/bin/java'),
+            ('/opt/homebrew/opt', 'openjdk*/bin/java'), ('/usr/local/opt', 'openjdk*/bin/java')))
+    else:
+        patterns.extend((Path(root), pattern, 'installed JDK') for root, pattern in (
+            ('/usr/lib/jvm', '*/bin/java'), ('/usr/java', '*/bin/java')))
+    for root, pattern, source in patterns:
+        if root.is_dir():
+            candidates.extend((path, source) for path in root.glob(pattern))
+    runtimes = []
+    seen = set()
+    deadline = time.monotonic() + 20
+    for candidate, source in candidates[:128]:
+        if time.monotonic() >= deadline:
+            break
+        try:
+            if not candidate.is_file():
+                continue
+            resolved = candidate.resolve()
+            identity = os.path.normcase(str(resolved))
+            if identity in seen:
+                continue
+            seen.add(identity)
+            executable, version = resolve_java(str(resolved))
+            major = _java_major(version)
+            javac = resolve_javac(executable)
+            compiler_ok = False
+            compiler_path = None
+            if javac:
+                compiler = run_external([javac, '-version'], capture_output=True, text=True, timeout=10)
+                compiler_output = ((getattr(compiler, 'stdout', '') or '')
+                                   + (getattr(compiler, 'stderr', '') or '')).strip()
+                compiler_ok = compiler.returncode == 0 and _java_major(compiler_output) == major
+                if compiler_ok:
+                    compiler_path = str(Path(javac).resolve()) if Path(javac).exists() else javac
+            runtimes.append({'path': str(resolved), 'version': version, 'major': major,
+                             'jdk': compiler_ok, 'javac': compiler_path, 'source': source})
+        except (OSError, ValueError, subprocess.SubprocessError):
+            continue
+    runtimes.sort(key=lambda item: (not item['jdk'], -(item['major'] or 0), item['path'].casefold()))
+    recommended = next((item['path'] for item in runtimes if item['jdk']), None)
+    return {'schema': 1, 'runtimes': runtimes, 'recommended': recommended}
+
+
+def _java_major(version: str) -> int | None:
+    match = re.search(r'(?<![\d.])(?:1\.)?(\d+)(?:\.\d+)*', version)
+    return int(match.group(1)) if match else None
