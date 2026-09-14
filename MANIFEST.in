@@ -9,7 +9,7 @@ recursive-include docs *.md
 recursive-include examples *.json
 recursive-include ci-fixtures *.md *.py *.java *.yml *.txt
 recursive-include tests *.py
-recursive-include standalone *.py *.spec
+recursive-include standalone *.py *.spec *.txt
 exclude ci-fixtures/*.jar
 global-exclude __pycache__ *.py[cod] *.egg-info
 prune .pluginmatrix

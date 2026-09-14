@@ -10,6 +10,7 @@ from pathlib import Path
 
 from pluginmatrix import __version__
 from pluginmatrix.preflight import inspect_plugin
+from standalone import build as standalone_build
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -38,6 +39,7 @@ class ReleaseReadinessTests(unittest.TestCase):
             "docs/VERSIONING.md",
             "standalone/pluginmatrix.spec",
             "standalone/build.py",
+            "standalone/licenses/CPYTHON-LICENSE.txt",
             ".github/workflows/standalone.yml",
             ".github/ISSUE_TEMPLATE/bug_report.yml",
             ".github/ISSUE_TEMPLATE/feature_request.yml",
@@ -46,6 +48,13 @@ class ReleaseReadinessTests(unittest.TestCase):
         for relative in required:
             with self.subTest(relative=relative):
                 self.assertTrue((ROOT / relative).is_file())
+
+    def test_standalone_builder_has_an_offline_cpython_license_fallback(self):
+        fallback = standalone_build.python_license(())
+        self.assertEqual(fallback, ROOT / "standalone" / "licenses" / "CPYTHON-LICENSE.txt")
+        text = fallback.read_text(encoding="utf-8")
+        self.assertIn("PYTHON SOFTWARE FOUNDATION LICENSE VERSION 2", text)
+        self.assertIn("CWI LICENSE AGREEMENT FOR PYTHON 0.9.0 THROUGH 1.2", text)
 
     def test_collaboration_templates_request_actionable_diagnostics(self):
         bug = (ROOT / ".github/ISSUE_TEMPLATE/bug_report.yml").read_text(encoding="utf-8")
@@ -169,6 +178,7 @@ class ReleaseReadinessTests(unittest.TestCase):
             self.assertTrue(any(name.endswith("/LICENSE") for name in sdist_entries))
             self.assertTrue(any(name.endswith("/examples/matrix.json") for name in sdist_entries))
             self.assertTrue(any(name.endswith("/ci-fixtures/smoke/plugin.yml") for name in sdist_entries))
+            self.assertTrue(any(name.endswith("/standalone/licenses/CPYTHON-LICENSE.txt") for name in sdist_entries))
             self.assertTrue(any(name == "pluginmatrix/cli.py" for name in wheel_entries))
             self.assertTrue(any(name == "pluginmatrix/webui/index.html" for name in wheel_entries))
             self.assertTrue(any(name == "pluginmatrix/webui/app.js" for name in wheel_entries))

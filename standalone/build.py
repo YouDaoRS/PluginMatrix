@@ -13,6 +13,7 @@ import tarfile
 import time
 import urllib.request
 import zipfile
+from collections.abc import Sequence
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -105,17 +106,23 @@ def archive_bundle(bundle: Path, output: Path, system: str) -> None:
             archive.add(bundle, arcname=bundle.name, recursive=True)
 
 
-def python_license() -> Path:
-    candidates = [
-        Path(sys.base_prefix) / "LICENSE.txt",
-        Path(sys.base_prefix) / "LICENSE",
-        Path(sys.executable).resolve().parent / "LICENSE.txt",
-        Path(sys.executable).resolve().parent.parent / "LICENSE.txt",
-    ]
+def python_license(candidates: Sequence[Path] | None = None) -> Path:
+    version_directory = f"python{sys.version_info.major}.{sys.version_info.minor}"
+    if candidates is None:
+        candidates = [
+            Path(sys.base_prefix) / "LICENSE.txt",
+            Path(sys.base_prefix) / "LICENSE",
+            Path(sys.base_prefix) / "share" / "doc" / version_directory / "copyright",
+            Path(sys.executable).resolve().parent / "LICENSE.txt",
+            Path(sys.executable).resolve().parent.parent / "LICENSE.txt",
+        ]
     for candidate in candidates:
         if candidate.is_file():
             return candidate
-    raise RuntimeError("the standalone build Python installation does not expose its license file")
+    fallback = ROOT / "standalone" / "licenses" / "CPYTHON-LICENSE.txt"
+    if not fallback.is_file():
+        raise RuntimeError("neither the build Python installation nor the source tree exposes a Python license")
+    return fallback
 
 
 def smoke(bundle: Path, value: str, java: str | None) -> None:
@@ -202,7 +209,8 @@ def main(argv: list[str] | None = None) -> int:
     source.replace(bundle)
     for name in ("LICENSE", "README.md", "THIRD_PARTY_NOTICES.md"):
         shutil.copy2(ROOT / name, bundle / name)
-    shutil.copy2(python_license(), bundle / "PYTHON-LICENSE.txt")
+    python_license_path = python_license()
+    shutil.copy2(python_license_path, bundle / "PYTHON-LICENSE.txt")
     try:
         import PyInstaller
         pyinstaller_version = PyInstaller.__version__
@@ -215,6 +223,11 @@ def main(argv: list[str] | None = None) -> int:
         "platform": system,
         "architecture": architecture,
         "python": platform.python_version(),
+        "python_license_source": (
+            "vendored-cpython-license"
+            if python_license_path.parent == ROOT / "standalone" / "licenses"
+            else "build-interpreter"
+        ),
         "pyinstaller": pyinstaller_version,
         "commit": git_commit(),
         "source_dirty": git_dirty(),
