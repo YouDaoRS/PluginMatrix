@@ -2,9 +2,21 @@
 
 更新日期：2026-09-14。
 
-当前公开稳定版本为 **v0.6.0**，发布分支是 `codex/multi-server-core`。最终版本仅发布到 GitHub Release，不发布 PyPI，不修改 v0.5.0/v0.5.1 或历史。
+当前公开稳定版本为 **v0.6.0**，正式长期开发与发布分支是 `main`。`main` 已从原发布分支安全 fast-forward 到 v0.6.0，随后加入发布基础设施和文档；未修改 v0.6.0 tag、GitHub Release、v0.5.0/v0.5.1 或历史。
 
 结论：以 `30cbe2548c06e30dd8a12e93acaa7b20206f67b5` 为代码候选基线的 v0.6 Final Release Gate 已完成。关键路径复核、Windows/Linux × Python 3.10/3.11 离线测试、真实官方 Provider/local/串并行 Matrix、旧 Paper Gate、报告、打包、公开资产和干净安装均通过；最终版本提交只包含版本与发布文档调整，因此没有重复真实服务器 Gate。
+
+## PyPI / pipx 分发
+
+- 正式项目：[PyPI `pluginmatrix` 0.6.0](https://pypi.org/project/pluginmatrix/0.6.0/)
+- 预发布验证：[TestPyPI `pluginmatrix` 0.6.0](https://test.pypi.org/project/pluginmatrix/0.6.0/)
+- TestPyPI workflow：[run 34811137930](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34811137930)；正式 PyPI workflow：[run 34817178850](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34817178850)。
+- 两次发布均使用 `.github/workflows/publish-pypi.yml`、GitHub OIDC 和 Trusted Publishing；没有长期 API token。Trusted Publisher 绑定 `YouDaoRS/PluginMatrix`、`publish-pypi.yml`，Environment 分别为 `testpypi` 与 `pypi`。正式 `pypi` Environment 只允许 `main`，并要求 `YouDaoRS` 审批且禁止管理员绕过。
+- workflow 只下载现有 GitHub Release 的 wheel/sdist，核对 Release/tag commit、固定文件名、包名、版本和 GitHub asset digest 后上传，不重新构建。PyPA publish Action 固定到 commit `dc37677b2e1c63e2034f94d8a5b11f265b73ba33`；`skip-existing: false`，不可覆盖版本会明确失败。
+- wheel `pluginmatrix-0.6.0-py3-none-any.whl`：`3605c7241f575ef3d1b55bc31d70bb4a92eaac2e156fe63b78e698d381d3c016`；sdist `pluginmatrix-0.6.0.tar.gz`：`1d5736e67bc9f04c1a72296edb8f7bb969216052f2c63fdf0774368e938d08b2`。GitHub Release、TestPyPI 和 PyPI 三处 SHA-256 一致。
+- Windows Python 3.11.9 的全新临时 pipx home 从 TestPyPI 和正式 PyPI 分别安装 `pluginmatrix==0.6.0`；`--version`、`--help`、`providers --json` 均通过，Paper/Purpur/Folia/local 全部存在，`pipx upgrade pluginmatrix` 正确报告已是 0.6.0。
+
+推荐 CLI 安装方式为 `pipx install pluginmatrix`，升级使用 `pipx upgrade pluginmatrix`。GitHub Release 继续作为源码、原始资产和校验值渠道；后续独立 Windows/Linux/macOS 程序包只作为清晰命名的 GitHub Release 资产，不混入 PyPI wheel/sdist。完整规则见 [PUBLISHING.md](PUBLISHING.md)。
 
 ## Folia 并行故障闭环
 
@@ -37,7 +49,7 @@
 | 本机 JDK 21 Provider Gate | 14/14 预期结论：Paper/Purpur/Folia success 与 enable-failure、Folia unsupported、local、`max_parallel=1/3` 混合 Matrix；官方 success 都确认 `.paper-remapped` CodeSource |
 | Hosted Release Gate | Paper 1.20.1/196/JDK17、Paper 1.21.4/232/JDK21，以及 Ubuntu/Windows Provider Gate；真实 Paper/Purpur/Folia success/enable-failure、local 和串并行混合 Matrix |
 | Artifacts | 单环境 JSON/HTML/server.log；Matrix JSON/HTML/Summary；每环境 result.json/server.log；progress 事件和引用存在且可解析 |
-| 构建与公开资产 | 从最终提交的干净源码构建 sdist/wheel，审计归档/metadata/版本/许可证/排除项与 SHA-256；全新 venv 中两个 CLI 入口及 providers/doctor smoke 通过，公开 Release 下载资产 hash 一致且 wheel 可安装 |
+| 构建与公开资产 | 从最终提交的干净源码构建 sdist/wheel，审计归档/metadata/版本/许可证/排除项与 SHA-256；GitHub Release、TestPyPI、PyPI 三处资产 hash 一致；全新 venv 与隔离 pipx 安装、CLI/providers/upgrade 通过 |
 
 Hosted 结果见分支的 [CI history](https://github.com/YouDaoRS/PluginMatrix/actions/workflows/ci.yml?query=branch%3Acodex%2Fmulti-server-core) 和 [Release Gate history](https://github.com/YouDaoRS/PluginMatrix/actions/workflows/release-gate.yml?query=branch%3Acodex%2Fmulti-server-core)。本机完整 Provider 证据位于 `C:\Users\11580\AppData\Local\Temp\pluginmatrix-06-gate-jhssxmgr`；最终 Folia 复验位于 `C:\Users\11580\AppData\Local\Temp\pluginmatrix-folia-recheck-486b52508dc446f9bb1eb6d95a32628f`。这些路径是本机证据，不属于源码包。
 
@@ -46,4 +58,5 @@ Hosted 结果见分支的 [CI history](https://github.com/YouDaoRS/PluginMatrix/
 - Folia 1.21.4 build 6 的上游渠道为 ALPHA。Folia PASS 只证明该版本/构建中被接受、enable 并在观察窗口保持 enabled。
 - local 是显式 `paperclip`/`bukkit`/`folia` 运行合同，不承诺所有未知 fork；Purpur 上游 MD5 与本地 SHA-256 在报告中分开表达。
 - 取消是协作式且有界：进行中的 HTTP 最多等待其 30 秒 timeout，javac 最多 60 秒；PluginMatrix 不是 hostile-code sandbox。
-- v0.6.0 的发布信心仅适用于 Gate 中记录的具体 Provider/build、Java 和平台组合；GitHub Release 是唯一公开包渠道。
+- v0.6.0 的发布信心仅适用于 Gate 中记录的具体 Provider/build、Java 和平台组合；PyPI/pipx 分发不扩大 PASS 的含义。
+- 为满足“使用 GitHub Release 中同一批已验证资产”的约束，PyPI 0.6.0 的内嵌 long description 仍是发布时的 README，包含当时“未发布到 PyPI”的历史句子。PyPI 不允许替换已上传版本的文件；主分支 README 和本状态页是当前分发状态，不为修正文案重发 0.6.0。

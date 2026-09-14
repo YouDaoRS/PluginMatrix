@@ -22,7 +22,17 @@ Owner authorization covers the normal release commit/push, annotated `v0.6.0` ta
 - [x] Create and push annotated `v0.6.0`, publish the verified assets in one GitHub Release, redownload them publicly, match SHA-256 and install the public wheel in a new venv.
 - [x] Reconfirm v0.5.0/v0.5.1 are unchanged and the release branch is clean and synchronized with origin.
 
-Final evidence and precise limitations: [STATUS.md](STATUS.md). GitHub Release is the only package publication channel for v0.6.0.
+Final evidence and precise limitations: [STATUS.md](STATUS.md). GitHub Release was the original package publication channel for v0.6.0.
+
+## v0.6.0 PyPI distribution extension — completed 2026-09-14
+
+- [x] Fast-forward `main` by exactly eight commits to the v0.6.0 release commit; confirm the range contains no `build/`, `dist/`, wheel, cache or other generated artifacts, then push normally.
+- [x] Confirm `pluginmatrix` has no existing PyPI/TestPyPI project, configure GitHub Environments and Pending Trusted Publishers without passwords or long-lived API tokens.
+- [x] Add a manual OIDC publishing workflow that downloads the existing GitHub Release assets, verifies the release/tag commit, exact filenames, package identity/version and GitHub SHA-256 digests, and never rebuilds distributions.
+- [x] Publish to TestPyPI, compare both uploaded hashes with GitHub Release, and validate isolated pipx installation, version, CLI, providers and upgrade behavior.
+- [x] Obtain explicit owner confirmation of project name, version, asset hashes and Trusted Publisher configuration before approving the protected formal `pypi` deployment.
+- [x] Publish the identical wheel and sdist to PyPI, verify hashes through the public API, and repeat isolated pipx installation and upgrade checks.
+- [x] Keep GitHub Release as the source/assets/checksum channel and document a separate future namespace for standalone Windows/Linux/macOS assets.
 
 ## Historical v0.5.1 Final Release Gate
 

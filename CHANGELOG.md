@@ -14,7 +14,7 @@ PluginMatrix follows the version policy in `docs/VERSIONING.md`. No entry below 
 - Stabilize Folia cold starts without relaxing PASS: withhold isolated early callbacks until a continuous two-second scheduler span, keep the host-side two-second freshness rule, and use the configured startup deadline while Folia completes world initialization. Finish a caught-up direct negative sample without waiting for an impossible enabled sample. Use a fixed empty-world seed for reproducible gates.
 - Fail closed on malformed nested saved reports, normalize local server path aliases on Windows, preserve server-shutdown verdict precedence, and extend hosted gates to audit JSON, HTML, summaries, logs, runtime reports, progress events and artifact references.
 
-The final GitHub release was built and verified from the tagged release commit. PluginMatrix is not published to PyPI. Validation results and limitations are tracked in docs/STATUS.md.
+The final GitHub release was built and verified from the tagged release commit. Its unchanged wheel and sdist were subsequently validated on TestPyPI and published to PyPI through GitHub Actions Trusted Publishing; the three channels carry byte-identical package assets. Validation results and limitations are tracked in docs/STATUS.md.
 
 ## 0.5.1 — 2026-09-13
 

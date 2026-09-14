@@ -4,7 +4,7 @@ PluginMatrix is an early-stage command-line verifier for Minecraft plugin JARs. 
 
 Version **0.6.0** adds Paper, Purpur, Folia and user-supplied local server Providers. One Runtime Verifier serves all Providers. Matrix defaults to serial execution and optionally runs 1–8 environments concurrently. There is no GUI, cloud service, automatic JDK management, gameplay bot or complete feature testing.
 
-The public stable release is **0.6.0** on GitHub. PluginMatrix is not published to PyPI. See [release status](docs/STATUS.md), [architecture](docs/ARCHITECTURE.md), and the [v0.5.1 validation record](docs/V0.5.1_PREPARATION.md).
+The public stable release is **0.6.0**, available from [PyPI](https://pypi.org/project/pluginmatrix/0.6.0/) and the immutable [GitHub Release](https://github.com/YouDaoRS/PluginMatrix/releases/tag/v0.6.0). GitHub remains the source, release-asset and checksum channel. See [release status](docs/STATUS.md), [publishing policy](docs/PUBLISHING.md), [architecture](docs/ARCHITECTURE.md), and the [v0.5.1 validation record](docs/V0.5.1_PREPARATION.md).
 
 ## What `PASS` means
 
@@ -33,7 +33,17 @@ It does **not** prove that commands, events, GUIs, databases, dependencies, perf
 - Network access required by Paper bootstrap on its first run, including Mojang runtime artifacts.
 - A Paper plugin JAR you are allowed to use. Dependencies must be supplied as local JARs explicitly.
 
-From a clean checkout:
+For CLI use, install into an isolated environment with [pipx](https://pipx.pypa.io/):
+
+```console
+pipx install pluginmatrix
+pluginmatrix --version
+pluginmatrix providers
+```
+
+Upgrade to a later published version with `pipx upgrade pluginmatrix`. PyPI versions are immutable; an existing version is never overwritten.
+
+For development from a clean checkout:
 
 ```powershell
 python -m venv .venv
