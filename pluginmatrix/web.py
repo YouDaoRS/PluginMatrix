@@ -6,6 +6,8 @@ import ipaddress
 import json
 import os
 import shutil
+import socket
+import stat
 import subprocess
 import sys
 import tempfile
@@ -35,6 +37,9 @@ MAX_JAR_BYTES = 512 * 1024 * 1024
 MAX_JOBS = 64
 MAX_EVENTS = 512
 MAX_ENVIRONMENTS = 256
+MAX_HTTP_CONNECTIONS = 32
+REQUEST_SECONDS = 30
+MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024
 LOOPBACK_HOST = "127.0.0.1"
 
 
@@ -53,6 +58,32 @@ class Artifact:
     device: int
     inode: int
     size: int
+    modified: int
+    changed: int
+
+
+def _identity(info):
+    return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+
+
+def _open_regular(path: Path):
+    """Open without blocking on a raced FIFO; validate the descriptor, not just its name."""
+    reject_links(path)
+    before = path.stat()
+    if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1:
+        raise ValueError("expected a regular file with one link")
+    fd = os.open(path, os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NONBLOCK", 0)
+                 | getattr(os, "O_NOFOLLOW", 0))
+    try:
+        info = os.fstat(fd)
+        reject_links(path)
+        if (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1
+                or _identity(info) != _identity(before) or _identity(path.stat()) != _identity(info)):
+            raise ValueError("file changed while opening")
+        return os.fdopen(fd, "rb")
+    except BaseException:
+        os.close(fd)
+        raise
 
 
 @dataclass
@@ -124,6 +155,8 @@ class WebApplication:
         self._lock = threading.RLock()
         self._active_slots = 0
         self._closing = False
+        self._upload_count = 0
+        self._upload_bytes = 0
 
     def import_file(self, stream, length: int, encoded_name: str, kind: str) -> dict:
         if kind not in {"plugin", "dependency", "server"}:
@@ -142,30 +175,39 @@ class WebApplication:
         with self._lock:
             if self._closing:
                 raise WebError(HTTPStatus.SERVICE_UNAVAILABLE, "Web UI is shutting down")
-            if len(self._files) >= 256:
-                raise WebError(HTTPStatus.CONFLICT, "this Web UI session already contains 256 imported files")
+            if self._upload_count >= 256 or self._upload_bytes + length > MAX_UPLOAD_BYTES:
+                raise WebError(HTTPStatus.CONFLICT, "session upload limit reached (256 files or 2 GiB)")
+            self._upload_count += 1
+            self._upload_bytes += length
             file_id = uuid.uuid4().hex
             destination = self.upload_root / f"{file_id}.jar"
-            remaining = length
-            digest = hashlib.sha256()
-            try:
-                with destination.open("xb") as output:
-                    while remaining:
-                        chunk = stream.read(min(1024 * 1024, remaining))
-                        if not chunk:
-                            raise WebError(HTTPStatus.BAD_REQUEST, "request body ended before Content-Length")
-                        output.write(chunk)
-                        digest.update(chunk)
-                        remaining -= len(chunk)
-            except BaseException:
-                destination.unlink(missing_ok=True)
-                raise
-            self._files[file_id] = destination
+        remaining = length
+        digest = hashlib.sha256()
+        try:
+            with destination.open("xb") as output:
+                while remaining:
+                    chunk = stream.read(min(1024 * 1024, remaining))
+                    if not chunk:
+                        raise WebError(HTTPStatus.BAD_REQUEST, "request body ended before Content-Length")
+                    output.write(chunk)
+                    digest.update(chunk)
+                    remaining -= len(chunk)
+            with self._lock:
+                if self._closing:
+                    raise WebError(HTTPStatus.SERVICE_UNAVAILABLE, "Web UI is shutting down")
+                self._files[file_id] = destination
+        except BaseException:
+            destination.unlink(missing_ok=True)
+            with self._lock:
+                self._upload_count -= 1
+                self._upload_bytes -= length
+            raise
         return {"file_id": file_id, "name": name, "size": length, "sha256": digest.hexdigest(), "kind": kind}
 
     def import_configuration(self, path_value: object) -> dict:
         path = self._path_value(path_value, "config", ".json", MAX_JSON_BYTES)
-        config = application.load_matrix_config(path)
+        with _open_regular(path) as stream:
+            config = application.load_matrix_config(path, stream=stream)
         return {"source": str(path), "configuration": config.to_dict()}
 
     def generate_configuration(self, payload: object) -> dict:
@@ -235,22 +277,26 @@ class WebApplication:
             reject_links(artifact.path)
             if artifact.path.resolve() != artifact.path:
                 raise ValueError("artifact path changed")
-            stream = artifact.path.open("rb")
+            stream = _open_regular(artifact.path)
             info = os.fstat(stream.fileno())
-            if (info.st_dev, info.st_ino, info.st_size) != (artifact.device, artifact.inode, artifact.size):
+            if _identity(info) != (artifact.device, artifact.inode, artifact.size, artifact.modified, artifact.changed):
                 stream.close()
                 raise ValueError("artifact changed after job completion")
         except (OSError, ValueError) as exc:
             raise WebError(HTTPStatus.CONFLICT, f"artifact is no longer the completed file: {exc}") from exc
         return artifact, stream
 
-    def close(self) -> None:
+    def begin_close(self) -> list[Job]:
         with self._lock:
             self._closing = True
             jobs = list(self._jobs.values())
         for job in jobs:
             if job.thread and job.thread.is_alive():
                 job.control.cancel()
+        return jobs
+
+    def close(self) -> None:
+        jobs = self.begin_close()
         for job in jobs:
             if job.thread:
                 while job.thread.is_alive():
@@ -454,11 +500,13 @@ class WebApplication:
             if candidate is None:
                 continue
             try:
+                reject_links(Path(candidate))
                 path = Path(candidate).resolve(strict=True)
                 reject_links(path)
                 if not path.is_file() or path in seen:
                     continue
-                info = path.stat()
+                with _open_regular(path) as stream:
+                    info = os.fstat(stream.fileno())
             except (OSError, ValueError):
                 continue
             seen.add(path)
@@ -469,7 +517,7 @@ class WebApplication:
                 ".log": "text/plain; charset=utf-8",
                 ".txt": "text/plain; charset=utf-8",
             }.get(path.suffix.lower(), "application/octet-stream")
-            artifacts[artifact_id] = Artifact(artifact_id, label, path, content_type, info.st_dev, info.st_ino, info.st_size)
+            artifacts[artifact_id] = Artifact(artifact_id, label, path, content_type, *_identity(info))
         return artifacts
 
     def _discard_old_jobs(self) -> None:
@@ -487,12 +535,68 @@ class LocalWebServer(ThreadingHTTPServer):
     allow_reuse_address = False
 
     def __init__(self, address, app: WebApplication):
+        if address[0] != LOOPBACK_HOST:
+            raise ValueError("Web UI must bind to 127.0.0.1")
         self.app = app
+        self._connections = set()
+        self._connection_lock = threading.Lock()
+        self._connection_slots = threading.BoundedSemaphore(MAX_HTTP_CONNECTIONS)
+        self._closed = False
         self.session_token = uuid.uuid4().hex + uuid.uuid4().hex
         super().__init__(address, LocalRequestHandler)
         port = self.server_address[1]
         self.allowed_hosts = {f"127.0.0.1:{port}", f"localhost:{port}"}
         self.allowed_origins = {f"http://127.0.0.1:{port}", f"http://localhost:{port}"}
+
+    def process_request(self, request, client_address):
+        with self._connection_lock:
+            if self._closed or not self._connection_slots.acquire(blocking=False):
+                self.shutdown_request(request)
+                return
+            self._connections.add(request)
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self._release_connection(request)
+            raise
+
+    def _release_connection(self, request):
+        with self._connection_lock:
+            self._connections.discard(request)
+            self._connection_slots.release()
+
+    def process_request_thread(self, request, client_address):
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._release_connection(request)
+
+    def server_close(self):
+        with self._connection_lock:
+            self._closed = True
+            connections = list(self._connections)
+        self.app.begin_close()
+        for connection in connections:
+            _interrupt_socket(connection)
+        try:
+            super().server_close()
+        finally:
+            self.app.close()
+
+
+def _interrupt_socket(connection):
+    try:
+        connection.shutdown(socket.SHUT_RDWR)
+    except OSError:
+        pass
+    # makefile() retains the socket: close() alone defers the native close.
+    # On Windows shutdown() also need not wake an already-waiting timed recv.
+    try:
+        descriptor = connection.detach()
+        if descriptor != -1:
+            socket.close(descriptor)
+    except OSError:
+        pass
 
 
 class LocalRequestHandler(BaseHTTPRequestHandler):
@@ -503,7 +607,23 @@ class LocalRequestHandler(BaseHTTPRequestHandler):
 
     def setup(self):
         super().setup()
-        self.connection.settimeout(30)
+        self.connection.settimeout(REQUEST_SECONDS)
+
+    def handle(self):
+        # A socket timeout alone resets on every byte and permits slowloris.
+        timer = threading.Timer(REQUEST_SECONDS, _interrupt_socket, args=(self.connection,))
+        timer.daemon = True
+        timer.start()
+        try:
+            super().handle()
+        except OSError:
+            pass
+        finally:
+            timer.cancel()
+
+    def handle_expect_100(self):
+        self.send_error(HTTPStatus.EXPECTATION_FAILED)
+        return False
 
     def log_message(self, _format, *args):
         return
@@ -611,6 +731,21 @@ class LocalRequestHandler(BaseHTTPRequestHandler):
             self._error(HTTPStatus.INTERNAL_SERVER_ERROR, "local Web UI request failed")
 
     def _validate_request(self) -> None:
+        self.close_connection = True
+        if (not self.path.startswith("/") or self.path.startswith("//") or "#" in self.path
+                or self.headers.defects):
+            raise WebError(HTTPStatus.BAD_REQUEST, "invalid request target or headers")
+        for name in ("Host", "Origin", "Cookie", "Content-Length", "Content-Type", "X-PluginMatrix-Token",
+                     "X-PluginMatrix-Filename", "X-PluginMatrix-File-Kind"):
+            values = self.headers.get_all(name, [])
+            if len(values) > 1 or any("\r" in value or "\n" in value for value in values):
+                raise WebError(HTTPStatus.BAD_REQUEST, "duplicate or folded request header")
+        if "Transfer-Encoding" in self.headers or "Expect" in self.headers:
+            raise WebError(HTTPStatus.BAD_REQUEST, "unsupported request framing")
+        if self.command == "GET" and self.headers.get("Content-Length", "0") != "0":
+            raise WebError(HTTPStatus.BAD_REQUEST, "GET bodies are not accepted")
+        if "Origin" in self.headers and self.headers["Origin"] not in self.server.allowed_origins:
+            raise WebError(HTTPStatus.FORBIDDEN, "request Origin is not this local Web UI")
         try:
             if not ipaddress.ip_address(self.client_address[0]).is_loopback:
                 raise WebError(HTTPStatus.FORBIDDEN, "only loopback clients are accepted")
@@ -643,7 +778,7 @@ class LocalRequestHandler(BaseHTTPRequestHandler):
 
     def _content_length(self, maximum: int) -> int:
         raw = self.headers.get("Content-Length")
-        if raw is None or not raw.isdigit():
+        if raw is None or not raw.isascii() or not raw.isdigit() or len(raw) > 10:
             raise WebError(HTTPStatus.LENGTH_REQUIRED, "a numeric Content-Length is required")
         length = int(raw)
         if length > maximum:
@@ -665,6 +800,7 @@ class LocalRequestHandler(BaseHTTPRequestHandler):
             pass
 
     def _security_headers(self, allow_inline_style: bool = False) -> None:
+        self.send_header("Connection", "close")
         self.send_header("Cache-Control", "no-store")
         self.send_header("Referrer-Policy", "no-referrer")
         self.send_header("X-Content-Type-Options", "nosniff")
@@ -696,7 +832,13 @@ class LocalRequestHandler(BaseHTTPRequestHandler):
         for name, value in headers.items():
             self.send_header(name, value)
         self.end_headers()
-        shutil.copyfileobj(stream, self.wfile, 1024 * 1024)
+        remaining = size
+        while remaining:
+            chunk = stream.read(min(remaining, 1024 * 1024))
+            if not chunk:
+                break
+            self.wfile.write(chunk)
+            remaining -= len(chunk)
 
 
 def create_server(port: int = 8642, state_dir: Path = Path(".pluginmatrix/web"),

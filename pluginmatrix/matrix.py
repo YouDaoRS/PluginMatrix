@@ -132,7 +132,7 @@ def _resolve_path(value: object, base: Path, label: str, must_exist: bool = Fals
     return path
 
 
-def load_matrix_config(path: Path) -> MatrixConfig:
+def load_matrix_config(path: Path, *, stream=None) -> MatrixConfig:
     path = path.expanduser().resolve()
     if not path.is_file():
         raise MatrixConfigError(
@@ -142,7 +142,14 @@ def load_matrix_config(path: Path) -> MatrixConfig:
     try:
         if path.stat().st_size > 1024 * 1024:
             raise MatrixConfigError('config exceeds 1 MiB')
-        raw = json.loads(path.read_text(encoding="utf-8"))
+        if stream is None:
+            with path.open("rb") as source:
+                data = source.read(1024 * 1024 + 1)
+        else:
+            data = stream.read(1024 * 1024 + 1)
+        if len(data) > 1024 * 1024:
+            raise MatrixConfigError('config exceeds 1 MiB')
+        raw = json.loads(data.decode("utf-8"))
     except json.JSONDecodeError as exc:
         raise MatrixConfigError(
             f"field 'config' has invalid JSON at line {exc.lineno}, column {exc.colno}: {exc.msg}. "

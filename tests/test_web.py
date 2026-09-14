@@ -3,6 +3,7 @@ import io
 import json
 import os
 import re
+import socket
 import tempfile
 import threading
 import time
@@ -136,6 +137,72 @@ class WebApplicationTests(unittest.TestCase):
         with self.assertRaises(WebError):
             self.app.artifact(saved.id, "b" * 32)
 
+    def test_artifact_rejects_same_size_edit_and_links(self):
+        from pluginmatrix.control import RunControl
+        from pluginmatrix.web import Job
+        path = self.root / "result.json"
+        path.write_bytes(b"original")
+        job = Job("c" * 32, "single", 1, RunControl(), {})
+        job.artifacts = self.app._register_artifacts([("report", path)])
+        self.app._jobs[job.id] = job
+        artifact_id = next(iter(job.artifacts))
+        path.write_bytes(b"modified")
+        os.utime(path, ns=(path.stat().st_atime_ns, path.stat().st_mtime_ns + 1000000000))
+        with self.assertRaises(WebError):
+            self.app.artifact(job.id, artifact_id)
+        alias = self.root / "alias.json"
+        os.link(path, alias)
+        self.assertEqual(self.app._register_artifacts([("report", alias)]), {})
+
+    def test_artifact_registration_rejects_symlink_before_resolving(self):
+        path = self.root / "secret.json"
+        path.write_bytes(b"secret")
+        alias = self.root / "alias.json"
+        try:
+            alias.symlink_to(path)
+        except OSError:
+            self.skipTest("symlink creation unavailable")
+        self.assertEqual(self.app._register_artifacts([("report", alias)]), {})
+
+    def test_upload_does_not_hold_job_lock_and_reserves_total_quota(self):
+        entered, release = threading.Event(), threading.Event()
+        errors = []
+        class SlowStream:
+            def read(self, size):
+                entered.set()
+                release.wait(3)
+                return b"x"
+        def upload():
+            try:
+                self.app.import_file(SlowStream(), 1, "a.jar", "plugin")
+            except Exception as exc:
+                errors.append(exc)
+        worker = threading.Thread(target=upload)
+        worker.start()
+        try:
+            self.assertTrue(entered.wait(1))
+            acquired = self.app._lock.acquire(timeout=.2)
+            if acquired:
+                self.app._lock.release()
+            self.assertTrue(acquired, "network read held the global job lock")
+            with patch("pluginmatrix.web.MAX_UPLOAD_BYTES", 1), self.assertRaises(WebError):
+                self.app.import_file(io.BytesIO(b"x"), 1, "b.jar", "plugin")
+        finally:
+            release.set()
+            worker.join(5)
+        self.assertEqual(errors, [])
+
+    def test_config_reads_bounded_open_descriptor_even_when_path_changes(self):
+        source = self.root / "matrix.json"
+        application.init_configuration(source, plugin=self.plugin, servers=[ServerSpec("paper", "1.20.1")], java="17")
+        from pluginmatrix.web import _open_regular
+        opened = _open_regular(source)
+        try:
+            with patch("pluginmatrix.web._open_regular", return_value=opened), patch.object(Path, "read_text", side_effect=AssertionError("reopened config")):
+                self.assertEqual(self.app.import_configuration(str(source))["configuration"]["environments"][0]["java"], "17")
+        finally:
+            opened.close()
+
 
 class WebHTTPTests(unittest.TestCase):
     def setUp(self):
@@ -166,6 +233,56 @@ class WebHTTPTests(unittest.TestCase):
         token = re.search(r'name="pluginmatrix-token" content="([a-f0-9]+)"', body).group(1)
         connection.close()
         return cookie, token, body
+
+    def raw(self, request):
+        with socket.create_connection(("127.0.0.1", self.port), timeout=2) as connection:
+            connection.sendall(request.encode("ascii"))
+            chunks = []
+            while True:
+                try:
+                    data = connection.recv(65536)
+                except ConnectionError:
+                    return b"".join(chunks)
+                if not data:
+                    return b"".join(chunks)
+                chunks.append(data)
+
+    def test_ambiguous_framing_and_pipeline_are_closed(self):
+        host = f"Host: 127.0.0.1:{self.port}\r\n"
+        for headers in (host + "Host: attacker\r\n", host + "Content-Length: 0\r\nContent-Length: 1\r\n",
+                        host + "Transfer-Encoding: chunked\r\n", host + "Content-Length: 1\r\n",
+                        host + "Origin: http://attacker\r\n"):
+            with self.subTest(headers=headers):
+                response = self.raw("GET /health HTTP/1.1\r\n" + headers + "\r\nGET /health HTTP/1.1\r\n" + host + "\r\n")
+                self.assertEqual(response.count(b"HTTP/1.1"), 1)
+                self.assertNotIn(b"200 OK", response)
+        response = self.raw("GET /health HTTP/1.1\r\n" + host + "\r\nGET /health HTTP/1.1\r\n" + host + "\r\n")
+        self.assertEqual(response.count(b"200 OK"), 1)
+
+    def test_absolute_connection_deadline_and_shutdown_interrupt_partial_headers(self):
+        with patch("pluginmatrix.web.REQUEST_SECONDS", .2):
+            with socket.create_connection(("127.0.0.1", self.port), timeout=2) as connection:
+                connection.sendall(b"GET / HTTP/1.1\r\nHost:")
+                time.sleep(.3)
+                self.assertEqual(connection.recv(1024), b"")
+        with socket.create_connection(("127.0.0.1", self.port), timeout=2) as connection:
+            connection.sendall(b"GET / HTTP/1.1\r\nHost:")
+            self.server.shutdown()
+            closer = threading.Thread(target=self.server.server_close)
+            closer.start()
+            closer.join(2)
+            self.assertFalse(closer.is_alive(), "server close waited for an incomplete HTTP request")
+
+    def test_connection_workers_are_bounded(self):
+        # Occupy the capacity without allocating worker threads, then verify rejection.
+        from pluginmatrix.web import MAX_HTTP_CONNECTIONS
+        for _ in range(MAX_HTTP_CONNECTIONS):
+            self.assertTrue(self.server._connection_slots.acquire(False))
+        try:
+            self.assertEqual(self.raw(f"GET /health HTTP/1.1\r\nHost: 127.0.0.1:{self.port}\r\n\r\n"), b"")
+        finally:
+            for _ in range(MAX_HTTP_CONNECTIONS):
+                self.server._connection_slots.release()
 
     def test_loopback_page_has_strict_headers_and_provider_api(self):
         cookie, _, body = self.session()
