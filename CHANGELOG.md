@@ -2,12 +2,12 @@
 
 PluginMatrix follows the version policy in `docs/VERSIONING.md`. No entry below implies that a Git tag, GitHub Release, or PyPI release exists. Earlier entries without dates were development milestones rather than formal releases.
 
-## 0.7.0 — Unreleased
+## 0.7.0 — 2026-09-14
 
 - Add a loopback-only local Web UI for single and Matrix verification, local JAR import/path selection, dependencies, all existing Providers, Java/build/stability/concurrency controls, live progress, cancellation, results, and allowlisted report/log access.
 - Keep verdicts in `application.run_single`/`run_matrix`; the UI does not parse logs, recompute PASS, or implement a second verifier. Configuration import/generation round-trips through the existing Matrix schema.
 - Add Host/Origin/session/CSRF checks, strict request/body limits, escaped DOM rendering, bounded job/event history, a global eight-environment slot cap, immutable artifact fingerprints, and complete `RunControl` cancellation/draining.
-- Add PyInstaller `onedir` builds for Windows x86-64, Linux x86-64, and macOS x86-64/arm64. Frozen CLI/Web UI launches system Java/Javac with restored platform library-search behavior and retains Web assets, Provider metadata, version/build provenance, project notices, and the exact CPython license.
+- Add PyInstaller `onedir` builds for Windows x86-64, Linux x86-64, and macOS x86-64/arm64. Frozen CLI/Web UI launches system Java/Javac with restored platform library-search behavior and retains Web assets, Provider metadata, version/build provenance, project notices, the CPython license, and notices for bundled native libraries.
 - Add a cross-platform standalone workflow that smoke-tests the frozen CLI, Provider registry, JDK access, Web resources, and one real Paper/probe/report/log path on every target without invoking the full Provider Gate or publishing a release.
 - Keep pipx as the recommended developer/CI channel. Exact PyPI asset matching now ignores standalone `.tar.gz` release assets.
 

@@ -1,6 +1,8 @@
 # Release checklists
 
-## v0.7 standalone/UI Release Candidate gate — completed 2026-09-14
+## v0.7.0 Final Release Gate — authorized 2026-09-14
+
+Owner authorization covers the normal release commit, fast-forward merge to `main`, annotated `v0.7.0` tag, GitHub Release assets and existing Trusted Publishing workflow. Force pushes, history rewriting, old Release changes, EnhancedFly history work and v0.8 remain excluded.
 
 - [x] Keep the Web UI on the application API and preserve one Runtime Verifier/verdict implementation.
 - [x] Add loopback, Host/Origin/session/CSRF, bounded-input, injection, artifact allowlist and multi-task slot controls.
@@ -14,9 +16,17 @@
 - [x] Verify frozen CLI/Web real Paper PASS, runtime probe, JSON/HTML/server.log, archive hashes, safe internal links, license/notice files and sensitive/runtime asset exclusions on all targets.
 - [x] Build and audit clean candidate sdist/wheel, run `compileall` and `git diff --check`, confirm no untracked source, and record candidate hashes in `STATUS.md`.
 
-Conclusion: `d3aeecc1b20d26b22ab9a9d75ff744d7a57a9b42` can enter the v0.7 final Release Gate. This checklist does not authorize a version-finalization commit, tag, GitHub Release, PyPI upload or merge to `main`.
+- [x] Select `d3aeecc1b20d26b22ab9a9d75ff744d7a57a9b42` as the runtime/packaging code candidate and confirm `caeefd6` changes only RC documentation.
+- [x] Set the authoritative version to `0.7.0`, date the changelog, and align README/status/versioning/tests with the final capability and unsigned standalone scope.
+- [ ] Create and push the final release commit, fast-forward `main`, and require final-commit hosted CI to pass before tagging.
+- [ ] Build sdist/wheel and all four native standalone archives from the final release commit; audit version, provenance, licenses, links, exclusions and SHA-256.
+- [ ] Fresh-install the exact wheel and exercise venv, pipx, CLI/providers and loopback Web health before publication.
+- [ ] Create and push annotated `v0.7.0`, publish the verified assets and combined checksums in one GitHub Release, explicitly describing standalone packages as unsigned and not notarized.
+- [ ] Redownload every public GitHub Release asset, compare hashes, and install/smoke the public wheel.
+- [ ] Publish the identical GitHub Release wheel/sdist through Trusted Publishing, compare PyPI hashes, and repeat isolated pipx/CLI/Web smoke.
+- [ ] Reconfirm v0.5.0/v0.5.1/v0.6.0 tags and Release assets are unchanged; leave `main` clean and synchronized with origin.
 
-No tag, GitHub Release, PyPI upload, code signing, MSI, notarization, auto-update, cloud service or v0.8 work is authorized by this development checklist.
+No code signing, MSI, notarization, auto-update, cloud service or v0.8 work is part of this release.
 
 ## v0.6.0 Final Release Gate — completed 2026-09-14
 

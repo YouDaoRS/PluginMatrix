@@ -2,9 +2,9 @@
 
 PluginMatrix is an early-stage local runtime verifier for Minecraft plugin JARs. It prepares an isolated server/Java environment, starts a real server, observes plugin discovery and lifecycle evidence, and writes an authoritative JSON report alongside the original `server.log` and optional static HTML.
 
-The current source version is **0.7.0.dev1**. It adds a loopback-only local Web UI and platform-native standalone archives while retaining the same application API, Provider registry, Runtime Verifier, progress events, reports, and bounded 1–8 environment Matrix scheduler. There is no cloud service, account system, automatic JDK management, gameplay bot, or complete feature testing.
+Version **0.7.0** adds a loopback-only local Web UI and platform-native standalone archives while retaining the same application API, Provider registry, Runtime Verifier, progress events, reports, and bounded 1–8 environment Matrix scheduler. There is no cloud service, account system, automatic JDK management, gameplay bot, or complete feature testing.
 
-The public stable release is **0.6.0**, available from [PyPI](https://pypi.org/project/pluginmatrix/0.6.0/) and the immutable [GitHub Release](https://github.com/YouDaoRS/PluginMatrix/releases/tag/v0.6.0). GitHub remains the source, release-asset and checksum channel. See [release status](docs/STATUS.md), [publishing policy](docs/PUBLISHING.md), [architecture](docs/ARCHITECTURE.md), and the [v0.5.1 validation record](docs/V0.5.1_PREPARATION.md).
+The public stable release is **0.7.0**, available from [PyPI](https://pypi.org/project/pluginmatrix/0.7.0/) and the immutable [GitHub Release](https://github.com/YouDaoRS/PluginMatrix/releases/tag/v0.7.0). GitHub remains the source, release-asset and checksum channel. See [release status](docs/STATUS.md), [publishing policy](docs/PUBLISHING.md), [architecture](docs/ARCHITECTURE.md), and the [v0.5.1 validation record](docs/V0.5.1_PREPARATION.md).
 
 ## What `PASS` means
 
@@ -42,6 +42,8 @@ pluginmatrix providers
 ```
 
 Upgrade to a later published version with `pipx upgrade pluginmatrix`. PyPI versions are immutable; an existing version is never overwritten.
+
+Native standalone archives are attached to the GitHub Release for Windows x86-64, Linux x86-64, macOS x86-64 and macOS arm64. Verify them with `SHA256SUMS.txt` before use. They are portable command-line bundles, not signed installers; the Windows and macOS archives are not code-signed, and the macOS archives are not notarized.
 
 For the local Web UI, run:
 

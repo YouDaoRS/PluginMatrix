@@ -1,8 +1,8 @@
-# PluginMatrix v0.7 Development Status
+# PluginMatrix v0.7.0 Release Status
 
-更新日期：2026-09-14。当前源码版本为 **0.7.0.dev1**，开发分支为 `codex/v0.7-local-web-ui`；公开稳定版本仍是 **v0.6.0**。没有创建 v0.7 tag、GitHub Release 或 PyPI 发布。
+更新日期：2026-09-14。当前源码版本为 **0.7.0**，最终发布操作已获授权。发布提交从 `codex/v0.7-local-web-ui` fast-forward 到 `main` 后，必须先通过最终 CI，再创建 Tag、GitHub Release 和 PyPI 发行；在这些步骤完成前公开稳定版本仍是 **v0.6.0**。
 
-v0.7 已实现 loopback-only Web UI、同一 application API/Provider/Runtime Verifier 的单环境与 Matrix 运行、实时进度、取消、配置导入/生成及 artifact 白名单访问。已加入 PyInstaller `onedir` 原生打包和 Windows x86-64、Linux x86-64、macOS x86-64/arm64 workflow。Astra 关键安全审查、修复后完整离线测试、最终跨平台 standalone 构建与归档审计已经完成；当前 RC 代码候选为 `d3aeecc1b20d26b22ab9a9d75ff744d7a57a9b42`，可以进入 v0.7 最终 Release Gate，但尚不是已发布版本。
+v0.7 已实现 loopback-only Web UI、同一 application API/Provider/Runtime Verifier 的单环境与 Matrix 运行、实时进度、取消、配置导入/生成及 artifact 白名单访问。已加入 PyInstaller `onedir` 原生打包和 Windows x86-64、Linux x86-64、macOS x86-64/arm64 workflow。Astra 关键安全审查、修复后完整离线测试、最终跨平台 standalone 构建与归档审计已经完成；RC 代码候选为 `d3aeecc1b20d26b22ab9a9d75ff744d7a57a9b42`，`caeefd6` 仅记录 RC 结果，最终版本修改不涉及运行时代码，因此不重复真实 Provider Gate。
 
 ## v0.7 Release Candidate Gate
 
@@ -15,9 +15,9 @@ v0.7 已实现 loopback-only Web UI、同一 application API/Provider/Runtime Ve
 - 归档审计确认每包只有预期的应用/CPython/PyInstaller runtime、Web assets、README、build provenance 和四份许可证/notice；没有 JAR、日志、缓存、密钥、环境文件、构建机路径或可读凭据。macOS 各 4 个内部 native-library symlink 均留在 bundle 内；所有 notice 上游链接返回 HTTP 200。
 - 安全修复后的首轮 [CI run 34830003867](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34830003867) 与 [standalone run 34830003909](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34830003909) 功能全绿，但人工归档审计发现 Unix 包只携带 CPython 核心 fallback、未覆盖复制的 native libraries；该 RC 阻塞已由 `d3aeecc` 和上述最终 run 关闭。
 - Provider/Runtime Verifier 代码未在本轮改变，因此没有重复已经完成的真实 Provider Gate；最终 standalone 仍在四平台各自执行了一次真实 Paper CLI/Web runtime probe。
-- 当前 CI 产物只用于开发验证；没有创建 tag、GitHub Release、PyPI 上传、签名、安装器、notarization 或自动更新。
+- 最终 Release 必须从版本提交重新构建并审计全部资产，不复用开发 CI 归档。standalone 作为普通压缩包发布，不提供签名、安装器、notarization 或自动更新。
 
-剩余风险：冻结 Windows 的 `run_external` 仍在外部进程等待期间持有全局 DLL 环境覆盖锁，可能串行化并发 Java/Javac 启动，但未观察到 verdict、清理或稳定性错误；native notice 覆盖当前四平台归档中实际观察到的库，后续 Python/PyInstaller/runner 依赖变化仍需重新审计。未签名、未 notarize 的开发产物不应作为正式 Release 资产直接发布。
+剩余风险：冻结 Windows 的 `run_external` 仍在外部进程等待期间持有全局 DLL 环境覆盖锁，可能串行化并发 Java/Javac 启动，但未观察到 verdict、清理或稳定性错误；native notice 覆盖当前四平台归档中实际观察到的库，后续 Python/PyInstaller/runner 依赖变化仍需重新审计。正式 standalone 资产仍未签名、未 notarize，不得描述为系统签名安装包。
 
 ## v0.6.0 Release Status
 
