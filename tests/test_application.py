@@ -126,6 +126,7 @@ class ApplicationTests(unittest.TestCase):
         java.write_bytes(b'java'); javac.write_bytes(b'javac')
         environment = {'PATH': f'"{self.root}"'}
         with patch.dict(os.environ, environment, clear=True), \
+             patch('pluginmatrix.application.Path.is_dir', return_value=False), \
              patch('pluginmatrix.application.resolve_java', return_value=(str(java), '21.0.8')), \
              patch('pluginmatrix.application.resolve_javac', return_value=str(javac)), \
              patch('pluginmatrix.application.run_external', return_value=SimpleNamespace(returncode=0, stdout='javac 21.0.8', stderr='')):
