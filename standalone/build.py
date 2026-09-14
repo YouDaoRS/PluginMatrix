@@ -96,6 +96,7 @@ def windows_version_file(destination: Path, value: str) -> Path:
 
 
 def archive_bundle(bundle: Path, output: Path, system: str) -> None:
+    audit_bundle(bundle)
     if system == "windows":
         with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
             for path in sorted(bundle.rglob("*")):
@@ -104,6 +105,24 @@ def archive_bundle(bundle: Path, output: Path, system: str) -> None:
     else:
         with tarfile.open(output, "w:gz", format=tarfile.PAX_FORMAT) as archive:
             archive.add(bundle, arcname=bundle.name, recursive=True)
+
+
+def audit_bundle(bundle: Path) -> None:
+    """Reject runtime/private files before creating any distributable archive."""
+    root = bundle.resolve(strict=True)
+    forbidden_parts = {".git", ".pluginmatrix", "cache", "logs", "runs", "__pycache__", ".ssh", ".aws"}
+    forbidden_suffixes = {".jar", ".log", ".jsonl", ".pem", ".key", ".p12", ".pfx", ".jks"}
+    for path in bundle.rglob("*"):
+        relative = path.relative_to(bundle)
+        parts = {part.lower() for part in relative.parts}
+        name = path.name.lower()
+        if (parts & forbidden_parts or path.suffix.lower() in forbidden_suffixes
+                or name == ".env" or name.startswith(".env.") or name in {"credentials", "id_rsa", "id_ed25519"}):
+            raise RuntimeError(f"standalone bundle contains forbidden runtime/private asset: {relative}")
+        # Native PyInstaller POSIX bundles need internal library symlinks.
+        resolved = path.resolve(strict=True)
+        if root not in resolved.parents or (not path.is_file() and not path.is_dir()):
+            raise RuntimeError(f"standalone bundle contains an escaping link or special file: {relative}")
 
 
 def python_license(candidates: Sequence[Path] | None = None) -> Path:
@@ -243,8 +262,6 @@ def main(argv: list[str] | None = None) -> int:
     digest = hashlib.sha256(archive.read_bytes()).hexdigest()
     checksum = output_parent / f"{stem}.sha256"
     atomic_text(checksum, f"{digest}  {archive.name}\n")
-    if any(path.suffix.lower() == ".jar" for path in bundle.rglob("*")):
-        raise RuntimeError("standalone bundle unexpectedly contains a JAR")
     print(json.dumps({"bundle": str(bundle), "archive": str(archive), "sha256": digest}, indent=2))
     return 0
 

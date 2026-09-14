@@ -1,11 +1,9 @@
 import os
 from pathlib import Path
 
-from PyInstaller.utils.hooks import collect_data_files
-
-
 ROOT = Path(SPECPATH).parent
-datas = collect_data_files("pluginmatrix.webui")
+datas = [(str(ROOT / "pluginmatrix" / "webui" / name), "pluginmatrix/webui")
+         for name in ("index.html", "app.js", "style.css")]
 
 a = Analysis(
     [str(ROOT / "standalone" / "entrypoint.py")],

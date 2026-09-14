@@ -4,6 +4,7 @@ import json
 import os
 import re
 import socket
+import sys
 import tempfile
 import threading
 import time
@@ -191,6 +192,33 @@ class WebApplicationTests(unittest.TestCase):
             release.set()
             worker.join(5)
         self.assertEqual(errors, [])
+
+    def test_close_cancels_job_and_drains_owned_process(self):
+        from pluginmatrix.processes import start_process, stop_process
+        started = threading.Event()
+        processes = []
+
+        def run(**kwargs):
+            with (self.root / "process.log").open("wb") as output:
+                process = start_process([sys.executable, "-c", "import time; time.sleep(60)"], self.root, output)
+                processes.append(process)
+                started.set()
+                try:
+                    deadline = time.monotonic() + 5
+                    while not kwargs["control"].cancelled and time.monotonic() < deadline:
+                        time.sleep(.01)
+                finally:
+                    stop_process(process)
+            return VerificationResult(result="CANCELLED")
+
+        with patch("pluginmatrix.web.application.run_single", side_effect=run):
+            job = self.app.submit(self.request())
+            self.assertTrue(started.wait(3))
+            self.app.close()
+        self.assertTrue(job.control.cancelled)
+        self.assertFalse(job.thread.is_alive())
+        self.assertIsNotNone(processes[0].poll())
+        self.assertEqual(self.app._active_slots, 0)
 
     def test_config_reads_bounded_open_descriptor_even_when_path_changes(self):
         source = self.root / "matrix.json"
