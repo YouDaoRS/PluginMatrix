@@ -230,6 +230,10 @@ def main(argv: list[str] | None = None) -> int:
         shutil.copy2(ROOT / name, bundle / name)
     python_license_path = python_license()
     shutil.copy2(python_license_path, bundle / "PYTHON-LICENSE.txt")
+    shutil.copy2(
+        ROOT / "standalone" / "licenses" / "NATIVE-LICENSES.txt",
+        bundle / "NATIVE-LICENSES.txt",
+    )
     try:
         import PyInstaller
         pyinstaller_version = PyInstaller.__version__
@@ -247,6 +251,12 @@ def main(argv: list[str] | None = None) -> int:
             if python_license_path.parent == ROOT / "standalone" / "licenses"
             else "build-interpreter"
         ),
+        "license_files": [
+            "LICENSE",
+            "THIRD_PARTY_NOTICES.md",
+            "PYTHON-LICENSE.txt",
+            "NATIVE-LICENSES.txt",
+        ],
         "pyinstaller": pyinstaller_version,
         "commit": git_commit(),
         "source_dirty": git_dirty(),

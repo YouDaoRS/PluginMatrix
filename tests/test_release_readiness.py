@@ -40,6 +40,7 @@ class ReleaseReadinessTests(unittest.TestCase):
             "standalone/pluginmatrix.spec",
             "standalone/build.py",
             "standalone/licenses/CPYTHON-LICENSE.txt",
+            "standalone/licenses/NATIVE-LICENSES.txt",
             ".github/workflows/standalone.yml",
             ".github/ISSUE_TEMPLATE/bug_report.yml",
             ".github/ISSUE_TEMPLATE/feature_request.yml",
@@ -55,6 +56,14 @@ class ReleaseReadinessTests(unittest.TestCase):
         text = fallback.read_text(encoding="utf-8")
         self.assertIn("PYTHON SOFTWARE FOUNDATION LICENSE VERSION 2", text)
         self.assertIn("CWI LICENSE AGREEMENT FOR PYTHON 0.9.0 THROUGH 1.2", text)
+
+        native = (ROOT / "standalone" / "licenses" / "NATIVE-LICENSES.txt").read_text(
+            encoding="utf-8"
+        )
+        for dependency in ("OpenSSL 3", "bzip2", "libffi", "liblzma", "libuuid", "zlib"):
+            self.assertIn(dependency, native)
+        self.assertIn("Apache License 2.0", native)
+        self.assertIn("Redistributions in binary form", native)
 
     def test_collaboration_templates_request_actionable_diagnostics(self):
         bug = (ROOT / ".github/ISSUE_TEMPLATE/bug_report.yml").read_text(encoding="utf-8")
@@ -179,6 +188,7 @@ class ReleaseReadinessTests(unittest.TestCase):
             self.assertTrue(any(name.endswith("/examples/matrix.json") for name in sdist_entries))
             self.assertTrue(any(name.endswith("/ci-fixtures/smoke/plugin.yml") for name in sdist_entries))
             self.assertTrue(any(name.endswith("/standalone/licenses/CPYTHON-LICENSE.txt") for name in sdist_entries))
+            self.assertTrue(any(name.endswith("/standalone/licenses/NATIVE-LICENSES.txt") for name in sdist_entries))
             self.assertTrue(any(name == "pluginmatrix/cli.py" for name in wheel_entries))
             self.assertTrue(any(name == "pluginmatrix/webui/index.html" for name in wheel_entries))
             self.assertTrue(any(name == "pluginmatrix/webui/app.js" for name in wheel_entries))
