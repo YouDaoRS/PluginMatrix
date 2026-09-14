@@ -1,6 +1,15 @@
 # PluginMatrix v0.7.1 Release Status
 
-更新日期：2026-09-14。当前源码版本为 **0.7.1**，最终发布操作已获授权。发布提交从 `codex/v0.7.1-usability` fast-forward 到 `main` 后，必须先通过最终 CI，再创建 Tag、GitHub Release 和 PyPI 发行；在这些步骤完成前公开稳定版本仍为 **v0.7.0**。
+更新日期：2026-09-14。当前源码和公开稳定版本均为 **v0.7.1**。Release commit `49543d122fa3ec241f937e70b6d2cf1440705803` 已从 `codex/v0.7.1-usability` fast-forward 到 `main`；annotated tag、GitHub Release、TestPyPI 和 PyPI 发布均已完成。
+
+## v0.7.1 Final Release
+
+- Release commit/tag：`49543d122fa3ec241f937e70b6d2cf1440705803` / annotated `v0.7.1`；公开 [GitHub Release](https://github.com/YouDaoRS/PluginMatrix/releases/tag/v0.7.1) 与 [PyPI 0.7.1](https://pypi.org/project/pluginmatrix/0.7.1/) 均已发布。
+- 最终 [CI run 34854638499](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34854638499) 与 [Standalone Distribution run 34854638550](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34854638550) 成功。四平台 standalone、Windows 无参数 Web 启动、English / 简体中文切换、Provider 版本列表和 Java 自动发现 smoke 均通过。
+- Python 包 SHA-256：wheel `bd13cc968e43fe72cc772a86cb309b37ecc0049ac328f7e1c7c33f5ddb73b9da`；sdist `25803469e36d2142d39a351abd94bf15f8ca1b147661f00c876f0cbf958fbea7`。
+- Standalone SHA-256：Windows x86-64 `24d21a0c41f8ff23f4c31f38f191bd1b6104e0acc9b664a044414345657bc396`；Linux x86-64 `bb659c1b51b064e729d21b0e160e297a911b89bc517dca40acb11fc1dc7bacbb`；macOS x86-64 `7c9b98790e69e2ba248a028fb9be7b47f30e391c2ac5a0d74fb98e799d4e75b6`；macOS arm64 `446742045b6a566f84224593c9c5f64d80b61f6d0a5b166d5a9f5b3dc91d4e48`；`SHA256SUMS.txt` `8d2379b69be36c99464c5fdf4ab21ece3257da860c887dffedff4d089bad2727`。
+- [TestPyPI workflow 34858876724](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34858876724) 与正式 [PyPI workflow 34858963676](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34858963676) 均通过 Trusted Publishing。GitHub Release、TestPyPI 和 PyPI 的 wheel/sdist 文件逐字节一致。
+- 已从公开 GitHub Release 重新下载全部 11 个资产，并从正式 PyPI 重新下载 wheel/sdist。隔离 `pipx` 安装、`pluginmatrix --version`、`providers --json` 和 loopback Web `/health` 均通过；公开 Windows standalone 无参数启动也已验证。
 
 ## v0.7.1 Usability Preparation
 
@@ -12,9 +21,9 @@
 - 本机 Windows Python 3.11 完整离线测试 192 项通过、7 项按平台能力跳过；`compileall`、JavaScript 语法/DOM 安全检查和 `git diff --check` 通过。真实浏览器验收覆盖 1280px/390px、语言持久化、在线与缓存 Provider metadata、JDK 路径/版本提示、Paper PASS、无效 Java 失败和运行中取消。
 - Windows x86-64 standalone `0.7.1.dev1` 候选构建、归档审计、冻结 CLI/Provider/doctor/Web health、无参数双击入口与真实冻结 CLI/Web Paper PASS 均通过；最终本地开发归档 SHA-256 为 `d0cc0013fe39b421cd77dd9b95abe2a5e3baf76828260bc9d3153f8f356dedeb`，不属于发布资产。
 - GitHub-hosted [CI run 34846010581](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34846010581) 已在 Ubuntu/Windows、Python 3.10/3.11 全绿；[Standalone Distribution run 34845461889](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34845461889) attempt 2 已在 Windows x86-64、Linux x86-64、macOS x86-64/arm64 全绿，四个平台均完成冻结 CLI/Web 的真实 Paper 验证。首次 macOS x86-64 attempt 仅因 Paper API DNS 解析失败，单独重跑后通过。
-- 当前候选已进入 v0.7.1 正式发布流程；最终 Release 必须从版本提交重新构建并审计全部资产，不得复用开发 CI 或本地候选归档。
+- v0.7.1 已从最终 Release commit 构建并完成公开分发；开发候选归档未被用作发布资产。
 
-更新日期：2026-09-14。当前公开稳定版本为 **v0.7.0**。最终发布提交 `2421a4213ca7cbbd8669926dc7fb365f8512913b` 已从 `codex/v0.7-local-web-ui` fast-forward 到 `main`，annotated tag、GitHub Release、TestPyPI 和 PyPI 发布均已完成。
+v0.7.0 发布记录（2026-09-14）：最终发布提交 `2421a4213ca7cbbd8669926dc7fb365f8512913b` 已从 `codex/v0.7-local-web-ui` fast-forward 到 `main`，annotated tag、GitHub Release、TestPyPI 和 PyPI 发布均已完成。
 
 v0.7 已实现 loopback-only Web UI、同一 application API/Provider/Runtime Verifier 的单环境与 Matrix 运行、实时进度、取消、配置导入/生成及 artifact 白名单访问。已加入 PyInstaller `onedir` 原生打包和 Windows x86-64、Linux x86-64、macOS x86-64/arm64 workflow。Astra 关键安全审查、修复后完整离线测试、最终跨平台 standalone 构建与归档审计已经完成；RC 代码候选为 `d3aeecc1b20d26b22ab9a9d75ff744d7a57a9b42`，`caeefd6` 仅记录 RC 结果，最终版本修改不涉及运行时代码，因此没有重复真实 Provider Gate。
 
