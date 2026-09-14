@@ -1,12 +1,12 @@
 # Release checklists
 
-## v0.7 standalone/UI development gate — pending
+## v0.7 standalone/UI development gate — implementation validated; independent review pending
 
 - [x] Keep the Web UI on the application API and preserve one Runtime Verifier/verdict implementation.
 - [x] Add loopback, Host/Origin/session/CSRF, bounded-input, injection, artifact allowlist and multi-task slot controls.
 - [x] Route UI cancellation and service shutdown through `RunControl`, retaining complete JVM process-tree draining.
 - [x] Add native PyInstaller `onedir` build/archive/audit scripts and a four-target hosted workflow without Java/server/plugin bundling or publication.
-- [ ] Pass Windows/Linux/macOS x86-64 and macOS arm64 frozen CLI/Web/JDK/real probe jobs from the final candidate commit.
+- [x] Pass Windows/Linux/macOS x86-64 and macOS arm64 frozen CLI/Web/JDK/real probe jobs from implementation commit `4d9e7e1` ([run 34825807071](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34825807071)).
 - [ ] Complete independent Astra critical-path review of HTTP parsing/authentication, artifact TOCTOU handling, UI cancellation/shutdown, frozen subprocess environments and release-asset isolation.
 - [ ] Resolve review findings, run final bounded offline CI/compile/package checks, and record candidate hashes.
 

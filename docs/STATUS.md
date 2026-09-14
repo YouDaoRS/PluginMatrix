@@ -2,7 +2,15 @@
 
 更新日期：2026-09-14。当前源码版本为 **0.7.0.dev1**，开发分支为 `codex/v0.7-local-web-ui`；公开稳定版本仍是 **v0.6.0**。没有创建 v0.7 tag、GitHub Release 或 PyPI 发布。
 
-v0.7 已实现 loopback-only Web UI、同一 application API/Provider/Runtime Verifier 的单环境与 Matrix 运行、实时进度、取消、配置导入/生成及 artifact 白名单访问。已加入 PyInstaller `onedir` 原生打包和 Windows x86-64、Linux x86-64、macOS x86-64/arm64 workflow；当前平台与 hosted 结果会在开发 Gate 后记录，不能提前视为发布结论。
+v0.7 已实现 loopback-only Web UI、同一 application API/Provider/Runtime Verifier 的单环境与 Matrix 运行、实时进度、取消、配置导入/生成及 artifact 白名单访问。已加入 PyInstaller `onedir` 原生打包和 Windows x86-64、Linux x86-64、macOS x86-64/arm64 workflow。实现与首轮跨平台修复位于 `c393e029fd3007dbd86ad0da7c600d551af276e8`、`4d9e7e1cc5ed4d84db27c8018ec2ce543e1b0a0e`；当前适合进入独立关键审查，但不是发布候选结论。
+
+## v0.7 Implementation Gate
+
+- 本机 Windows Python 3.11：175 项通过，5 项 POSIX/权限型跳过；`compileall`、sdist/wheel 内容检查、PyInstaller onedir/zip 构建、冻结 CLI/Provider/Java/Web smoke、浏览器页面与 JSON 配置生成均通过，包内 JAR 数为 0。
+- [GitHub-hosted CI run 34825807094](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34825807094) 成功。
+- [Standalone Distribution run 34825807071](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34825807071) 成功：Windows x86-64、Linux x86-64、macOS x86-64、macOS arm64 均从各自原生 runner 构建压缩包，并从冻结 CLI 和 Web UI 各执行真实 Paper 1.20.1/build 196/JDK 17 路径，确认 PASS、runtime probe、JSON/HTML 报告和原始 `server.log`；合并 checksum 任务成功。
+- 首轮 [run 34824860650](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34824860650) 暴露 `setup-python` 的 Unix 工具缓存未提供可发现许可证文件；现改为优先复制构建解释器许可证，并以仓库中的官方 CPython 许可证副本作为离线回退。该问题已由上述四平台最终 run 覆盖。
+- 当前 CI 产物只用于开发验证；没有创建 tag、GitHub Release、PyPI 上传、签名、安装器、notarization 或自动更新。
 
 ## v0.6.0 Release Status
 
