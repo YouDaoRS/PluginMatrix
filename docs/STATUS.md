@@ -2,15 +2,22 @@
 
 更新日期：2026-09-14。当前源码版本为 **0.7.0.dev1**，开发分支为 `codex/v0.7-local-web-ui`；公开稳定版本仍是 **v0.6.0**。没有创建 v0.7 tag、GitHub Release 或 PyPI 发布。
 
-v0.7 已实现 loopback-only Web UI、同一 application API/Provider/Runtime Verifier 的单环境与 Matrix 运行、实时进度、取消、配置导入/生成及 artifact 白名单访问。已加入 PyInstaller `onedir` 原生打包和 Windows x86-64、Linux x86-64、macOS x86-64/arm64 workflow。实现与首轮跨平台修复位于 `c393e029fd3007dbd86ad0da7c600d551af276e8`、`4d9e7e1cc5ed4d84db27c8018ec2ce543e1b0a0e`；当前适合进入独立关键审查，但不是发布候选结论。
+v0.7 已实现 loopback-only Web UI、同一 application API/Provider/Runtime Verifier 的单环境与 Matrix 运行、实时进度、取消、配置导入/生成及 artifact 白名单访问。已加入 PyInstaller `onedir` 原生打包和 Windows x86-64、Linux x86-64、macOS x86-64/arm64 workflow。Astra 关键安全审查、修复后完整离线测试、最终跨平台 standalone 构建与归档审计已经完成；当前 RC 代码候选为 `d3aeecc1b20d26b22ab9a9d75ff744d7a57a9b42`，可以进入 v0.7 最终 Release Gate，但尚不是已发布版本。
 
-## v0.7 Implementation Gate
+## v0.7 Release Candidate Gate
 
-- 本机 Windows Python 3.11：175 项通过，5 项 POSIX/权限型跳过；`compileall`、sdist/wheel 内容检查、PyInstaller onedir/zip 构建、冻结 CLI/Provider/Java/Web smoke、浏览器页面与 JSON 配置生成均通过，包内 JAR 数为 0。
-- [GitHub-hosted CI run 34825807094](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34825807094) 成功。
-- [Standalone Distribution run 34825807071](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34825807071) 成功：Windows x86-64、Linux x86-64、macOS x86-64、macOS arm64 均从各自原生 runner 构建压缩包，并从冻结 CLI 和 Web UI 各执行真实 Paper 1.20.1/build 196/JDK 17 路径，确认 PASS、runtime probe、JSON/HTML 报告和原始 `server.log`；合并 checksum 任务成功。
-- 首轮 [run 34824860650](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34824860650) 暴露 `setup-python` 的 Unix 工具缓存未提供可发现许可证文件；现改为优先复制构建解释器许可证，并以仓库中的官方 CPython 许可证副本作为离线回退。该问题已由上述四平台最终 run 覆盖。
+- 安全修复提交：`a3969e9` 限制 HTTP 连接、解析、上传和配置读取并加固 artifact TOCTOU；`73b4a16` 在归档前拒绝 runtime/private/special/escaping assets；`d3aeecc` 为实际打包出的 OpenSSL、bzip2、libffi、liblzma、libuuid 和 zlib 补齐 native notices 与 build metadata。
+- 本机 Windows Python 3.11 最终完整离线测试：186 项通过，7 项 POSIX/symlink 权限型跳过；`python -m compileall -q pluginmatrix tests standalone ci-fixtures/build_fixtures.py`、`git diff --check` 和工作树/未跟踪源码检查通过。
+- 从 `d3aeecc` 的干净 `git archive` 构建 sdist/wheel，metadata、Web assets、许可证和敏感/二进制排除通过。开发候选 SHA-256：wheel `96480512b0bb573bcc249d48016265b8d0fe6135ed2669a880ad7b76efe34b13`；sdist `a3d76a6b0179ae8ed583343633447c9312ec6afd2a89305266497e6383018cba`。
+- 最终 [GitHub-hosted CI run 34831078163](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34831078163) 成功。Ubuntu/Windows × Python 3.10/3.11 每项均运行 186 个测试；Ubuntu 各跳过 2 个 Windows-only 测试，Windows 各跳过 3 个 POSIX-only 测试，互补覆盖实际执行。
+- 最终 [Standalone Distribution run 34831078226](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34831078226) 成功：Windows x86-64、Linux x86-64、macOS x86-64、macOS arm64 均从原生 runner 构建，并从冻结 CLI 和 Web UI 各执行真实 Paper 1.20.1/build 196/JDK 17 路径，确认 PASS、runtime probe、JSON/HTML 报告和原始 `server.log`；合并 checksum 任务成功。
+- 最终 standalone SHA-256：Windows x86-64 `0b1e16d0d2d873ebe65efcf9eb213ac7894a5f1a01dabea478a669059ca73fb4`；Linux x86-64 `2cd63b7d5e659abd951d49e114d7469f9e531c5e88dca57dfe12462ea7a50787`；macOS x86-64 `b1393dc962608f376256ea8b782844c5e297ea890815aa130ccd9066512b62f3`；macOS arm64 `7a23d76036a83442dfed72c3803797a495543aa123daf96aec11188fc7fe0dba`。
+- 归档审计确认每包只有预期的应用/CPython/PyInstaller runtime、Web assets、README、build provenance 和四份许可证/notice；没有 JAR、日志、缓存、密钥、环境文件、构建机路径或可读凭据。macOS 各 4 个内部 native-library symlink 均留在 bundle 内；所有 notice 上游链接返回 HTTP 200。
+- 安全修复后的首轮 [CI run 34830003867](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34830003867) 与 [standalone run 34830003909](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34830003909) 功能全绿，但人工归档审计发现 Unix 包只携带 CPython 核心 fallback、未覆盖复制的 native libraries；该 RC 阻塞已由 `d3aeecc` 和上述最终 run 关闭。
+- Provider/Runtime Verifier 代码未在本轮改变，因此没有重复已经完成的真实 Provider Gate；最终 standalone 仍在四平台各自执行了一次真实 Paper CLI/Web runtime probe。
 - 当前 CI 产物只用于开发验证；没有创建 tag、GitHub Release、PyPI 上传、签名、安装器、notarization 或自动更新。
+
+剩余风险：冻结 Windows 的 `run_external` 仍在外部进程等待期间持有全局 DLL 环境覆盖锁，可能串行化并发 Java/Javac 启动，但未观察到 verdict、清理或稳定性错误；native notice 覆盖当前四平台归档中实际观察到的库，后续 Python/PyInstaller/runner 依赖变化仍需重新审计。未签名、未 notarize 的开发产物不应作为正式 Release 资产直接发布。
 
 ## v0.6.0 Release Status
 

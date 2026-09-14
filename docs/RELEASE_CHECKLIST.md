@@ -1,14 +1,20 @@
 # Release checklists
 
-## v0.7 standalone/UI development gate — implementation validated; independent review pending
+## v0.7 standalone/UI Release Candidate gate — completed 2026-09-14
 
 - [x] Keep the Web UI on the application API and preserve one Runtime Verifier/verdict implementation.
 - [x] Add loopback, Host/Origin/session/CSRF, bounded-input, injection, artifact allowlist and multi-task slot controls.
 - [x] Route UI cancellation and service shutdown through `RunControl`, retaining complete JVM process-tree draining.
 - [x] Add native PyInstaller `onedir` build/archive/audit scripts and a four-target hosted workflow without Java/server/plugin bundling or publication.
 - [x] Pass Windows/Linux/macOS x86-64 and macOS arm64 frozen CLI/Web/JDK/real probe jobs from implementation commit `4d9e7e1` ([run 34825807071](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34825807071)).
-- [ ] Complete independent Astra critical-path review of HTTP parsing/authentication, artifact TOCTOU handling, UI cancellation/shutdown, frozen subprocess environments and release-asset isolation.
-- [ ] Resolve review findings, run final bounded offline CI/compile/package checks, and record candidate hashes.
+- [x] Complete independent Astra critical-path review of HTTP parsing/authentication, artifact TOCTOU handling, UI cancellation/shutdown, frozen subprocess environments and release-asset isolation.
+- [x] Resolve HTTP and artifact findings in `a3969e9` and `73b4a16`; pass the final complete offline run with 186 tests and 7 local platform/permission skips.
+- [x] Pass final hosted offline CI on Ubuntu/Windows and Python 3.10/3.11 at `d3aeecc` ([run 34831078163](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34831078163)).
+- [x] Audit actual hosted archives, identify incomplete Unix native-library notices, fix them in `d3aeecc`, and rerun all four native standalone targets plus combined checksums ([run 34831078226](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34831078226)).
+- [x] Verify frozen CLI/Web real Paper PASS, runtime probe, JSON/HTML/server.log, archive hashes, safe internal links, license/notice files and sensitive/runtime asset exclusions on all targets.
+- [x] Build and audit clean candidate sdist/wheel, run `compileall` and `git diff --check`, confirm no untracked source, and record candidate hashes in `STATUS.md`.
+
+Conclusion: `d3aeecc1b20d26b22ab9a9d75ff744d7a57a9b42` can enter the v0.7 final Release Gate. This checklist does not authorize a version-finalization commit, tag, GitHub Release, PyPI upload or merge to `main`.
 
 No tag, GitHub Release, PyPI upload, code signing, MSI, notarization, auto-update, cloud service or v0.8 work is authorized by this development checklist.
 
