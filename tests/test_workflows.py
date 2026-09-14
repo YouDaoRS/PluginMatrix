@@ -83,7 +83,10 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn('f"pluginmatrix-{version}-py3-none-any.whl"', workflow)
         self.assertIn('f"pluginmatrix-{version}.tar.gz"', workflow)
         self.assertIn('metadata["Name"] != "pluginmatrix"', workflow)
-        self.assertIn("pypa/gh-action-pypi-publish@release/v1", workflow)
+        self.assertIn(
+            "pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1",
+            workflow,
+        )
         self.assertIn("https://test.pypi.org/legacy/", workflow)
         self.assertIn("https://upload.pypi.org/legacy/", workflow)
         self.assertIn("skip-existing: false", workflow)
