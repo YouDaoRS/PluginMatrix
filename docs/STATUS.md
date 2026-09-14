@@ -1,8 +1,20 @@
 # PluginMatrix v0.7.0 Release Status
 
-更新日期：2026-09-14。当前源码版本为 **0.7.0**，最终发布操作已获授权。发布提交从 `codex/v0.7-local-web-ui` fast-forward 到 `main` 后，必须先通过最终 CI，再创建 Tag、GitHub Release 和 PyPI 发行；在这些步骤完成前公开稳定版本仍是 **v0.6.0**。
+更新日期：2026-09-14。当前公开稳定版本为 **v0.7.0**。最终发布提交 `2421a4213ca7cbbd8669926dc7fb365f8512913b` 已从 `codex/v0.7-local-web-ui` fast-forward 到 `main`，annotated tag、GitHub Release、TestPyPI 和 PyPI 发布均已完成。
 
-v0.7 已实现 loopback-only Web UI、同一 application API/Provider/Runtime Verifier 的单环境与 Matrix 运行、实时进度、取消、配置导入/生成及 artifact 白名单访问。已加入 PyInstaller `onedir` 原生打包和 Windows x86-64、Linux x86-64、macOS x86-64/arm64 workflow。Astra 关键安全审查、修复后完整离线测试、最终跨平台 standalone 构建与归档审计已经完成；RC 代码候选为 `d3aeecc1b20d26b22ab9a9d75ff744d7a57a9b42`，`caeefd6` 仅记录 RC 结果，最终版本修改不涉及运行时代码，因此不重复真实 Provider Gate。
+v0.7 已实现 loopback-only Web UI、同一 application API/Provider/Runtime Verifier 的单环境与 Matrix 运行、实时进度、取消、配置导入/生成及 artifact 白名单访问。已加入 PyInstaller `onedir` 原生打包和 Windows x86-64、Linux x86-64、macOS x86-64/arm64 workflow。Astra 关键安全审查、修复后完整离线测试、最终跨平台 standalone 构建与归档审计已经完成；RC 代码候选为 `d3aeecc1b20d26b22ab9a9d75ff744d7a57a9b42`，`caeefd6` 仅记录 RC 结果，最终版本修改不涉及运行时代码，因此没有重复真实 Provider Gate。
+
+## v0.7.0 Final Release
+
+- Release commit/tag：`2421a4213ca7cbbd8669926dc7fb365f8512913b` / annotated `v0.7.0`；公开 [GitHub Release](https://github.com/YouDaoRS/PluginMatrix/releases/tag/v0.7.0) 与 [PyPI 0.7.0](https://pypi.org/project/pluginmatrix/0.7.0/) 均指向该版本。
+- 最终 [CI run 34833821162](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34833821162) 与 [Standalone Distribution run 34833820926](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34833820926) 成功。四个平台均记录冻结 CLI 和 Web UI 的真实 Paper PASS；本机再次验证 Windows 冻结 CLI、Provider registry 和 Web `/health`。
+- Python 包从最终提交的干净 `git archive` 构建一次并原样发布。wheel `326d00669090f4f1bde2565d9d3b09333c7124953e5b28ca0c39f60394c831b5`；sdist `c84cb05271c2a35bf6aaf0c7da8f4612f783d396b10fc9f9413e5d347410b942`。
+- Standalone SHA-256：Windows x86-64 `e0933f67011d51613bda0db82bce826c16505a3e814e3c6746e3c0b1f4bdfd81`；Linux x86-64 `11211e97ba9073e3134b3bd1b5cd97b7af0f662f858b7d82c85c7c48efcd63ef`；macOS x86-64 `2eb339a1adb30986ec148c89c28f457c2f06d6d0da7b2a38fb71746c1af62b0f`；macOS arm64 `5bbcbb235585571303a8bef8a7f273f8daa79fd260a0518154d632686a9433dd`。
+- [TestPyPI workflow 34835141840](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34835141840) 与正式 [PyPI workflow 34835387582](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34835387582) 均通过 Trusted Publishing，从 GitHub Release 下载并验证同一 wheel/sdist 后发布。GitHub Release、TestPyPI、PyPI 的两个 Python 包 hash 一致。
+- 已从公开 GitHub Release 重新下载全部 11 个资产，并从 PyPI CDN 重新下载 wheel/sdist；大小、GitHub digest、SHA-256 和原始发布文件均一致。全新 venv、普通 `pip`、隔离 `pipx`、CLI `--version`、`providers --json` 和 loopback Web health smoke 通过。
+- `v0.5.0`、`v0.5.1`、`v0.6.0` 的 Tag target、Release 元数据和全部资产 ID、大小、时间戳及 digest 与发布前基线一致。
+
+剩余限制：standalone 是普通压缩包，不是系统签名安装包；Windows/macOS 可执行文件未 code-sign，macOS 包未 notarize。冻结 Windows 的 `run_external` 在外部进程等待期间仍持有全局 DLL 环境覆盖锁，可能串行化并发 Java/Javac 启动，但 Gate 中未观察到 verdict、清理或稳定性错误。native notices 只覆盖本次四平台归档中实际携带的库，构建工具链变化后必须重新审计。
 
 ## v0.7 Release Candidate Gate
 
@@ -15,7 +27,7 @@ v0.7 已实现 loopback-only Web UI、同一 application API/Provider/Runtime Ve
 - 归档审计确认每包只有预期的应用/CPython/PyInstaller runtime、Web assets、README、build provenance 和四份许可证/notice；没有 JAR、日志、缓存、密钥、环境文件、构建机路径或可读凭据。macOS 各 4 个内部 native-library symlink 均留在 bundle 内；所有 notice 上游链接返回 HTTP 200。
 - 安全修复后的首轮 [CI run 34830003867](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34830003867) 与 [standalone run 34830003909](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34830003909) 功能全绿，但人工归档审计发现 Unix 包只携带 CPython 核心 fallback、未覆盖复制的 native libraries；该 RC 阻塞已由 `d3aeecc` 和上述最终 run 关闭。
 - Provider/Runtime Verifier 代码未在本轮改变，因此没有重复已经完成的真实 Provider Gate；最终 standalone 仍在四平台各自执行了一次真实 Paper CLI/Web runtime probe。
-- 最终 Release 必须从版本提交重新构建并审计全部资产，不复用开发 CI 归档。standalone 作为普通压缩包发布，不提供签名、安装器、notarization 或自动更新。
+- 最终 Release 已从版本提交重新构建并审计全部资产，没有复用开发 CI 归档；standalone 作为普通压缩包发布，不提供签名、安装器、notarization 或自动更新。
 
 剩余风险：冻结 Windows 的 `run_external` 仍在外部进程等待期间持有全局 DLL 环境覆盖锁，可能串行化并发 Java/Javac 启动，但未观察到 verdict、清理或稳定性错误；native notice 覆盖当前四平台归档中实际观察到的库，后续 Python/PyInstaller/runner 依赖变化仍需重新审计。正式 standalone 资产仍未签名、未 notarize，不得描述为系统签名安装包。
 
@@ -23,7 +35,7 @@ v0.7 已实现 loopback-only Web UI、同一 application API/Provider/Runtime Ve
 
 更新日期：2026-09-14。
 
-当前公开稳定版本为 **v0.6.0**，正式长期开发与发布分支是 `main`。`main` 已从原发布分支安全 fast-forward 到 v0.6.0，随后加入发布基础设施和文档；未修改 v0.6.0 tag、GitHub Release、v0.5.0/v0.5.1 或历史。
+**v0.6.0** 是上一公开稳定版本，正式长期开发与发布分支是 `main`。`main` 当时从原发布分支安全 fast-forward 到 v0.6.0，随后加入发布基础设施和文档；v0.7.0 发布没有修改 v0.6.0 tag、GitHub Release、v0.5.0/v0.5.1 或历史。
 
 结论：以 `30cbe2548c06e30dd8a12e93acaa7b20206f67b5` 为代码候选基线的 v0.6 Final Release Gate 已完成。关键路径复核、Windows/Linux × Python 3.10/3.11 离线测试、真实官方 Provider/local/串并行 Matrix、旧 Paper Gate、报告、打包、公开资产和干净安装均通过；最终版本提交只包含版本与发布文档调整，因此没有重复真实服务器 Gate。
 

@@ -1,6 +1,6 @@
 # Release checklists
 
-## v0.7.0 Final Release Gate — authorized 2026-09-14
+## v0.7.0 Final Release Gate — completed 2026-09-14
 
 Owner authorization covers the normal release commit, fast-forward merge to `main`, annotated `v0.7.0` tag, GitHub Release assets and existing Trusted Publishing workflow. Force pushes, history rewriting, old Release changes, EnhancedFly history work and v0.8 remain excluded.
 
@@ -18,13 +18,13 @@ Owner authorization covers the normal release commit, fast-forward merge to `mai
 
 - [x] Select `d3aeecc1b20d26b22ab9a9d75ff744d7a57a9b42` as the runtime/packaging code candidate and confirm `caeefd6` changes only RC documentation.
 - [x] Set the authoritative version to `0.7.0`, date the changelog, and align README/status/versioning/tests with the final capability and unsigned standalone scope.
-- [ ] Create and push the final release commit, fast-forward `main`, and require final-commit hosted CI to pass before tagging.
-- [ ] Build sdist/wheel and all four native standalone archives from the final release commit; audit version, provenance, licenses, links, exclusions and SHA-256.
-- [ ] Fresh-install the exact wheel and exercise venv, pipx, CLI/providers and loopback Web health before publication.
-- [ ] Create and push annotated `v0.7.0`, publish the verified assets and combined checksums in one GitHub Release, explicitly describing standalone packages as unsigned and not notarized.
-- [ ] Redownload every public GitHub Release asset, compare hashes, and install/smoke the public wheel.
-- [ ] Publish the identical GitHub Release wheel/sdist through Trusted Publishing, compare PyPI hashes, and repeat isolated pipx/CLI/Web smoke.
-- [ ] Reconfirm v0.5.0/v0.5.1/v0.6.0 tags and Release assets are unchanged; leave `main` clean and synchronized with origin.
+- [x] Create and push final release commit `2421a4213ca7cbbd8669926dc7fb365f8512913b`, fast-forward `main`, and pass final hosted CI ([run 34833821162](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34833821162)) before tagging.
+- [x] Build sdist/wheel from a clean final-commit archive and all four native standalone archives in [run 34833820926](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34833820926); audit version, provenance, licenses, links, exclusions and SHA-256.
+- [x] Fresh-install the exact wheel and exercise venv, pipx, CLI/providers and loopback Web health before publication.
+- [x] Create and push annotated `v0.7.0`, publish the 11 verified assets and combined checksums in one [GitHub Release](https://github.com/YouDaoRS/PluginMatrix/releases/tag/v0.7.0), explicitly describing standalone packages as unsigned and not notarized.
+- [x] Redownload every public GitHub Release asset, compare hashes and bytes, and install/smoke the public wheel.
+- [x] Publish the identical GitHub Release wheel/sdist through TestPyPI ([run 34835141840](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34835141840)) and PyPI ([run 34835387582](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34835387582)); compare hashes and repeat isolated pipx/CLI/Web smoke.
+- [x] Reconfirm v0.5.0/v0.5.1/v0.6.0 tags and Release assets are unchanged; leave `main` clean and synchronized with origin.
 
 No code signing, MSI, notarization, auto-update, cloud service or v0.8 work is part of this release.
 
