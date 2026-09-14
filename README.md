@@ -2,9 +2,9 @@
 
 PluginMatrix is an early-stage local runtime verifier for Minecraft plugin JARs. It prepares an isolated server/Java environment, starts a real server, observes plugin discovery and lifecycle evidence, and writes an authoritative JSON report alongside the original `server.log` and optional static HTML.
 
-Version **0.7.1.dev1** prepares the v0.7.1 usability update for the loopback-only Web UI and standalone archives while retaining the same Provider registry, Runtime Verifier, reports, and bounded 1–8 environment Matrix scheduler. It adds guided Provider version/build selection, local Java discovery, English/Simplified Chinese UI text, clearer progress/results, and a Windows double-click Web entry. There is no cloud service, account system, automatic JDK installation, gameplay bot, or complete feature testing.
+Version **0.7.1** improves usability for the loopback-only Web UI and standalone archives while retaining the same Provider registry, Runtime Verifier, reports, and bounded 1–8 environment Matrix scheduler. It adds guided Provider version/build selection, local Java discovery, English/Simplified Chinese UI text, clearer progress/results, and a Windows double-click Web entry. There is no cloud service, account system, automatic JDK installation, gameplay bot, or complete feature testing.
 
-The public stable release is **0.7.0**, available from [PyPI](https://pypi.org/project/pluginmatrix/0.7.0/) and the immutable [GitHub Release](https://github.com/YouDaoRS/PluginMatrix/releases/tag/v0.7.0). GitHub remains the source, release-asset and checksum channel. See [release status](docs/STATUS.md), [publishing policy](docs/PUBLISHING.md), [architecture](docs/ARCHITECTURE.md), and the [v0.5.1 validation record](docs/V0.5.1_PREPARATION.md).
+The public stable release is **0.7.1**, available from [PyPI](https://pypi.org/project/pluginmatrix/0.7.1/) and the immutable [GitHub Release](https://github.com/YouDaoRS/PluginMatrix/releases/tag/v0.7.1). GitHub remains the source, release-asset and checksum channel. See [release status](docs/STATUS.md), [publishing policy](docs/PUBLISHING.md), [architecture](docs/ARCHITECTURE.md), and the [v0.5.1 validation record](docs/V0.5.1_PREPARATION.md).
 
 ## What `PASS` means
 
@@ -55,7 +55,7 @@ The printed URL is bound to `127.0.0.1` only and normally opens in the default b
 
 The UI loads official Minecraft version/build choices through each selected Provider and stores bounded metadata under the normal cache directory. If the network is unavailable, it identifies cached or stale choices and keeps manual entry available. Installed Java/JDK candidates are discovered locally and shown with version and executable path; PluginMatrix only recommends a compatible choice and never installs or changes Java. English and Simplified Chinese can be selected in the header, and the choice is remembered by the browser.
 
-Development builds also produce PyInstaller `onedir` archives named for Windows x86-64, Linux x86-64, and macOS x86-64/arm64. On Windows, double-click `pluginmatrix.exe` to open the local Web UI; if startup fails, a dialog explains the error and the `pluginmatrix.exe web --port 0` fallback. Run the executable from a terminal with a subcommand for CLI use. Linux and macOS use `pluginmatrix web` for the Web UI. A full installed JDK is still required, and no Java runtime, server JAR, or third-party plugin is bundled. These development artifacts are not a v0.7.1 release.
+The v0.7.1 Release includes PyInstaller `onedir` archives for Windows x86-64, Linux x86-64, and macOS x86-64/arm64. On Windows, double-click `pluginmatrix.exe` to open the local Web UI; if startup fails, a dialog explains the error and the `pluginmatrix.exe web --port 0` fallback. Run the executable from a terminal with a subcommand for CLI use. Linux and macOS use `pluginmatrix web` for the Web UI. A full installed JDK is still required, and no Java runtime, server JAR, or third-party plugin is bundled. The archives are unsigned and the macOS builds are not notarized.
 
 For development from a clean checkout:
 

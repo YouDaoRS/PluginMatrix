@@ -2,7 +2,7 @@
 
 PluginMatrix follows the version policy in `docs/VERSIONING.md`. No entry below implies that a Git tag, GitHub Release, or PyPI release exists. Earlier entries without dates were development milestones rather than formal releases.
 
-## 0.7.1 - Unreleased
+## 0.7.1 — 2026-09-14
 
 - Make the Windows standalone executable launch the local Web UI on an automatically selected loopback port when opened without command-line arguments, using a clear native error message when startup fails; explicit CLI subcommands remain unchanged.
 - Add cached official Provider catalogs for available Minecraft versions and builds. The Web UI prefers live metadata, identifies fresh/stale cache fallback, safely refreshes corrupt regular cache files, and retains manual entry when metadata cannot be loaded.

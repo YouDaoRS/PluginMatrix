@@ -1,5 +1,25 @@
 # Release checklists
 
+## v0.7.1 Final Release Gate — authorized 2026-09-14
+
+Owner authorization covers the normal release commit, fast-forward merge to `main`, annotated `v0.7.1` tag, GitHub Release assets and the existing Trusted Publishing workflow. Force pushes, history rewriting, old Release changes, EnhancedFly history work and the next version remain excluded.
+
+- [x] Preserve the existing Provider registry, Runtime Verifier and PASS semantics; add no Provider, cloud service or large UI rewrite.
+- [x] Complete the v0.7.1 usability work: Windows double-click Web startup, official Provider version/build catalogs with bounded cache fallback, local Java/JDK discovery, English/Simplified Chinese UI, user-facing progress and correct terminal task controls.
+- [x] Pass the local 192-test offline suite with 7 platform skips, compileall, JavaScript/DOM checks, archive audit and real desktop/mobile Web acceptance.
+- [x] Pass candidate hosted CI on Ubuntu/Windows and Python 3.10/3.11 ([run 34846882967](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34846882967)).
+- [x] Pass candidate Windows/Linux/macOS x86-64/macOS arm64 standalone builds and frozen CLI/Web real Paper checks ([run 34845461889](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34845461889), attempt 2). The first macOS x86-64 attempt failed only on transient Paper API DNS resolution and passed when rerun.
+- [x] Set the authoritative version to `0.7.1`, date the changelog, and align README/status/versioning/tests with the final usability scope and unsigned standalone limitations.
+- [ ] Create and push the final release commit, fast-forward `main`, and require final-commit hosted CI to pass before tagging.
+- [ ] Build and audit wheel, sdist and all four native standalone archives from the final release commit; verify version, provenance, licenses, Web language/catalog/Java smoke, Windows double-click startup, exclusions and SHA-256.
+- [ ] Fresh-install the exact wheel and exercise venv, pipx, CLI/providers and loopback Web health before publication.
+- [ ] Create and push annotated `v0.7.1`, publish the verified assets and checksums in one GitHub Release, explicitly describing standalone packages as unsigned and not notarized.
+- [ ] Redownload every public GitHub Release asset, compare hashes and bytes, and install/smoke the public wheel and Windows standalone.
+- [ ] Publish the identical GitHub Release wheel/sdist through the existing Trusted Publishing workflow, compare PyPI hashes, and repeat isolated pipx/CLI/Web smoke.
+- [ ] Leave `main` clean and synchronized with origin without changing old tags, Releases or historical objects.
+
+No code signing, MSI, notarization, auto-update, cloud service, new Provider or next-version work is part of this release.
+
 ## v0.7.0 Final Release Gate — completed 2026-09-14
 
 Owner authorization covers the normal release commit, fast-forward merge to `main`, annotated `v0.7.0` tag, GitHub Release assets and existing Trusted Publishing workflow. Force pushes, history rewriting, old Release changes, EnhancedFly history work and v0.8 remain excluded.
