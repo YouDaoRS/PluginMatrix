@@ -11,7 +11,8 @@
 - PASS、失败、取消真实流程均已通过本机 Web 验收；完成和取消后不再显示可操作的 Cancel 按钮，Provider 与结果标题统一使用展示名称。Runtime Verifier 和 PASS 语义未修改。
 - 本机 Windows Python 3.11 完整离线测试 192 项通过、7 项按平台能力跳过；`compileall`、JavaScript 语法/DOM 安全检查和 `git diff --check` 通过。真实浏览器验收覆盖 1280px/390px、语言持久化、在线与缓存 Provider metadata、JDK 路径/版本提示、Paper PASS、无效 Java 失败和运行中取消。
 - Windows x86-64 standalone `0.7.1.dev1` 构建、归档审计、冻结 CLI/Provider/doctor/Web health、无参数双击入口与真实冻结 CLI/Web Paper PASS 均通过；最终本地开发归档 SHA-256 为 `d0cc0013fe39b421cd77dd9b95abe2a5e3baf76828260bc9d3153f8f356dedeb`，不属于发布资产。
-- 本地候选已具备 v0.7.1 发布条件；正式发布前仍需让当前提交通过 GitHub-hosted Ubuntu/Windows 离线 CI 和四平台 standalone workflow，并按现有发布流程重新构建、审计和记录正式资产。不得复用本地开发归档发布。
+- GitHub-hosted [CI run 34846010581](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34846010581) 已在 Ubuntu/Windows、Python 3.10/3.11 全绿；[Standalone Distribution run 34845461889](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34845461889) attempt 2 已在 Windows x86-64、Linux x86-64、macOS x86-64/arm64 全绿，四个平台均完成冻结 CLI/Web 的真实 Paper 验证。首次 macOS x86-64 attempt 仅因 Paper API DNS 解析失败，单独重跑后通过。
+- 当前候选适合进入 v0.7.1 正式发布流程；仍需从最终版本提交重新构建、审计和记录正式资产，不得复用本地开发归档发布。
 
 更新日期：2026-09-14。当前公开稳定版本为 **v0.7.0**。最终发布提交 `2421a4213ca7cbbd8669926dc7fb365f8512913b` 已从 `codex/v0.7-local-web-ui` fast-forward 到 `main`，annotated tag、GitHub Release、TestPyPI 和 PyPI 发布均已完成。
 
