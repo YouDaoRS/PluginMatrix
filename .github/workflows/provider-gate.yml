@@ -41,5 +41,7 @@ jobs:
             ${{ steps.gate.outputs.gate_root }}/*.md
             ${{ steps.gate.outputs.gate_root }}/runs/**/result.json
             ${{ steps.gate.outputs.gate_root }}/runs/**/server.log
+            ${{ steps.gate.outputs.gate_root }}/runs/**/server/plugins/pluginmatrix-runtime-probe.json
+            ${{ steps.gate.outputs.gate_root }}/runs/**/server/plugins/pluginmatrix-behavior-response.json
           if-no-files-found: error
           retention-days: 14

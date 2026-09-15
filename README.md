@@ -2,9 +2,9 @@
 
 PluginMatrix is an early-stage local runtime verifier for Minecraft plugin JARs. It prepares an isolated server/Java environment, starts a real server, observes plugin discovery and lifecycle evidence, and writes an authoritative JSON report alongside the original `server.log` and optional static HTML.
 
-Version **0.7.1** improves usability for the loopback-only Web UI and standalone archives while retaining the same Provider registry, Runtime Verifier, reports, and bounded 1–8 environment Matrix scheduler. It adds guided Provider version/build selection, local Java discovery, English/Simplified Chinese UI text, clearer progress/results, and a Windows double-click Web entry. There is no cloud service, account system, automatic JDK installation, gameplay bot, or complete feature testing.
+Version **0.8.0rc1** adds bounded Behavioral Verification after the existing runtime stability window. CLI, Web, application API, JSON/HTML reports, progress events and Matrix summaries now keep the runtime verdict, behavior verdict and final result separate. There is still one Runtime Verifier and no cloud service, account system, automatic JDK installation, player bot, script engine or complete feature testing.
 
-The public stable release is **0.7.1**, available from [PyPI](https://pypi.org/project/pluginmatrix/0.7.1/) and the immutable [GitHub Release](https://github.com/YouDaoRS/PluginMatrix/releases/tag/v0.7.1). GitHub remains the source, release-asset and checksum channel. See [release status](docs/STATUS.md), [publishing policy](docs/PUBLISHING.md), [architecture](docs/ARCHITECTURE.md), and the [v0.5.1 validation record](docs/V0.5.1_PREPARATION.md).
+The public stable release remains **0.7.1**, available from [PyPI](https://pypi.org/project/pluginmatrix/0.7.1/) and the immutable [GitHub Release](https://github.com/YouDaoRS/PluginMatrix/releases/tag/v0.7.1). `0.8.0rc1` is source/CI Release Candidate work only; no v0.8 tag, GitHub Release or PyPI publication exists. See [release status](docs/STATUS.md), [behavior contract](docs/BEHAVIOR_CORE.md), [publishing policy](docs/PUBLISHING.md), and [architecture](docs/ARCHITECTURE.md).
 
 ## What `PASS` means
 
@@ -15,7 +15,9 @@ The public stable release is **0.7.1**, available from [PyPI](https://pypi.org/p
 3. `Plugin#isEnabled()` was `true`.
 4. The server and plugin remained running during the configured stability window.
 
-The window starts with a valid enabled probe sample after ready. Samples must match the run, name, version, main class and isolated source, advance in sequence/time with no gap over two seconds, and include a new sample at the end. Zero stability is rejected. A stale/malformed probe, incomplete window or cleanup failure cannot produce PASS.
+The window starts with a valid enabled probe sample after ready. Samples must match the run, name, version, main class and isolated source, advance in sequence/time with no gap over two seconds, and include a new sample at the end. Zero stability is rejected. A stale/malformed probe, incomplete window or cleanup failure cannot produce runtime PASS.
+
+Reports expose `runtime_verdict`, `behavior.verdict` and `verification_passed`. Without a behavior plan, behavior is `NOT_RUN` and runtime PASS keeps the v0.7 final success behavior. With a behavior plan, checks run only after the full runtime window passes and final PASS requires both runtime PASS and behavior PASS. A runtime PASS plus behavior FAIL/ERROR/TIMEOUT/UNSUPPORTED/CANCELLED is a final failure; it does not rewrite the saved runtime verdict.
 
 The verifier supports simple `plugin.yml` and standalone `paper-plugin.yml` descriptors. Duplicate/ambiguous keys, unsupported YAML, missing version and dual descriptors are rejected explicitly. Complex Paper bootstrapper/loader/nested dependency descriptors remain unsupported. Plugin names and `provides` aliases must not collide with each other or the probe. Remapped sources are accepted only at the expected isolated `.paper-remapped/<target filename>` path when allowed by the Provider.
 
@@ -23,7 +25,7 @@ Folia requires the unquoted boolean `folia-supported: true`; its absence returns
 
 These checks are for compatibility of plugins you trust to execute. A run directory and a probe in the same JVM are not a security sandbox against intentionally malicious plugin code or processes that deliberately leave the POSIX process group.
 
-It does **not** prove that commands, events, GUIs, databases, dependencies, performance, player behavior, or other Paper/Java versions work correctly.
+Runtime PASS does **not** prove that commands, events, GUIs, databases, dependencies, performance, player behavior, or other Paper/Java versions work correctly. Behavior PASS proves only the configured typed observations and fresh post-check health. A console command's `true` return does not prove business correctness or captured output, and registration checks do not prove gameplay behavior.
 
 ## Requirements and installation
 
@@ -51,11 +53,11 @@ For the local Web UI, run:
 pluginmatrix web
 ```
 
-The printed URL is bound to `127.0.0.1` only and normally opens in the default browser. Use `pluginmatrix web --no-browser --port 0` to print a randomly allocated local URL without opening it. The UI accepts Paper, Purpur, Folia, and explicit local contracts; single or Matrix runs; dependencies; Java/build/stability/concurrency settings; cancellation; live progress; configuration import/generation; and links to allowlisted reports and logs. Browser-selected JARs are copied into a session-temporary local directory and are never sent to a remote service. Enter full local paths when generating a configuration that must remain usable after the UI exits.
+The printed URL is bound to `127.0.0.1` only and normally opens in the default browser. Use `pluginmatrix web --no-browser --port 0` to print a randomly allocated local URL without opening it. The UI accepts Paper, Purpur, Folia, and explicit local contracts; single or Matrix runs; behavior plan editing; cancellation; live runtime/behavior progress; configuration import/export and rerun; per-check status/reason/duration/structured evidence; and links to allowlisted reports, logs and behavior protocol evidence. Browser-selected JARs are copied into a session-temporary local directory and are never sent to a remote service. Enter full local paths when generating a configuration that must remain usable after the UI exits.
 
 The UI loads official Minecraft version/build choices through each selected Provider and stores bounded metadata under the normal cache directory. If the network is unavailable, it identifies cached or stale choices and keeps manual entry available. Installed Java/JDK candidates are discovered locally and shown with version and executable path; PluginMatrix only recommends a compatible choice and never installs or changes Java. English and Simplified Chinese can be selected in the header, and the choice is remembered by the browser.
 
-The v0.7.1 Release includes PyInstaller `onedir` archives for Windows x86-64, Linux x86-64, and macOS x86-64/arm64. On Windows, double-click `pluginmatrix.exe` to open the local Web UI; if startup fails, a dialog explains the error and the `pluginmatrix.exe web --port 0` fallback. Run the executable from a terminal with a subcommand for CLI use. Linux and macOS use `pluginmatrix web` for the Web UI. A full installed JDK is still required, and no Java runtime, server JAR, or third-party plugin is bundled. The archives are unsigned and the macOS builds are not notarized.
+The public v0.7.1 Release includes PyInstaller `onedir` archives for Windows x86-64, Linux x86-64, and macOS x86-64/arm64. The v0.8 RC workflow builds the same four targets and exercises frozen CLI/Web behavior PASS before any final release decision. A full installed JDK is still required, and no Java runtime, server JAR, or third-party plugin is bundled. The archives are unsigned and the macOS builds are not notarized.
 
 For development from a clean checkout:
 
@@ -90,9 +92,23 @@ Useful options:
 --work-dir path             Root for isolated run directories
 --cache-dir path            Paper download and bootstrap cache
 --report path.json          Runtime JSON report path
+--behavior behavior.json    Run a bounded behavior plan after runtime stability passes
 ```
 
-The single-environment command exits `0` only for `PASS`; other verifier verdicts exit `1`, invalid CLI configuration exits `2`, and report-save failures exit `3`. Reports must be outside work/cache roots and must not alias input files. Matrix per-environment reports remain under their isolated run directories.
+Run the included behavior example:
+
+The standalone plan is stored at [`examples/behavior.json`](examples/behavior.json), and the complete Matrix example is [`examples/behavior-matrix.json`](examples/behavior-matrix.json).
+
+```powershell
+python -m pluginmatrix test `
+  --plugin .\ci-fixtures\PluginMatrixSmoke.jar `
+  --paper 1.20.1 --paper-build 196 --java 17 `
+  --behavior .\examples\behavior.json
+```
+
+Supported checks are `command_registered`, `permission_registered`, `service_registered`, `console_command` and `wait`. Plans contain 1-64 unique checks, a behavior timeout up to 300 seconds and per-check timeouts up to 30 seconds. There are no scripts, expressions, loops, regex assertions, automatic retries or third-party loaders. Folia registry/wait checks use the global region scheduler; console commands are explicitly `UNSUPPORTED` because no safe general region ownership contract exists.
+
+The single-environment command exits `0` only when `verification_passed` is true; runtime or behavior failure exits `1`, invalid CLI configuration exits `2`, and report-save/internal failures exit `3`. Reports must be outside work/cache roots and must not alias input files. Matrix per-environment reports remain under their isolated run directories.
 
 ## Compatibility Matrix
 
@@ -125,6 +141,7 @@ Run the repository-provided one-environment example, or copy its configuration a
 
 ```powershell
 python -m pluginmatrix matrix .\examples\matrix.json
+python -m pluginmatrix matrix .\examples\behavior-matrix.json
 ```
 
 ```json
@@ -145,7 +162,7 @@ python -m pluginmatrix matrix .\examples\matrix.json
 
 Every relative path in a Matrix config is resolved from the directory containing that config, not from the shell's current directory. Before downloading Paper or starting a server, Matrix validates the plugin, Java/JDK, duplicate environments, and output paths.
 
-Each environment keeps its own runtime `result.json`, `server.log`, and run directory. The unified Matrix Report defaults to `.pluginmatrix/matrix-report.json` relative to the config and references those artifacts without embedding the raw log. Matrix exits `0` when all environments pass, `1` after one or more environment failures, `2` for invalid configuration, and `3` for an internal PluginMatrix error.
+Each environment keeps its own runtime `result.json`, `server.log`, run directory and requested behavior evidence. The unified Matrix Report records combined `summary`, separate `runtime_summary`/`behavior_summary`, every check and artifact availability without embedding the raw log. Matrix exits `0` only when all environments have final success, `1` after one or more runtime/behavior failures, `2` for invalid configuration, and `3` for an internal/report error.
 
 Use `options.max_parallel` or `matrix --max-parallel` (default 1, maximum 8). Result order follows configuration order. Each environment has an independent port, probe run ID, log and directory. Cache publication uses OS file locks, checksums and atomic replacements. One environment failure does not cancel others. Ctrl+C requests cancellation, waits for all owned process trees to be cleaned up, and retains completed and cancelled results. `CANCELLED` exits 1; cleanup/report/internal errors take precedence as failures. Concurrent invocations targeting the same Matrix report are rejected while it is in use.
 
@@ -159,9 +176,9 @@ Use `options.max_parallel` or `matrix --max-parallel` (default 1, maximum 8). Re
 python -m pluginmatrix report .pluginmatrix/matrix-report.json --html matrix.html
 ```
 
-HTML reads the recorded JSON verdicts without recalculating them. It is a single offline file with escaped text, metadata/evidence details, relative artifact paths, PASS scope and Folia limitations. It does not embed raw logs or external scripts. Keep referenced artifacts with the report if you move it.
+HTML reads the recorded JSON verdicts without recalculating them. It is a single offline file with escaped runtime/behavior/final results, per-check status/reason/duration/structured evidence, post-check health, relative artifact paths, PASS scope and Folia limitations. It does not embed raw logs or external scripts. Keep referenced artifacts with the report if you move it.
 
-The stable application entry points are documented in [APPLICATION_API.md](docs/APPLICATION_API.md): `validate_configuration`, `inspect_providers`, `run_single`, `run_matrix`, `load_report`, `render_html_report`, and `RunControl.cancel()`. Structured progress callbacks are serialized, bounded and contain no configuration, paths or log contents. There is no background daemon or GUI.
+The application entry points are documented in [APPLICATION_API.md](docs/APPLICATION_API.md): `validate_configuration`, `inspect_providers`, `run_single`, `run_matrix`, `load_report`, `render_html_report`, and `RunControl.cancel()`. `run_single(..., behavior=...)` and Matrix's top-level `behavior` use the same normalized plan and combined-success rule. Structured progress callbacks are serialized, bounded and contain no configuration, paths or log contents. The Web UI is only an adapter over these services.
 
 ## Common failures
 

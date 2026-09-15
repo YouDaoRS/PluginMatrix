@@ -55,7 +55,22 @@
       </section>
 
       <section class="panel">
-        <div class="section-title"><div><span class="step">03</span><h2 data-i18n="runOptions">Run options</h2></div></div>
+        <div class="section-title">
+          <div><span class="step">03</span><h2 data-i18n="behaviorChecks">Behavior checks</h2></div>
+          <label class="toggle-label"><input id="behavior-enabled" type="checkbox" /><span data-i18n="enableBehavior">Enable behavior verification</span></label>
+        </div>
+        <div id="behavior-editor" class="hidden">
+          <div class="behavior-toolbar">
+            <label><span data-i18n="behaviorTimeout">Behavior phase timeout (seconds)</span><input id="behavior-timeout" type="number" min="1" max="300" value="60" /></label>
+            <button id="add-behavior-check" type="button" class="secondary" data-i18n="addBehaviorCheck">Add check</button>
+          </div>
+          <p class="hint" data-i18n="behaviorScope">Checks run only after runtime stability passes. Final PASS requires both runtime PASS and behavior PASS.</p>
+          <div id="behavior-checks"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="section-title"><div><span class="step">04</span><h2 data-i18n="runOptions">Run options</h2></div></div>
         <div class="grid three">
           <label><span data-i18n="startupTimeout">Startup timeout (seconds)</span><input id="timeout" type="number" min="1" max="3600" value="120" /></label>
           <label><span data-i18n="stabilityWindow">Stability window (seconds)</span><input id="stability" type="number" min="1" max="600" value="5" /></label>
@@ -75,8 +90,11 @@
 
       <section class="panel results">
         <div class="section-title">
-          <div><span class="step">04</span><h2 data-i18n="progressResults">Progress &amp; results</h2></div>
-          <button id="cancel" type="button" class="danger hidden" disabled data-i18n="cancelTask">Cancel task</button>
+          <div><span class="step">05</span><h2 data-i18n="progressResults">Progress &amp; results</h2></div>
+          <div class="result-actions">
+            <button id="rerun" type="button" class="secondary hidden" data-i18n="runAgain">Run again</button>
+            <button id="cancel" type="button" class="danger hidden" disabled data-i18n="cancelTask">Cancel task</button>
+          </div>
         </div>
         <p id="status" class="status" data-i18n="noTask">No task running.</p>
         <div id="progress" class="progress-list"></div>
@@ -116,6 +134,31 @@
             <label><span data-i18n="runtimeContract">Runtime contract</span><select class="runtime"><option value="paperclip">paperclip</option><option value="bukkit">bukkit</option><option value="folia">folia</option></select></label>
           </div>
         </div>
+      </article>
+    </template>
+    <template id="behavior-check-template">
+      <article class="behavior-check">
+        <div class="behavior-check-head">
+          <strong><span data-i18n="check">Check</span> <span class="behavior-check-number"></span></strong>
+          <button type="button" class="remove-behavior ghost" data-i18n="remove">Remove</button>
+        </div>
+        <div class="grid three">
+          <label><span data-i18n="checkId">Check ID</span><input class="behavior-id" type="text" maxlength="64" value="check-1" /></label>
+          <label><span data-i18n="checkType">Check type</span><select class="behavior-type">
+            <option value="command_registered" data-i18n="typeCommandRegistered">Command registered</option>
+            <option value="permission_registered" data-i18n="typePermissionRegistered">Permission registered</option>
+            <option value="service_registered" data-i18n="typeServiceRegistered">Service registered</option>
+            <option value="console_command" data-i18n="typeConsoleCommand">Console command</option>
+            <option value="wait" data-i18n="typeWait">Wait</option>
+          </select></label>
+          <label><span data-i18n="checkTimeout">Check timeout (seconds)</span><input class="behavior-check-timeout" type="number" min="0.1" max="30" step="0.1" value="5" /></label>
+        </div>
+        <div class="behavior-named-fields grid two">
+          <label><span data-i18n="checkName">Registered name or service class</span><input class="behavior-name" type="text" maxlength="256" /></label>
+          <label class="expect-field"><span data-i18n="expectedResult">Expected result</span><select class="behavior-expect"><option value="true" data-i18n="expectedTrue">true</option><option value="false" data-i18n="expectedFalse">false</option></select></label>
+        </div>
+        <label class="behavior-args-field hidden"><span data-i18n="commandArgs">Command arguments (JSON array)</span><textarea class="behavior-args" rows="2" spellcheck="false">[]</textarea></label>
+        <label class="behavior-wait-field hidden"><span data-i18n="waitSeconds">Wait duration (seconds)</span><input class="behavior-seconds" type="number" min="0.1" max="30" step="0.1" value="1" /></label>
       </article>
     </template>
     <script src="/assets/app.js" defer></script>

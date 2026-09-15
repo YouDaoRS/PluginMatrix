@@ -62,6 +62,9 @@ def verify_web(executable: Path, java: str, evidence: Path) -> dict:
             "dependencies": [],
             "environments": [{"server": {"type": "paper", "version": "1.20.1", "build": 196}, "java": java}],
             "options": {"timeout": 120, "stability_window": 2, "max_parallel": 1},
+            "behavior": {"schema": 1, "timeout": 10, "checks": [
+                {"id": "settle", "type": "wait", "seconds": 1, "timeout": 5}
+            ]},
         }
         job = request_json(base + "/api/jobs", cookie, token, payload)
         deadline = time.monotonic() + 180
@@ -70,12 +73,16 @@ def verify_web(executable: Path, java: str, evidence: Path) -> dict:
                 raise RuntimeError("frozen Web UI job exceeded its verification deadline")
             time.sleep(0.25)
             job = request_json(base + f"/api/jobs/{job['id']}?after={job['next_event']}", cookie, token)
-        if job["status"] != "completed" or job.get("summary", {}).get("environments", [{}])[0].get("verdict") != "PASS":
+        environment = job.get("summary", {}).get("environments", [{}])[0]
+        if (job["status"] != "completed" or environment.get("runtime_verdict") != "PASS"
+                or environment.get("behavior", {}).get("verdict") != "PASS"
+                or environment.get("verification_passed") is not True):
             raise RuntimeError(f"frozen Web UI did not return the application PASS: {job!r}")
         labels = {item["label"] for item in job.get("artifacts", [])}
-        if labels != {"JSON report", "HTML report", "server.log"}:
+        if labels != {"JSON report", "HTML report", "server.log", "behavior runtime probe"}:
             raise RuntimeError(f"frozen Web UI artifact allowlist is incomplete: {sorted(labels)!r}")
-        return {"job": job["id"], "verdict": "PASS", "artifacts": sorted(labels)}
+        return {"job": job["id"], "runtime_verdict": "PASS", "behavior_verdict": "PASS",
+                "verification_passed": True, "artifacts": sorted(labels)}
     finally:
         if process.poll() is None:
             process.terminate()
@@ -98,6 +105,11 @@ def main(argv: list[str] | None = None) -> int:
     evidence = ROOT / ".pluginmatrix" / "standalone-gate"
     report = evidence / "result.json"
     html = evidence / "result.html"
+    behavior = evidence / "behavior.json"
+    behavior.parent.mkdir(parents=True, exist_ok=True)
+    behavior.write_text(json.dumps({"schema": 1, "timeout": 10, "checks": [
+        {"id": "settle", "type": "wait", "seconds": 1, "timeout": 5}
+    ]}), encoding="utf-8")
     command = [
         str(executable), "test",
         "--plugin", str(ROOT / "ci-fixtures" / "PluginMatrixSmoke.jar"),
@@ -105,17 +117,20 @@ def main(argv: list[str] | None = None) -> int:
         "--timeout", "120", "--stability-window", "2",
         "--work-dir", str(evidence / "runs"), "--cache-dir", str(ROOT / ".pluginmatrix" / "cache"),
         "--report", str(report), "--html", str(html),
+        "--behavior", str(behavior),
     ]
     completed = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, timeout=240)
     if completed.returncode != 0:
         raise SystemExit(f"frozen runtime verification failed ({completed.returncode}):\n{completed.stdout}\n{completed.stderr}")
     result = json.loads(report.read_text(encoding="utf-8"))
-    if result.get("result") != "PASS" or not result.get("metadata", {}).get("runtime_probe"):
+    if (result.get("runtime_verdict") != "PASS" or result.get("behavior", {}).get("verdict") != "PASS"
+            or result.get("verification_passed") is not True or not result.get("metadata", {}).get("runtime_probe")):
         raise SystemExit(f"frozen result lacks PASS/probe evidence: {result.get('result')!r}")
     if not html.is_file() or not Path(result.get("log_path", "")).is_file():
         raise SystemExit("frozen runtime did not preserve HTML report and server.log")
     web = verify_web(executable, args.java, evidence)
-    print(json.dumps({"result": result["result"], "report": str(report), "html": str(html), "web": web}, indent=2))
+    print(json.dumps({"runtime_verdict": result["runtime_verdict"], "behavior_verdict": result["behavior"]["verdict"],
+                      "verification_passed": result["verification_passed"], "report": str(report), "html": str(html), "web": web}, indent=2))
     return 0
 
 

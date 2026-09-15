@@ -204,6 +204,12 @@ Sol follow-up scope:
    and perform final release gates under the user's later release authorization.
    Do not move v0.7.1, publish PyPI, tag or release from this core handoff.
 
+## Product integration update - 2026-09-15
+
+The follow-up product work is implemented for `0.8.0rc1`: the Web UI edits and round-trips behavior plans, presents runtime/behavior/final results and per-check evidence, translates new text, and exposes protocol evidence through the existing immutable artifact mechanism. CLI, application API, JSON, HTML, progress events, Matrix and GitHub summaries use `verification_passed` for combined success while retaining the runtime verdict.
+
+Legacy v0.7 and behavior-free configurations remain compatible. User documentation and runnable wait-check examples are included. The local Provider retry succeeded for all nine expected scenarios; the earlier timeout is classified as an external Mojang bootstrap download failure. Cross-platform offline CI and four-target standalone RC results are tracked in `STATUS.md` and `RELEASE_CHECKLIST.md`; no v0.8 tag, Release or PyPI publication is authorized here.
+
 Official API references used for these contracts:
 [PluginCommand](https://jd.papermc.io/paper/1.21.4/org/bukkit/command/PluginCommand.html),
 [ServicesManager](https://jd.papermc.io/paper/1.21.4/org/bukkit/plugin/ServicesManager.html),

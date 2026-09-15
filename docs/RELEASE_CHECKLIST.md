@@ -1,5 +1,22 @@
 # Release checklists
 
+## v0.8.0rc1 Release Candidate Gate - 2026-09-15
+
+本次授权仅覆盖 `codex/v0.8-behavior-core` 的正常 commit/push、hosted CI 和 standalone RC 验证。禁止创建 tag、GitHub Release、PyPI 发布、修改 v0.7.1，或加入玩家 Bot、复杂 DSL、云服务和新 Provider。
+
+- [x] 保持一个 Runtime Verifier 和现有 Provider；不重新设计 behavior 核心协议或降低 runtime/behavior evidence 要求。
+- [x] 完成 Web behavior 配置、导入/导出/再次运行、双 verdict/最终结果、逐检查 evidence 与 English / 简体中文体验。
+- [x] 对齐 CLI、application API、JSON、HTML、artifact、progress event、Matrix/GitHub summary 语义。
+- [x] 补齐用户文档、可运行配置示例、PASS 边界、Folia 与 hostile-code 限制。
+- [x] 验证旧 v0.7 legacy Paper 配置与无 behavior 配置兼容。
+- [x] 单次重试 local Provider 行为 Gate；确认 9 个场景通过，首次失败属于外部 Mojang bootstrap 下载。
+- [x] 完整本机离线测试（217 passed、8 skipped）、`compileall`、JavaScript syntax、`git diff --check` 和干净 package build。
+- [ ] GitHub-hosted Ubuntu/Windows x Python 3.10/3.11 CI 全绿，包含 POSIX FIFO/symlink/process-group 与 Windows Job Object 覆盖。
+- [ ] Windows x86-64、Linux x86-64、macOS x86-64、macOS arm64 standalone 全绿；冻结 CLI/Web 均完成真实 Paper runtime + wait behavior PASS 并保留 JSON/HTML/log/protocol evidence。
+- [ ] 选择 RC commit，确认工作区干净、开发分支与 origin 同步，并判断是否可进入 v0.8 最终 Release Gate。
+
+RC Gate 不包含最终 `0.8.0` 版本、tag、Release、签名/notarization、TestPyPI 或 PyPI。
+
 ## v0.7.1 Final Release Gate — completed 2026-09-14
 
 Owner authorization covers the normal release commit, fast-forward merge to `main`, annotated `v0.7.1` tag, GitHub Release assets and the existing Trusted Publishing workflow. Force pushes, history rewriting, old Release changes, EnhancedFly history work and the next version remain excluded.

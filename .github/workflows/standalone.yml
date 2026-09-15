@@ -66,8 +66,12 @@ jobs:
             .pluginmatrix/standalone-gate/result.json
             .pluginmatrix/standalone-gate/result.html
             .pluginmatrix/standalone-gate/runs/**/server.log
+            .pluginmatrix/standalone-gate/runs/**/server/plugins/pluginmatrix-runtime-probe.json
+            .pluginmatrix/standalone-gate/runs/**/server/plugins/pluginmatrix-behavior-response.json
             .pluginmatrix/standalone-gate/web-state/reports/*
             .pluginmatrix/standalone-gate/web-state/runs/**/server.log
+            .pluginmatrix/standalone-gate/web-state/runs/**/server/plugins/pluginmatrix-runtime-probe.json
+            .pluginmatrix/standalone-gate/web-state/runs/**/server/plugins/pluginmatrix-behavior-response.json
           if-no-files-found: error
           retention-days: 14
 

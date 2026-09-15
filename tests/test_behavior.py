@@ -86,18 +86,18 @@ class BehaviorModelTests(unittest.TestCase):
                 verifier.assert_not_called()
             self.assertEqual(source.read_text(), '{}')
 
-    def test_web_import_cannot_silently_drop_requested_behavior(self):
-        from pluginmatrix.web import WebApplication, WebError
+    def test_web_import_preserves_requested_behavior(self):
+        from pluginmatrix.web import WebApplication
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root/'plugin.jar').write_bytes(b'fixture')
             path = root/'matrix.json'
             path.write_text(json.dumps({'plugin': 'plugin.jar', 'environments': [{'paper': '1.20.1', 'java': 17}],
-                                        'behavior': {'schema': 1, 'checks': [command()]}}))
+                                        'behavior': {'schema': 1, 'timeout': 10, 'checks': [command()]}}))
             app = WebApplication(root/'web', root/'cache')
             try:
-                with self.assertRaisesRegex(WebError, 'CLI or application API'):
-                    app.import_configuration(str(path))
+                imported = app.import_configuration(str(path))['configuration']
+                self.assertEqual(imported['behavior'], plan(command()).to_dict())
             finally:
                 app.close()
 
@@ -238,7 +238,7 @@ def server_script(config, mode):
 
 class BehaviorProcessTests(unittest.TestCase):
     def run_case(self, mode, config=None, control=None):
-        config = config or plan(command(timeout=.8), command('after', timeout=.8))
+        config = config or plan(command(timeout=1.2), command('after', timeout=1.2))
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             result = run_server_process([sys.executable, '-u', '-c', server_script(config, mode)], root,

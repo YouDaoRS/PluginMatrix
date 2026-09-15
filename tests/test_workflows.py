@@ -52,6 +52,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("if: always()", workflow)
         self.assertIn(".pluginmatrix/runs/**/result.json", workflow)
         self.assertIn(".pluginmatrix/runs/**/server.log", workflow)
+        self.assertIn("pluginmatrix-behavior-response.json", workflow)
         self.assertIn("if-no-files-found: warn", workflow)
         self.assertNotIn("pull_request_target", workflow)
 
@@ -124,7 +125,8 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn('python -m tests.real_provider_gate --java 21', workflow)
         self.assertIn('if: always()', workflow)
         for artifact in ('*.json', '*.html', '*.jsonl', '*.md',
-                         'runs/**/result.json', 'runs/**/server.log'):
+                         'runs/**/result.json', 'runs/**/server.log',
+                         'pluginmatrix-runtime-probe.json', 'pluginmatrix-behavior-response.json'):
             with self.subTest(artifact=artifact):
                 self.assertIn(artifact, workflow)
         self.assertIn('if-no-files-found: error', workflow)

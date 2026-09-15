@@ -481,6 +481,7 @@ def _environment_id(environment: MatrixEnvironment, result: VerificationResult) 
 
 def _result_entry(environment: MatrixEnvironment, result: VerificationResult) -> dict[str, Any]:
     runtime_report = result.report_path
+    behavior_paths = result.behavior.get('evidence_paths', {}) if isinstance(result.behavior, dict) else {}
     artifact_paths = {
         "run_dir": result.workdir,
         "server_log": result.log_path,
@@ -491,6 +492,13 @@ def _result_entry(environment: MatrixEnvironment, result: VerificationResult) ->
         "server_log": bool(result.log_path and Path(result.log_path).is_file()),
         "runtime_report": bool(runtime_report and Path(runtime_report).is_file()),
     }
+    for key, value in (
+        ('behavior_runtime_probe', behavior_paths.get('runtime_probe')),
+        ('behavior_response', behavior_paths.get('response')),
+    ):
+        if value:
+            artifact_paths[key] = value
+            artifact_availability[key] = Path(value).is_file()
     primary_evidence = runtime_report or result.log_path or result.workdir
     if result.log_path and Path(result.log_path).is_file():
         primary_evidence = result.log_path
@@ -609,9 +617,15 @@ def _run_matrix(config, verifier, progress, preflight, control):
         'config_source': str(config.source_path.resolve()), 'plugin': plugin_metadata,
         'config': config.to_dict(), 'preflight': preflight or {}, 'environments': results,
         'summary': {'total': len(results), 'passed': passed, 'failed': len(results) - passed},
-        'runtime_summary': {'passed': sum(e['runtime_verdict'] == 'PASS' for e in results)},
-        'behavior_summary': {status: sum(e['behavior']['verdict'] == status for e in results)
-                             for status in ('PASS', 'FAIL', 'ERROR', 'TIMEOUT', 'CANCELLED', 'UNSUPPORTED', 'SKIPPED', 'NOT_RUN')},
+        'runtime_summary': {
+            'passed': sum(e['runtime_verdict'] == 'PASS' for e in results),
+            'failed': sum(e['runtime_verdict'] != 'PASS' for e in results),
+        },
+        'behavior_summary': {
+            'total': len(results),
+            **{status: sum(e['behavior']['verdict'] == status for e in results)
+               for status in ('PASS', 'FAIL', 'ERROR', 'TIMEOUT', 'CANCELLED', 'UNSUPPORTED', 'SKIPPED', 'NOT_RUN')},
+        },
         'internal_errors': sum(item[1] for item in completed), 'cancelled': control.cancelled,
         'artifacts': {'matrix_report': str(config.report_path.resolve()), 'runtime_root': str(config.work_dir.resolve())},
     }

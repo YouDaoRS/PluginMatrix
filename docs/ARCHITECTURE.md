@@ -61,9 +61,17 @@ Output validation includes config/plugin/dependencies/local-server inputs, hardl
 
 This is not a hostile-code sandbox. Trusted plugins execute with the same JVM and OS account as the probe. Deliberately malicious code can forge evidence or leave a POSIX process group. No telemetry, plugin/log uploads, automatic JDK installation or platform service is added.
 
+## Behavioral Verification
+
+An optional immutable behavior plan is normalized once and passed through CLI, application API, Web and Matrix into the same Runtime Verifier. It runs only after the complete runtime stability window. The host requests one allowlisted check index at a time; the probe returns correlated typed observations, never a verdict. The host validates correlation, computes assertions and requires a newer healthy runtime sample after every check.
+
+`result`/`verdict` remain the runtime verdict and are explicitly mirrored as `runtime_verdict`. `behavior.verdict` records the behavior dimension, while `verification_passed` requires runtime PASS and behavior PASS, or `NOT_RUN` when no plan exists. Assertion failure, behavior timeout/cancellation, unsupported API and lost post-check health do not rewrite the saved runtime window. Raw `server.log`, runtime probe and behavior response remain evidence artifacts in the isolated run directory.
+
+The bounded check set is command registration, permission registration, target-owned service registration, target-owned console command return and host-monotonic wait. There are no scripts, expressions, loops, automatic retries, output regexes, player simulation or third-party loaders. Folia registry/wait work uses the global region scheduler; console commands are `UNSUPPORTED` without a general region ownership contract.
+
 ## Local Web UI
 
-`pluginmatrix.web` is a transport/UI adapter. It normalizes bounded HTTP input into `ServerSpec` and Matrix JSON, then calls `application.run_single` or `application.run_matrix`; it never assigns a verdict. Each job owns one `RunControl`, a bounded event deque, summary references and an allowlist of completed artifact files. Multiple UI jobs may coexist, but their reserved `max_parallel` values cannot exceed the existing global limit of eight.
+`pluginmatrix.web` is a transport/UI adapter. It normalizes bounded HTTP input into `ServerSpec`, `BehaviorPlan` and Matrix JSON, then calls `application.run_single` or `application.run_matrix`; it never assigns a verdict. Each job owns one `RunControl`, a bounded event deque, summary references and an allowlist of completed report/log/protocol artifact files. Import, export and rerun preserve the normalized behavior plan. Multiple UI jobs may coexist, but their reserved `max_parallel` values cannot exceed the existing global limit of eight.
 
 The server binds only `127.0.0.1`. Exact Host/Origin validation, a SameSite/HttpOnly session cookie and an unguessable CSRF header token protect state-changing endpoints from DNS rebinding and browser CSRF. JAR bodies are streamed into a session-only local temporary directory under the existing 512 MiB bound. JSON remains limited to 1 MiB. Artifact URLs contain opaque job/artifact IDs, not filesystem paths; file identity is rechecked after opening. UI rendering uses `textContent`, and saved HTML remains the existing escaped, no-script renderer.
 
@@ -73,7 +81,7 @@ Server shutdown first stops accepting requests, then cancels active controls and
 
 `standalone/pluginmatrix.spec` produces a PyInstaller `onedir` bundle. The build is deliberately native rather than cross-compiled and is archived as a platform/architecture-specific zip or tarball. `pluginmatrix.external` restores PyInstaller-modified system library lookup when spawning installed Java/Javac or platform opener processes; Runtime Verifier process ownership remains unchanged.
 
-The standalone workflow checks version, all Provider metadata, Web assets, Java/Javac discovery and a real Paper success path with probe evidence and JSON/HTML/log output on every target. It does not repeat Purpur/Folia/local Provider gates. Archives contain no JARs and are never uploaded to PyPI.
+The standalone workflow checks version, all Provider metadata, Web assets, Java/Javac discovery and a real Paper runtime plus wait-behavior PASS path through frozen CLI and Web on every target. It verifies JSON/HTML/log/protocol artifacts and does not repeat Purpur/Folia/local Provider gates. Archives contain no JARs and are never uploaded to PyPI.
 
 ## Official references (contract research)
 

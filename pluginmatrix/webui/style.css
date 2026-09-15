@@ -191,6 +191,43 @@ button:disabled {
   width: auto;
   margin: 0 5px 0 0;
 }
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+.toggle-label input {
+  width: auto;
+  margin: 0;
+}
+.behavior-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 360px) auto;
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 8px;
+}
+.behavior-check {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfb;
+  padding: 14px;
+  margin: 12px 0;
+}
+.behavior-check-head,
+.result-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.behavior-check-head {
+  margin-bottom: 12px;
+}
+.behavior-wait-field {
+  max-width: 360px;
+}
 .environment {
   border: 1px solid var(--line);
   padding: 16px;
@@ -285,14 +322,40 @@ details pre {
   font: 12px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace;
 }
 .verdict {
-  display: grid;
-  grid-template-columns: minmax(190px, 1fr) minmax(130px, 0.5fr) minmax(240px, 2fr);
-  gap: 10px;
-  padding: 12px 0;
+  padding: 14px 0;
   border-bottom: 1px solid var(--line);
 }
+.verdict-head {
+  display: grid;
+  grid-template-columns: minmax(190px, 1.3fr) repeat(3, minmax(110px, .6fr));
+  gap: 10px;
+  align-items: center;
+}
+.verdict-label {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 3px;
+}
+.behavior-results {
+  margin-top: 12px;
+}
+.behavior-result {
+  display: grid;
+  grid-template-columns: minmax(100px, .7fr) minmax(140px, .9fr) minmax(90px, .5fr) minmax(80px, .4fr) minmax(160px, 1.3fr) minmax(130px, .8fr);
+  gap: 8px;
+  padding: 9px 0;
+  border-top: 1px solid var(--line);
+  align-items: start;
+  font-size: 13px;
+}
+.behavior-result details {
+  margin: 0;
+}
 .verdict details {
-  grid-column: 1 / -1;
+  margin-top: 8px;
 }
 .verdict strong[data-state="PASS"] {
   color: var(--accent);
@@ -327,8 +390,9 @@ details pre {
   .verdict {
     grid-template-columns: 1fr;
   }
-  .verdict details {
-    grid-column: auto;
+  .verdict-head,
+  .behavior-result {
+    grid-template-columns: 1fr;
   }
   .java-row {
     grid-template-columns: 1fr;
@@ -366,5 +430,14 @@ details pre {
   }
   .config-tools {
     grid-template-columns: 1fr;
+  }
+  .behavior-toolbar {
+    grid-template-columns: 1fr;
+  }
+  .result-actions {
+    width: 100%;
+  }
+  .result-actions button {
+    flex: 1;
   }
 }

@@ -150,8 +150,12 @@ class ApplicationTests(unittest.TestCase):
     def test_html_uses_saved_verdict_escapes_injection_and_links_relative_artifacts(self):
         source = self.root/'report.json'; target = self.root/'report.html'
         report = {'plugin': {'plugin_name': '<img src=x onerror=alert(1)>'}, 'summary': {'passed': 99},
-                  'environments': [{'id': '<script>alert(1)</script>', 'verdict': 'PLUGIN_DISABLED', 'failure_stage': 'plugin_runtime',
+                  'environments': [{'id': '<script>alert(1)</script>', 'verdict': 'PLUGIN_DISABLED', 'verification_passed': False, 'failure_stage': 'plugin_runtime',
                                     'reason': '"><script>evil()</script>', 'metadata': {'server': {'regionized_runtime': True, 'server_type': 'folia'}},
+                                    'behavior': {'verdict': 'FAIL', 'reason': 'assertion failed', 'checks': [{
+                                        'id': 'registered', 'type': 'command_registered', 'status': 'FAIL',
+                                        'reason': 'missing command', 'evidence': {'duration_seconds': 0.25, 'response': {'status': 'OK'}},
+                                    }], 'post_health': {'status': 'PASS'}},
                                     'artifacts': {'server_log': str(self.root/'runs/a b/server.log')},
                                     'evidence': [{'detail': '</pre><script>bad()</script>'}]}]}
         source.write_text(json.dumps(report))
@@ -164,6 +168,10 @@ class ApplicationTests(unittest.TestCase):
         self.assertIn('&lt;script&gt;', html)
         self.assertIn('./runs/a%20b/server.log', html)
         self.assertIn('cross-region safety', html)
+        self.assertIn('Final result', html)
+        self.assertIn('Structured evidence', html)
+        self.assertIn('registered', html)
+        self.assertIn('0.250 s', html)
         self.assertEqual(load_report(source), report)
 
     def test_html_cannot_overwrite_source_plugin_local_jar_or_raw_log(self):

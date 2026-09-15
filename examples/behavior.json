@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "timeout": 10,
+  "checks": [
+    {
+      "id": "settle",
+      "type": "wait",
+      "seconds": 1,
+      "timeout": 5
+    }
+  ]
+}

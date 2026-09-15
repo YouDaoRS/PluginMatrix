@@ -1,13 +1,26 @@
-# PluginMatrix v0.7.1 Release Status
+# PluginMatrix v0.8.0rc1 Release Candidate Status
+
+## v0.8 Release Candidate（2026-09-15）
+
+当前分支 `codex/v0.8-behavior-core` 已完成 Behavioral Verification 的产品集成，源码版本为 `0.8.0rc1`。公开稳定版本仍为 `0.7.1`；本状态不创建 tag、GitHub Release 或 PyPI 发布，也不修改任何 v0.7.1 资产。
+
+- Web UI 已支持五类 behavior check 的配置、严格核心校验、Matrix JSON 导入/导出和再次运行。English / 简体中文界面分别展示 runtime verdict、behavior verdict、最终结果，以及每项检查的状态、原因、耗时、结构化 evidence 和 post-check health。
+- CLI、application API、单环境 JSON、Matrix JSON、静态 HTML、progress event、GitHub Job Summary 和 Web summary 使用同一语义：`result`/`verdict` 是 runtime verdict，`behavior.verdict` 独立保存，`verification_passed` 才是最终结果。
+- Web artifact 白名单与 hosted workflow 已扩展到 behavior runtime probe/response，继续执行打开后文件身份、link、size、mtime/ctime 校验；原始 `server.log` 不被摘要替代。
+- 旧 v0.7 legacy Paper 配置与不含 behavior 的配置继续 round-trip；没有 behavior 时为 `NOT_RUN`，runtime PASS 仍产生最终成功。含 behavior 时，最终 PASS 要求 runtime PASS 和 behavior PASS。
+- 本机浏览器验收已覆盖 behavior 编辑、wait 类型切换、规范化 JSON 生成、English / 简体中文切换和桌面布局。完整离线测试、hosted CI 与四平台 standalone 结果见本节后续更新。
+- local Provider 单次重试已成功：Paper 1.20.1 local `paperclip` 合同的 success/false/exception/disable/hang/cancel/missing 与 local+Paper Matrix 共 9 个结果全部匹配预期，退出码 0。`gate-summary.json` SHA-256 为 `4c30f55b1eb7b410665569d63995ba58d8cd451fbade38c1a58a4ced871fa93b`；首次失败因此确认是 Mojang bootstrap 下载外部故障，不是实现问题。证据位于 `C:\Users\11580\AppData\Local\Temp\pluginmatrix-08-local-retry-rc1`，不属于源码或发布资产。
+
+发布边界：Behavior PASS 只证明配置声明的 typed observation 与每项检查后的新鲜健康样本；console command 的返回值不证明业务或玩家效果，不捕获文本输出。Folia PASS 不证明线程或跨 region 安全，Folia console command 仍为 `UNSUPPORTED`。PluginMatrix 不是 hostile-code sandbox。
 
 ## v0.8 核心开发交接（2026-09-15）
 
 `codex/v0.8-behavior-core` 已实现有限、结构化的 Behavioral Verification，代码提交 `543076f`。
 配置、双 verdict、probe 协议、安全边界和 Sol 接续事项见 [BEHAVIOR_CORE.md](BEHAVIOR_CORE.md)。
-这不是发布声明；下方 v0.7.1 历史、包版本、Tag、Release 和 PyPI 均保持不变。
+核心交接后的产品集成已进入上述 `0.8.0rc1` 状态；下方 v0.7.1 历史、Tag、Release 和 PyPI 均保持不变。
 真实核心 Gate 已验证 Paper、Purpur、Folia 和双环境并行/取消；local 首轮因 Mojang bootstrap 下载超时而正确跳过行为检查，尚无本轮 local 行为成功结论。详细证据见上述交接页。
 
-更新日期：2026-09-14。当前源码和公开稳定版本均为 **v0.7.1**。Release commit `49543d122fa3ec241f937e70b6d2cf1440705803` 已从 `codex/v0.7.1-usability` fast-forward 到 `main`；annotated tag、GitHub Release、TestPyPI 和 PyPI 发布均已完成。
+以下为 2026-09-14 的 **v0.7.1 历史发布记录**：当时源码与公开稳定版本均为 v0.7.1。Release commit `49543d122fa3ec241f937e70b6d2cf1440705803` 已从 `codex/v0.7.1-usability` fast-forward 到 `main`；annotated tag、GitHub Release、TestPyPI 和 PyPI 发布均已完成。
 
 ## v0.7.1 Final Release
 

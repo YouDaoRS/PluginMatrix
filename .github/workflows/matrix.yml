@@ -151,6 +151,8 @@ jobs:
           path: |
             .pluginmatrix/runs/**/result.json
             .pluginmatrix/runs/**/server.log
+            .pluginmatrix/runs/**/server/plugins/pluginmatrix-runtime-probe.json
+            .pluginmatrix/runs/**/server/plugins/pluginmatrix-behavior-response.json
           if-no-files-found: warn
           retention-days: 14
 

@@ -13,6 +13,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from pluginmatrix import application
+from pluginmatrix.behavior import initial_behavior, parse_behavior
 from pluginmatrix.model import VerificationResult
 from pluginmatrix.providers import ServerSpec
 from pluginmatrix.web import LocalWebServer, WebApplication, WebError
@@ -38,10 +39,15 @@ class WebApplicationTests(unittest.TestCase):
         }
 
     def test_generate_and_import_use_core_matrix_configuration(self):
-        generated = self.app.generate_configuration(self.request("matrix", 2))
+        request = self.request("matrix", 2)
+        request["behavior"] = {"schema": 1, "timeout": 12, "checks": [
+            {"id": "registered", "type": "command_registered", "name": "example:check"}
+        ]}
+        generated = self.app.generate_configuration(request)
         self.assertEqual(generated["plugin"], str(self.plugin.resolve()))
         self.assertEqual(generated["environments"][0]["server"]["type"], "paper")
         self.assertEqual(generated["options"]["max_parallel"], 2)
+        self.assertEqual(generated["behavior"]["checks"][0]["id"], "registered")
         source = self.root / "matrix.json"
         application.init_configuration(
             source,
@@ -52,6 +58,27 @@ class WebApplicationTests(unittest.TestCase):
         imported = self.app.import_configuration(str(source))["configuration"]
         self.assertEqual(imported["plugin"], str(self.plugin.resolve()))
         self.assertEqual(imported["environments"][0]["server"]["type"], "purpur")
+
+        source.write_text(json.dumps({
+            "plugin": str(self.plugin),
+            "environments": [{"paper": "1.20.1", "java": 17}],
+            "behavior": request["behavior"],
+        }), encoding="utf-8")
+        imported = self.app.import_configuration(str(source))["configuration"]
+        self.assertEqual(imported["behavior"], generated["behavior"])
+
+    def test_v07_and_behaviorless_requests_remain_compatible(self):
+        generated = self.app.generate_configuration(self.request("matrix"))
+        self.assertNotIn("behavior", generated)
+        source = self.root / "v07.json"
+        source.write_text(json.dumps({
+            "plugin": str(self.plugin),
+            "environments": [{"paper": "1.20.1", "paper_build": 196, "java": 17}],
+            "options": {"timeout": 120, "stability_window": 5},
+        }), encoding="utf-8")
+        imported = self.app.import_configuration(str(source))["configuration"]
+        self.assertNotIn("behavior", imported)
+        self.assertEqual(imported["environments"][0]["paper_build"], 196)
 
     def test_single_job_uses_application_result_events_and_artifacts(self):
         def fake_run(**kwargs):
@@ -76,6 +103,44 @@ class WebApplicationTests(unittest.TestCase):
         self.assertEqual([event["kind"] for event in snapshot["events"]], ["server_started", "environment_completed"])
         self.assertEqual({artifact["label"] for artifact in snapshot["artifacts"]}, {"JSON report", "HTML report", "server.log"})
         self.assertIs(service.call_args.kwargs["control"], job.control)
+
+    def test_single_behavior_verdict_controls_final_result_and_registers_evidence(self):
+        request = self.request()
+        request["behavior"] = {"schema": 1, "checks": [
+            {"id": "registered", "type": "command_registered", "name": "example:check"}
+        ]}
+
+        def fake_run(**kwargs):
+            self.assertEqual(kwargs["behavior"].to_dict()["checks"][0]["id"], "registered")
+            run_dir = kwargs["work_root"] / "run-behavior"
+            plugins = run_dir / "server" / "plugins"
+            plugins.mkdir(parents=True)
+            log = run_dir / "server.log"; log.write_text("log\n", encoding="utf-8")
+            probe = plugins / "pluginmatrix-runtime-probe.json"; probe.write_text("{}", encoding="utf-8")
+            response = plugins / "pluginmatrix-behavior-response.json"; response.write_text("{}", encoding="utf-8")
+            result = VerificationResult(result="PASS", metadata={"server": {"server_type": "paper"}}, workdir=str(run_dir), log_path=str(log))
+            result.behavior = initial_behavior(parse_behavior(request["behavior"]))
+            result.behavior.update(verdict="FAIL", reason="assertion failed", evidence_paths={
+                "runtime_probe": str(probe), "response": str(response),
+            })
+            result.behavior["checks"][0].update(status="FAIL", reason="structured observation did not satisfy the assertion",
+                                                   evidence={"duration_seconds": 0.25, "response": {"status": "OK"}})
+            application.write_report(result, kwargs["report_path"])
+            kwargs["html_path"].write_text("<!doctype html>", encoding="utf-8")
+            return result
+
+        with patch("pluginmatrix.web.application.run_single", side_effect=fake_run):
+            job = self.app.submit(request)
+            job.thread.join(timeout=5)
+        snapshot = job.snapshot()
+        environment = snapshot["summary"]["environments"][0]
+        self.assertEqual(environment["runtime_verdict"], "PASS")
+        self.assertEqual(environment["behavior"]["verdict"], "FAIL")
+        self.assertFalse(environment["verification_passed"])
+        self.assertEqual(snapshot["summary"]["failed"], 1)
+        self.assertEqual({item["label"] for item in snapshot["artifacts"]}, {
+            "JSON report", "HTML report", "server.log", "behavior runtime probe", "behavior response",
+        })
 
     def test_global_slot_limit_and_cancel_are_shared_with_matrix_control(self):
         started = threading.Event()
@@ -317,6 +382,8 @@ class WebHTTPTests(unittest.TestCase):
         cookie, _, body = self.session()
         self.assertIn("same narrow meaning as the CLI", body)
         self.assertIn("Folia PASS", body)
+        self.assertIn('id="behavior-enabled"', body)
+        self.assertIn('id="behavior-check-template"', body)
         connection = self.connection()
         connection.request("GET", "/assets/app.js", headers={"Host": f"127.0.0.1:{self.port}"})
         script_response = connection.getresponse()
@@ -326,6 +393,9 @@ class WebHTTPTests(unittest.TestCase):
         self.assertNotIn("innerHTML", script)
         self.assertIn('"zh-CN"', script)
         self.assertIn('localStorage.setItem("pluginmatrix-language"', script)
+        self.assertIn('event_behavior_check_completed', script)
+        self.assertIn('behaviorVerdict: "Behavior verdict"', script)
+        self.assertIn('behaviorVerdict: "行为结论"', script)
         connection.close()
         connection = self.connection()
         connection.request("GET", "/api/providers", headers={"Host": f"127.0.0.1:{self.port}", "Cookie": cookie})

@@ -222,3 +222,13 @@ Provider 负责配置/能力、官方 version/build/download 解析、完整性�
 - UI 中 PASS 与 CLI 完全同源、同义；Folia 页面和报告继续明确排除线程安全、跨 region 安全和完整业务兼容。
 
 独立分发使用成熟的 PyInstaller `onedir` 模式。Windows、Linux、macOS 分别在原生 runner 构建，macOS 分 x86-64 与 arm64。冻结包内 CLI 与 Web UI 共用同一入口，包含版本、Web 资源、Provider metadata、项目许可证/notice、CPython license 和 build provenance；不包含 JDK/JRE、Paper/Purpur/Folia 或任何插件 JAR。发布候选先提供 zip/tar.gz 与 SHA-256，不做签名、安装器、notarization、自动更新或自动发布。
+
+## 16. v0.8 Behavioral Verification
+
+v0.8 在完整 runtime stability window 之后增加有限的结构化行为验证，不改变 Provider 或复制 Runtime Verifier。CLI 的 `--behavior`、Matrix 顶层 `behavior`、application API 和 Web UI 使用同一份规范化计划；旧 v0.7 配置以及未提供 behavior 的运行保持 `behavior=NOT_RUN`，runtime PASS 仍是最终成功。
+
+配置 behavior 后，最终成功要求 `runtime_verdict=PASS` 且 `behavior.verdict=PASS`。运行时、行为与最终结果必须在 CLI、Web、JSON、HTML、progress event、Matrix summary 和 GitHub Job Summary 中分开保存和展示。行为失败不能改写已经完成的 runtime window；每项检查必须保留状态、原因、耗时、结构化 response/observation 和新的 post-check health sample。
+
+允许的检查仅为 `command_registered`、`permission_registered`、`service_registered`、`console_command` 和 `wait`。配置、数量、参数和超时有严格上限；不加入表达式、脚本、循环、自动重试、正则输出断言、玩家 Bot、第三方依赖下载或完整 E2E DSL。Folia 的 registry/wait 使用 global region scheduler，console command 因缺少通用 region ownership 合同返回 `UNSUPPORTED`。
+
+Web UI 必须完整导入、编辑、导出并再次运行 behavior 配置，双语展示每项结果，并只通过现有不可变文件身份检查开放 JSON、HTML、`server.log`、runtime probe 和 behavior response。Behavior PASS 只证明声明的 typed observation 与检查后健康状态，不证明命令业务效果、文本输出、玩家交互、线程安全或完整插件兼容性。

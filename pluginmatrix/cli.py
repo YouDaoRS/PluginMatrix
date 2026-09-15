@@ -100,13 +100,18 @@ def _print_result(result) -> None:
         print("\nRuntime")
         for check in runtime_checks:
             print(f"  {check.name:<18} {check.status:<7}" + (f" {check.detail}" if check.detail else ""))
-    print(f"  Result             {result.result}")
+    print(f"  Runtime verdict    {result.result}")
     if result.failure_stage:
         print(f"  Failure stage      {result.failure_stage}")
     if result.reason:
         print(f"  Reason             {result.reason}")
-    print(f"  Behavior           {result.behavior['verdict']}")
-    print(f"\nRESULT: {'PASS' if result.passed else 'FAIL'}")
+    print(f"\nBehavior verdict: {result.behavior['verdict']}")
+    for check in result.behavior.get('checks', []):
+        duration = check.get('evidence', {}).get('duration_seconds')
+        elapsed = f" ({duration:.3f}s)" if isinstance(duration, (int, float)) else ""
+        reason = f" - {check['reason']}" if check.get('reason') else ""
+        print(f"  {check.get('id', 'unknown'):<18} {check.get('status', 'UNKNOWN'):<11}{elapsed}{reason}")
+    print(f"\nFINAL RESULT: {'PASS' if result.passed else 'FAIL'}")
     if result.report_path:
         print(f"Report: {result.report_path}")
     if result.log_path:
@@ -118,7 +123,8 @@ def _print_result(result) -> None:
 def _print_matrix_result(report: dict, report_path: Path) -> None:
     print("\nEnvironment                         Result")
     for environment in report["environments"]:
-        print(f"{environment['id']:<35} runtime={environment['verdict']} behavior={environment.get('behavior', {}).get('verdict', 'NOT_RUN')}")
+        final = 'PASS' if environment.get('verification_passed', environment.get('verdict') == 'PASS') else 'FAIL'
+        print(f"{environment['id']:<35} runtime={environment['verdict']} behavior={environment.get('behavior', {}).get('verdict', 'NOT_RUN')} final={final}")
     summary = report["summary"]
     print(f"\nSummary: {summary['passed']} passed, {summary['failed']} failed")
     failures = [environment for environment in report["environments"]

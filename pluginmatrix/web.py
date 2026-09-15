@@ -24,6 +24,7 @@ from pathlib import Path
 from urllib.parse import quote, unquote, urlsplit
 
 from . import __version__, application
+from .behavior import parse_behavior
 from .control import RunControl
 from .files import atomic_text, reject_links
 from .external import run_external
@@ -208,9 +209,6 @@ class WebApplication:
         path = self._path_value(path_value, "config", ".json", MAX_JSON_BYTES)
         with _open_regular(path) as stream:
             config = application.load_matrix_config(path, stream=stream)
-        if config.behavior is not None:
-            raise WebError(HTTPStatus.BAD_REQUEST,
-                           'Behavior configuration currently requires the CLI or application API; Web support is pending.')
         return {"source": str(path), "configuration": config.to_dict()}
 
     def generate_configuration(self, payload: object) -> dict:
@@ -309,7 +307,7 @@ class WebApplication:
     def _normalize_request(self, payload: object) -> dict:
         if not isinstance(payload, dict):
             raise WebError(HTTPStatus.BAD_REQUEST, "request must be a JSON object")
-        unknown = set(payload) - {"mode", "plugin", "dependencies", "environments", "options"}
+        unknown = set(payload) - {"mode", "plugin", "dependencies", "environments", "options", "behavior"}
         if unknown:
             raise WebError(HTTPStatus.BAD_REQUEST, f"unknown request fields: {sorted(unknown)}")
         mode = payload.get("mode", "single")
@@ -361,12 +359,17 @@ class WebApplication:
             raise WebError(HTTPStatus.BAD_REQUEST, str(exc)) from exc
         if mode == "single":
             parallel = 1
+        try:
+            behavior = parse_behavior(payload.get("behavior"))
+        except ValueError as exc:
+            raise WebError(HTTPStatus.BAD_REQUEST, str(exc)) from exc
         return {
             "mode": mode,
             "plugin": plugin,
             "dependencies": dependencies,
             "environments": normalized_environments,
             "options": {"timeout": timeout, "stability_window": stability, "max_parallel": parallel},
+            "behavior": behavior,
         }
 
     def _file_reference(self, value: object, label: str, suffix: str, maximum: int) -> Path:
@@ -405,12 +408,15 @@ class WebApplication:
                 report=str((self.state_dir / "reports" / f"{job_id}.json").resolve()),
                 html_report=str((self.state_dir / "reports" / f"{job_id}.html").resolve()),
             )
-        return {
+        document = {
             "plugin": str(request["plugin"]),
             "dependencies": [str(path) for path in request["dependencies"]],
             "environments": environments,
             "options": options,
         }
+        if request["behavior"]:
+            document["behavior"] = request["behavior"].to_dict()
+        return document
 
     def _run_job(self, job: Job) -> None:
         with job._lock:
@@ -434,11 +440,19 @@ class WebApplication:
                     report_path=report_path,
                     html_path=html_path,
                     control=job.control,
+                    behavior=job.request["behavior"],
                 )
                 summary = {
                     "total": 1,
-                    "passed": int(result.result == "PASS"),
-                    "failed": int(result.result != "PASS"),
+                    "passed": int(result.passed),
+                    "failed": int(not result.passed),
+                    "runtime_summary": {"passed": int(result.result == "PASS"), "failed": int(result.result != "PASS")},
+                    "behavior_summary": {
+                        "total": 1,
+                        **{status: int(result.behavior["verdict"] == status) for status in (
+                            "PASS", "FAIL", "ERROR", "TIMEOUT", "CANCELLED", "UNSUPPORTED", "SKIPPED", "NOT_RUN"
+                        )},
+                    },
                     "environments": [{
                         "id": environment["server"].type,
                         "provider": environment["server"].type,
@@ -446,6 +460,9 @@ class WebApplication:
                         "minecraft_version": environment["server"].version,
                         "java": result.metadata.get("java_runtime_version") or environment["java"],
                         "verdict": result.result,
+                        "runtime_verdict": result.result,
+                        "behavior": result.behavior,
+                        "verification_passed": result.passed,
                         "failure_stage": result.failure_stage,
                         "reason": result.reason,
                         "report_path": result.report_path,
@@ -455,6 +472,7 @@ class WebApplication:
                     }],
                 }
                 candidates = [("JSON report", report_path), ("HTML report", html_path), ("server.log", Path(result.log_path) if result.log_path else None)]
+                candidates.extend(self._behavior_artifacts(result.behavior))
             else:
                 config_path = self.state_dir / "configs" / f"{job.id}.json"
                 atomic_text(config_path, json.dumps(document, indent=2, ensure_ascii=True) + "\n", overwrite=False)
@@ -462,6 +480,8 @@ class WebApplication:
                 report = application.run_matrix(config, control=job.control)
                 summary = {
                     **report.get("summary", {}),
+                    "runtime_summary": report.get("runtime_summary", {}),
+                    "behavior_summary": report.get("behavior_summary", {}),
                     "environments": [self._summary_environment(item) for item in report.get("environments", [])],
                 }
                 candidates = [("Matrix JSON report", report_path), ("Matrix HTML report", html_path)]
@@ -471,12 +491,17 @@ class WebApplication:
                         (f"Environment {index} JSON report", Path(artifacts["runtime_report"]) if artifacts.get("runtime_report") else None),
                         (f"Environment {index} server.log", Path(artifacts["server_log"]) if artifacts.get("server_log") else None),
                     ])
+                    candidates.extend(self._behavior_artifacts(item.get("behavior"), prefix=f"Environment {index} "))
             registered = self._register_artifacts(candidates)
             with job._lock:
                 job.summary = summary
                 job.artifacts = registered
-                verdicts = [item.get("verdict") for item in summary.get("environments", [])]
-                job.status = "cancelled" if verdicts and all(value == "CANCELLED" for value in verdicts) else "completed"
+                environments = summary.get("environments", [])
+                cancelled = any(
+                    item.get("verdict") == "CANCELLED" or (item.get("behavior") or {}).get("verdict") == "CANCELLED"
+                    for item in environments
+                )
+                job.status = "cancelled" if job.control.cancelled and cancelled else "completed"
         except BaseException as exc:
             with job._lock:
                 job.error = f"{type(exc).__name__}: {exc}"[:4096]
@@ -486,6 +511,18 @@ class WebApplication:
                 job.completed_at = time.time()
             with self._lock:
                 self._active_slots -= job.slots
+
+    @staticmethod
+    def _behavior_artifacts(behavior, prefix=""):
+        if not isinstance(behavior, dict):
+            return []
+        paths = behavior.get("evidence_paths")
+        if not isinstance(paths, dict):
+            return []
+        return [
+            (f"{prefix}behavior runtime probe", Path(paths["runtime_probe"]) if paths.get("runtime_probe") else None),
+            (f"{prefix}behavior response", Path(paths["response"]) if paths.get("response") else None),
+        ]
 
     @staticmethod
     def _register_artifacts(candidates) -> dict[str, Artifact]:
@@ -534,6 +571,9 @@ class WebApplication:
             "minecraft_version": server.get("minecraft_version") or requested_server.get("version") or requested.get("paper"),
             "java": resolved.get("java") or requested.get("java"),
             "verdict": item.get("verdict"),
+            "runtime_verdict": item.get("runtime_verdict", item.get("verdict")),
+            "behavior": item.get("behavior") or {"verdict": "NOT_RUN", "checks": [], "post_health": {"status": "NOT_RUN"}},
+            "verification_passed": item.get("verification_passed", item.get("verdict") == "PASS"),
             "failure_stage": item.get("failure_stage"),
             "reason": item.get("reason"),
             "report_path": item.get("artifacts", {}).get("runtime_report"),

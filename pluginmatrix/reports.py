@@ -51,6 +51,7 @@ def _environments(report: dict) -> list[dict]:
     return [{'id': metadata.get('server_type', 'paper'),
              'verdict': report.get('result'), 'failure_stage': report.get('failure_stage'),
              'reason': report.get('reason'), 'metadata': metadata,
+             'verification_passed': report.get('verification_passed'),
              'behavior': report.get('behavior'),
              'evidence': report.get('evidence', []),
              'artifacts': {'runtime_report': report.get('report_path'), 'server_log': report.get('log_path'), 'run_dir': report.get('workdir')}}]
@@ -84,8 +85,10 @@ def report_inputs(report: dict, source: Path) -> list[Path]:
         artifacts = _object(env.get('artifacts'), 'environment artifacts')
         protected = _array(metadata.get('protected_inputs'), 'protected inputs')
         dependencies = _array(metadata.get('dependencies'), 'environment dependencies')
+        behavior_paths = _object(_object(env.get('behavior'), 'behavior').get('evidence_paths'), 'behavior evidence paths')
         values = [*protected, metadata.get('plugin_jar'), metadata.get('paper_jar'), server.get('jar')]
         values += list(artifacts.values())
+        values += list(behavior_paths.values())
         values += [_object(dependency, 'environment dependency').get('plugin_jar') for dependency in dependencies]
         inputs.extend(_report_path(v, source) for v in values if isinstance(v, str))
     inputs.extend(_report_path(p, source) for p in _array(config.get('dependencies'), 'config dependencies') if isinstance(p, str))
@@ -102,6 +105,37 @@ def report_inputs(report: dict, source: Path) -> list[Path]:
     return inputs
 
 
+def _behavior_html(behavior: dict) -> str:
+    checks = _array(behavior.get('checks'), 'behavior checks')
+    rows = []
+    for check in checks:
+        check = _object(check, 'behavior check')
+        evidence = _object(check.get('evidence'), 'behavior check evidence')
+        duration = evidence.get('duration_seconds')
+        duration_text = f'{duration:.3f} s' if type(duration) in (int, float) else ''
+        rows.append(
+            '<tr>'
+            f'<td>{_e(check.get("id"))}</td><td>{_e(check.get("type"))}</td>'
+            f'<td>{_e(check.get("status"))}</td><td>{_e(check.get("reason"))}</td>'
+            f'<td>{_e(duration_text)}</td><td><details><summary>Structured evidence</summary>'
+            f'<pre>{_json(evidence)}</pre></details></td></tr>'
+        )
+    table = (
+        '<table class="behavior"><thead><tr><th>Check</th><th>Type</th><th>Status</th>'
+        '<th>Reason</th><th>Duration</th><th>Evidence</th></tr></thead>'
+        f'<tbody>{"".join(rows)}</tbody></table>'
+        if rows else '<p>No behavior checks were requested.</p>'
+    )
+    return (
+        f'<p><strong>Behavior verdict:</strong> {_e(behavior.get("verdict", "NOT_RUN"))}</p>'
+        f'<p>{_e(behavior.get("reason"))}</p>{table}'
+        '<details><summary>Post-check health</summary>'
+        f'<pre>{_json(behavior.get("post_health", {}))}</pre></details>'
+        '<details><summary>Normalized behavior plan</summary>'
+        f'<pre>{_json(behavior.get("plan"))}</pre></details>'
+    )
+
+
 def html_document(report: dict, source: Path, destination: Path) -> str:
     environments = _environments(report)
     rows, sections = [], []
@@ -110,9 +144,14 @@ def html_document(report: dict, source: Path, destination: Path) -> str:
         resolved = _object(env.get('resolved'), 'environment resolved data')
         server = _object(metadata.get('server') or resolved.get('server'), 'environment server')
         behavior = _object(env.get('behavior'), 'behavior')
+        saved_final = env.get('verification_passed')
+        if type(saved_final) is not bool:
+            saved_final = env.get('verdict') == 'PASS' and behavior.get('verdict', 'NOT_RUN') in ('PASS', 'NOT_RUN')
+        final_result = 'PASS' if saved_final else 'FAIL'
         rows.append(f'<tr><td><a href="#env-{index}">{_e(env.get("id"))}</a></td>'
                     f'<td>{_e(server.get("server_type", "paper"))}</td><td>{_e(env.get("verdict"))}</td>'
                     f'<td>{_e(behavior.get("verdict", "NOT_RUN"))}</td>'
+                    f'<td>{_e(final_result)}</td>'
                     f'<td>{_e(env.get("failure_stage"))}</td><td>{_e(env.get("reason"))}</td></tr>')
         artifacts = []
         for label, value in _object(env.get('artifacts'), 'environment artifacts').items():
@@ -130,7 +169,7 @@ def html_document(report: dict, source: Path, destination: Path) -> str:
         limit = FOLIA_SCOPE if server.get('regionized_runtime') else PASS_SCOPE
         sections.append(f'<section id="env-{index}"><h2>{_e(env.get("id"))}</h2><p>{_e(limit)}</p>'
                         f'<ul>{"".join(artifacts)}</ul><details><summary>Metadata</summary><pre>{_json(metadata or env.get("resolved", {}))}</pre></details>'
-                        f'<details><summary>Behavior checks and post-check health</summary><pre>{_json(behavior)}</pre></details>'
+                        f'<h3>Behavior checks</h3>{_behavior_html(behavior)}'
                         f'<details><summary>Evidence</summary><pre>{_json(env.get("evidence", []))}</pre></details></section>')
     plugin = _object(report.get('plugin') or report.get('metadata'), 'plugin')
     return ('<!doctype html><html lang="en"><meta charset="utf-8">'
@@ -138,11 +177,12 @@ def html_document(report: dict, source: Path, destination: Path) -> str:
             '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'; base-uri \'none\'; form-action \'none\'">'
             '<title>PluginMatrix report</title><style>body{font:16px system-ui;margin:2rem auto;max-width:1200px;padding:0 1rem;color:#172434;background:#f5f7fa}'
             'table{border-collapse:collapse;width:100%;background:white}td,th{border:1px solid #cbd5e1;padding:.6rem;text-align:left;overflow-wrap:anywhere}'
-            'section{background:white;margin:1.5rem 0;padding:1rem}pre{white-space:pre-wrap;overflow-wrap:anywhere}a{color:#125ba2}summary{cursor:pointer}</style>'
+            'section{background:white;margin:1.5rem 0;padding:1rem}pre{white-space:pre-wrap;overflow-wrap:anywhere}a{color:#125ba2}summary{cursor:pointer}'
+            '.behavior{font-size:.92rem}.behavior details{min-width:12rem}</style>'
             f'<h1>PluginMatrix report</h1><p>{_e(plugin.get("plugin_name") or plugin.get("plugin_jar"))} {_e(plugin.get("plugin_version"))}</p>'
             f'<p>{_e(PASS_SCOPE)}</p><p>JSON is the authoritative report. Raw server logs are linked, not embedded.</p>'
             f'<p>Stored summary: {_e(json.dumps(report.get("summary", {})))}</p>'
-            '<table><thead><tr><th>Environment</th><th>Provider</th><th>Runtime verdict</th><th>Behavior verdict</th><th>Failure stage</th><th>Reason</th></tr></thead>'
+            '<table><thead><tr><th>Environment</th><th>Provider</th><th>Runtime verdict</th><th>Behavior verdict</th><th>Final result</th><th>Failure stage</th><th>Reason</th></tr></thead>'
             f'<tbody>{"".join(rows)}</tbody></table>{"".join(sections)}</html>')
 
 
