@@ -1,8 +1,8 @@
-# PluginMatrix architecture — v0.9 core development
+# PluginMatrix architecture — v0.9
 
 One Runtime Verifier remains the only lifecycle/verdict implementation. Provider implementations are selected from a fixed registry; arbitrary code is not loaded from config.
 
-The public stable version is 0.8.0. The v0.9 addition is a preparation layer:
+The public stable version is 0.9.0. The v0.9 addition is a preparation layer:
 `analysis`/`descriptor`/`dependencies` → versioned `profiles` and explained
 `recommendations` → schema-2 normalization in `matrix` → the same application
 execution services. `jdks` provides explicit official downloads and local

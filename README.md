@@ -2,11 +2,11 @@
 
 PluginMatrix is an early-stage local runtime verifier for Minecraft plugin JARs. It prepares an isolated server/Java environment, starts a real server, observes plugin discovery and lifecycle evidence, and writes an authoritative JSON report alongside the original `server.log` and optional static HTML.
 
-Development candidate **0.9.0rc1** adds Guided Setup: choose a local JAR, inspect dependencies, select an intended Minecraft target, review an explained environment and editable checks, then run the existing verifier. The local Web UI includes guided/advanced modes, dark mode, English/简体中文, saved projects, run history and explicit managed-JDK/cache operations. There is still one Runtime Verifier and no cloud service, account system, automatic third-party plugin download, player bot, script engine or complete feature testing.
+Version **0.9.0** adds Guided Setup: choose a local JAR, inspect dependencies, select an intended Minecraft target, review an explained environment and editable checks, then run the existing verifier. The local Web UI includes guided/advanced modes, dark mode, English/简体中文, saved projects, run history and explicit managed-JDK/cache operations. There is still one Runtime Verifier and no cloud service, account system, automatic third-party plugin download, player bot, script engine or complete feature testing.
 
-The public stable release is **0.8.0**, available from [PyPI](https://pypi.org/project/pluginmatrix/0.8.0/) and the immutable [GitHub Release](https://github.com/YouDaoRS/PluginMatrix/releases/tag/v0.8.0). GitHub remains the source, release-asset and checksum channel. See [release status](docs/STATUS.md), [behavior contract](docs/BEHAVIOR_CORE.md), [publishing policy](docs/PUBLISHING.md), and [architecture](docs/ARCHITECTURE.md).
+The public stable release is **0.9.0**, available from [PyPI](https://pypi.org/project/pluginmatrix/0.9.0/) and the immutable [GitHub Release](https://github.com/YouDaoRS/PluginMatrix/releases/tag/v0.9.0). GitHub remains the source, release-asset and checksum channel. See [release status](docs/STATUS.md), [behavior contract](docs/BEHAVIOR_CORE.md), [publishing policy](docs/PUBLISHING.md), and [architecture](docs/ARCHITECTURE.md).
 
-The candidate is not published. Use this development checkout for v0.9. Start with the [Guided Setup user guide / 使用指南](docs/GUIDED_SETUP.md) and the [schema-2 standard example](examples/guided-standard.json).
+Start with the [Guided Setup user guide / 使用指南](docs/GUIDED_SETUP.md) and the [schema-2 standard example](examples/guided-standard.json).
 
 ## What `PASS` means
 
@@ -61,7 +61,7 @@ Browser-selected JARs initially use local session-temporary paths. **Saving a pr
 
 The UI loads official version/build choices and identifies fresh, stale and unavailable metadata without silently replacing your target. A ready recommendation is a proposal, not a compatibility verdict. Java baselines come from the shared reviewed policy, never a browser formula. Existing Java remains usable; an explicit Temurin package preview and download can provide a managed full JDK. Installation never changes PATH, JAVA_HOME, JDK_HOME or the registry. English/简体中文 and light/dark/system appearance are remembered by the browser.
 
-The v0.8.0 Release includes PyInstaller `onedir` archives for Windows x86-64, Linux x86-64, and macOS x86-64/arm64. Every target exercises frozen CLI/Web runtime and behavior PASS before publication. A full installed JDK is still required, and no Java runtime, server JAR, or third-party plugin is bundled. The archives are unsigned and the macOS builds are not notarized.
+The v0.9.0 Release includes PyInstaller `onedir` archives for Windows x86-64, Linux x86-64/arm64, and macOS x86-64/arm64. Every target exercises frozen CLI/Web runtime, managed-JDK integrity/lifecycle and behavior PASS before publication. A full JDK is still required; it can be supplied locally or downloaded explicitly as a managed Temurin JDK after reviewing its source and checksum. No Java runtime, server JAR, or third-party plugin is bundled in any release asset. The archives are unsigned and the macOS builds are not notarized.
 
 For development from a clean checkout:
 
@@ -186,7 +186,7 @@ The application entry points are documented in [APPLICATION_API.md](docs/APPLICA
 
 ## Common failures
 
-- `Java ... did not resolve` or a major-version mismatch: install the requested JDK and correct `PATH`, or set `java` to its executable path. PluginMatrix does not install JDKs.
+- `Java ... did not resolve` or a major-version mismatch: install the requested JDK and correct `PATH`, set `java` to its executable path, or explicitly preview and install a managed Temurin JDK through Guided Setup or `pluginmatrix jdk`.
 - `javac ... was not found`: install a full JDK rather than a JRE and ensure its `java` and `javac` are available together.
 - Paper version or fixed build not found: correct `paper`/`paper_build`, or remove `paper_build` to select the latest stable build.
 - Paper API, download, or bootstrap network failure: confirm network access and retry; inspect the runtime report and original `server.log` before blaming the plugin.

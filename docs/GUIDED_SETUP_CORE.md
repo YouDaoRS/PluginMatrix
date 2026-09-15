@@ -4,8 +4,9 @@ Development branch: `codex/v0.9-guided-core`, based on public `0.8.0`.
 This is the historical core implementation handoff. The package version at handoff was `0.8.0`;
 no Tag, Release, TestPyPI or PyPI publication is part of this work.
 
-Product integration now targets `0.9.0rc1`; see [STATUS.md](STATUS.md) for current
-acceptance and [GUIDED_SETUP.md](GUIDED_SETUP.md) for the user workflow. The old
+Product integration subsequently passed as `0.9.0rc1` and is released as `0.9.0`;
+see [STATUS.md](STATUS.md) for final acceptance and [GUIDED_SETUP.md](GUIDED_SETUP.md)
+for the user workflow. The old
 Web schema-2 guard and JSON-only CLI limitation described below were removed
 by the product integration, using the same shared core contracts.
 

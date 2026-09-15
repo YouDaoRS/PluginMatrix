@@ -4,7 +4,7 @@
 
 PluginMatrix 是一个面向 Minecraft 插件开发者的发布前运行时兼容性验证工具。v0.7 在 Paper、Purpur、Folia 和明确 local 合同的同一 Runtime Verifier 之上增加本地 Web UI 与独立程序包，v0.8 增加结构化行为验证。下列小节保留历史需求演进，当前开发范围以第 17 节为准。
 
-公开稳定版本为 v0.8.0。v0.9 Guided Setup & One-click Verification 核心开发范围以第 17 节为准。
+公开稳定版本为 v0.9.0。v0.9 Guided Setup & One-click Verification 范围以第 17 节为准。
 
 它接收插件 JAR，在真实 Paper 服务器中运行，并尽可能准确地区分：
 

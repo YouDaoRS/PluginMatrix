@@ -1,5 +1,22 @@
 # Release checklists
 
+## v0.9.0 Final Release Gate - authorized 2026-09-15
+
+Owner authorization covers the normal release commit, safe fast-forward merge to `main`, annotated `v0.9.0` tag, GitHub Release assets, TestPyPI and PyPI publication through the existing Trusted Publishing workflow. Force pushes, history rewriting, old Release changes, code signing/notarization, and v1.0 or other milestone work remain excluded.
+
+- [x] Confirm `f9f8cd0` matches `origin/codex/v0.9-guided-core`, the worktree is clean, no code follows the accepted candidate, and no open release blocker is recorded.
+- [x] Reuse the complete local, hosted CI and five-platform standalone RC evidence below; do not repeat the expensive Provider/browser/full native RC gates for final-version and documentation-only changes.
+- [x] Set the authoritative version to `0.9.0` and align CHANGELOG, README, STATUS, VERSIONING, architecture, product and Guided Setup documentation plus release-readiness tests.
+- [x] Confirm managed JDKs come only from the official Eclipse Adoptium API and matching Temurin binary release, retain upstream package notices, and are never bundled in wheel, sdist, standalone or GitHub Release assets.
+- [ ] Create and push the final release commit, safely fast-forward `main`, and require final-commit hosted CI to pass before tagging.
+- [ ] Build and audit wheel/sdist plus Windows x86-64, Linux x86-64/arm64 and macOS x86-64/arm64 standalone assets from the final release commit; verify version, commit, clean provenance, notices, exclusions, SHA-256 and frozen CLI/Web/JDK smoke.
+- [ ] Fresh-install the exact final wheel and exercise version, Providers, Guided Setup configuration and loopback Web health.
+- [ ] Create and push annotated `v0.9.0`, publish the GitHub Release and attach the exact audited assets and checksums.
+- [ ] Redownload every public GitHub Release asset and compare names, bytes and SHA-256.
+- [ ] Publish the identical GitHub Release wheel/sdist to TestPyPI through Trusted Publishing, verify a clean install and smoke, then publish the same bytes to PyPI.
+- [ ] Verify public PyPI hashes, fresh pipx CLI/Web startup, and the public Windows standalone.
+- [ ] Compare v0.5.0 through v0.8.0 Tag/Release/asset metadata with the pre-release baseline, update final status, and leave `main` and the release branch clean and synchronized.
+
 ## v0.9.0rc1 Candidate Gate - 2026-09-15
 
 Scope: complete product integration on `codex/v0.9-guided-core`, commit and push

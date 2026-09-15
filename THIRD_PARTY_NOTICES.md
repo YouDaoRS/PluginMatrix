@@ -10,6 +10,8 @@ Standalone archives do not include Java, Paper, Purpur, Folia, or plugin JARs. T
 
 PluginMatrix queries the official Paper API and downloads the selected Paper server artifact. The artifact is stored in the user's cache, is not part of the Python wheel or source distribution, and remains subject to Paper's and its dependencies' own terms. Paper bootstrap may download additional Mojang runtime files.
 
+After an explicit preview and install request, PluginMatrix can query the official Eclipse Adoptium API and download an Eclipse Temurin portable full JDK from the matching `adoptium/temurin*-binaries` GitHub release. The archive is verified against the size and SHA-256 reported by the official API, extracted into the user's managed cache, and is never included in the PluginMatrix wheel, source distribution, standalone archives, or GitHub Release assets. Temurin/OpenJDK binaries carry their own notices and are distributed under GPLv2 with the Classpath Exception; the installed JDK's included `legal` files remain authoritative for that package. See [Eclipse Temurin](https://adoptium.net/temurin/) and the [OpenJDK GPLv2 + Classpath Exception](https://openjdk.org/legal/gplv2+ce.html).
+
 ## Repository fixtures
 
 `PluginMatrixSmoke.jar` and `PluginMatrixEnableFailure.jar` can be rebuilt from the adjacent source, descriptors, and build script under `ci-fixtures/`. They contain no shaded dependencies. Paper API libraries are used only as a compile-time classpath and are not copied into either JAR. These are repository provenance facts, not an independent legal ownership determination; the project owner confirmed release rights for both fixture source trees and JARs under Apache-2.0 for v0.5.0.

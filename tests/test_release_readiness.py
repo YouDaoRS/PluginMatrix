@@ -20,11 +20,11 @@ class ReleaseReadinessTests(unittest.TestCase):
     def test_version_has_one_authoritative_literal(self):
         pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
         package_init = (ROOT / "pluginmatrix" / "__init__.py").read_text(encoding="utf-8")
-        self.assertEqual(__version__, "0.9.0rc1")
+        self.assertEqual(__version__, "0.9.0")
         self.assertIn('dynamic = ["version"]', pyproject)
         self.assertIn('version = {attr = "pluginmatrix.__version__"}', pyproject)
         self.assertNotIn('version = "0.5.1"', pyproject)
-        self.assertIn('__version__ = "0.9.0rc1"', package_init)
+        self.assertIn('__version__ = "0.9.0"', package_init)
 
     def test_required_open_source_files_and_templates_exist(self):
         required = (
@@ -64,6 +64,11 @@ class ReleaseReadinessTests(unittest.TestCase):
             self.assertIn(dependency, native)
         self.assertIn("Apache License 2.0", native)
         self.assertIn("Redistributions in binary form", native)
+
+        notices = (ROOT / "THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8")
+        self.assertIn("official Eclipse Adoptium API", notices)
+        self.assertIn("GPLv2 with the Classpath Exception", notices)
+        self.assertIn("never included in the PluginMatrix wheel", notices)
 
     def test_collaboration_templates_request_actionable_diagnostics(self):
         bug = (ROOT / ".github/ISSUE_TEMPLATE/bug_report.yml").read_text(encoding="utf-8")
@@ -129,7 +134,7 @@ class ReleaseReadinessTests(unittest.TestCase):
             "pluginmatrix --version",
             "pipx install pluginmatrix",
             "pipx upgrade pluginmatrix",
-            "https://pypi.org/project/pluginmatrix/0.8.0/",
+            "https://pypi.org/project/pluginmatrix/0.9.0/",
             ".pluginmatrix/cache",
             ".pluginmatrix/runs",
             "result.json",

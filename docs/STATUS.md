@@ -1,11 +1,12 @@
 # PluginMatrix Release Status
 
-## v0.9.0rc1 Product Integration（2026-09-15）
+## v0.9.0 Final Release Gate（2026-09-15）
 
-开发候选为 `0.9.0rc1`，分支为 `codex/v0.9-guided-core`，基于核心提交 `776adc4`。
+最终源码版本为 `0.9.0`，分支为 `codex/v0.9-guided-core`，基于核心提交 `776adc4`。
 已验收代码候选为 `0c1c97c72c20c2050254429bc6012d26a3d82146`（产品集成为 `57f49ae`）；
-后续候选记录提交仅修改文档，不改变已验证代码或产物。
-公开稳定版本保持 `0.8.0`。本轮不合并 main、不创建 Tag/Release、不发布 TestPyPI/PyPI。
+候选记录提交 `f9f8cd0` 仅修改文档，没有后续代码变化或未关闭的发布阻断项。
+最终发布已获授权：复用下列完整 RC 证据，从最终 release commit 构建、验证并公开同一批资产，
+经 TestPyPI 验证后再原样发布至 PyPI。v0.8.0 及更早的 Tag、Release 和资产保持不变。
 
 - 已接入 Web 三步向导、明确目标与官方建议确认、简单/高级模式、深色/系统外观、双语与响应式布局。
 - schema 2、profile revision、托管 JDK ID/目录、明确 Behavior 检查和输出选项完整导入/编辑/导出；
@@ -43,12 +44,15 @@
 本轮沿用 Astra 已验证的 Runtime、Behavior、分析和 profile 合同，不重复完整 Provider Gate。
 新增跨平台冻结 Gate 直接验证官方托管 JDK 的下载/解压/Java/Javac/manifest、
 schema-2 CLI/Web 运行和删除，覆盖 Windows x64、Linux x64/arm64、macOS x64/arm64。
-RC1 产品集成与必要跨平台验收完成。独立包仍未签名、未 notarize；
+最终版本/文档整理没有改变已验收代码，因此仅运行必要的最终 CI、包审计和 smoke。
+托管 JDK 仅在用户明确确认后从 Eclipse Adoptium API 和匹配 Temurin release 下载，
+保留上游包内 `legal` 说明；JDK 不进入 wheel、sdist、standalone 或 GitHub Release 资产。
+独立包仍未签名、未 notarize；
 PASS 仍仅证明对应环境中已观察到的 Runtime/Behavior 合同，不证明所有插件功能兼容。
 
-## v0.9 Guided Setup core development（2026-09-15）
+## v0.9 Guided Setup core development history（2026-09-15）
 
-当前公开稳定版本仍为 `0.8.0`。开发分支 `codex/v0.9-guided-core` 已实现共享静态分析、
+以下记录描述核心交接时公开稳定版本仍为 `0.8.0` 的历史状态。开发分支 `codex/v0.9-guided-core` 已实现共享静态分析、
 本地依赖图、四种版本化 profile、安全 Behavior 建议、可解释环境推荐、schema 2 兼容层、
 显式托管 JDK 下载/校验/选择/删除和稳定 application 服务。Runtime/Behavior PASS 语义未改变。
 

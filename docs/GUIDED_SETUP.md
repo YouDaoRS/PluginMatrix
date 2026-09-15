@@ -1,11 +1,10 @@
 # Guided Setup / 使用指南
 
-Source candidate: **0.9.0rc1**. Public stable release: **0.8.0**.
-This development branch is not a published release.
+Current release: **0.9.0**.
 
 ## 简体中文
 
-从此分支安装后运行 `python -m pluginmatrix web`，或启动对应的候选独立程序。
+安装后运行 `pluginmatrix web`，或启动对应平台的独立程序。
 默认只监听 `127.0.0.1`，所有插件、配置、结果都留在本机。
 
 ### 首次验证
