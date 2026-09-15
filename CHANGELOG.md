@@ -2,13 +2,13 @@
 
 PluginMatrix follows the version policy in `docs/VERSIONING.md`. No entry below implies that a Git tag, GitHub Release, or PyPI release exists. Earlier entries without dates were development milestones rather than formal releases.
 
-## 0.8.0rc1 - 2026-09-15
+## 0.8.0 - 2026-09-15
 
 - Add bounded Behavioral Verification after the full runtime stability window, with typed registration, console-command return, service, permission and wait checks plus a fresh post-check health barrier.
 - Keep runtime verdict, behavior verdict and final verification result separate across CLI, application API, Web UI, JSON, HTML, progress events, Matrix summaries and GitHub Job Summary.
 - Add Web behavior-plan editing, import/export round trips, rerun support, per-check status/reason/duration/evidence, English/Simplified Chinese text and allowlisted raw behavior evidence artifacts.
 - Preserve v0.7 and behavior-free configuration behavior. Final PASS now requires runtime PASS and behavior PASS when a behavior plan is requested; without a plan, runtime PASS retains the v0.7 result.
-- Extend standalone and hosted artifact gates to exercise and retain behavior evidence. This is a Release Candidate, not a tag, GitHub Release or PyPI publication.
+- Extend standalone and hosted artifact gates to exercise and retain behavior evidence.
 
 ## 0.7.1 — 2026-09-14
 

@@ -1,8 +1,8 @@
-# PluginMatrix v0.8.0rc1 Release Candidate Status
+# PluginMatrix v0.8.0 Release Status
 
-## v0.8 Release Candidate（2026-09-15）
+## v0.8 Final Release Gate（2026-09-15）
 
-当前分支 `codex/v0.8-behavior-core` 已完成 Behavioral Verification 的产品集成，源码版本为 `0.8.0rc1`。公开稳定版本仍为 `0.7.1`；本状态不创建 tag、GitHub Release 或 PyPI 发布，也不修改任何 v0.7.1 资产。
+当前分支 `codex/v0.8-behavior-core` 已完成 Behavioral Verification 的产品集成，源码版本为 `0.8.0`。最终发布已获授权：从最终 release commit 构建并验证一次 wheel、sdist 和四平台 standalone，先将同一 wheel/sdist 发布至 TestPyPI 并验证，再原样发布至正式 PyPI。v0.7.1 及更早的 Tag、Release 和资产保持不变。
 
 - Web UI 已支持五类 behavior check 的配置、严格核心校验、Matrix JSON 导入/导出和再次运行。English / 简体中文界面分别展示 runtime verdict、behavior verdict、最终结果，以及每项检查的状态、原因、耗时、结构化 evidence 和 post-check health。
 - CLI、application API、单环境 JSON、Matrix JSON、静态 HTML、progress event、GitHub Job Summary 和 Web summary 使用同一语义：`result`/`verdict` 是 runtime verdict，`behavior.verdict` 独立保存，`verification_passed` 才是最终结果。
@@ -12,7 +12,7 @@
 - local Provider 单次重试已成功：Paper 1.20.1 local `paperclip` 合同的 success/false/exception/disable/hang/cancel/missing 与 local+Paper Matrix 共 9 个结果全部匹配预期，退出码 0。`gate-summary.json` SHA-256 为 `4c30f55b1eb7b410665569d63995ba58d8cd451fbade38c1a58a4ced871fa93b`；首次失败因此确认是 Mojang bootstrap 下载外部故障，不是实现问题。证据位于 `C:\Users\11580\AppData\Local\Temp\pluginmatrix-08-local-retry-rc1`，不属于源码或发布资产。
 - RC code candidate `388ade8` 的 [CI run 34929167890](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34929167890) 首次运行全绿，覆盖 Ubuntu/Windows x Python 3.10/3.11。[Standalone Distribution run 34929167986](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34929167986) 也在首次运行全绿，Windows x86-64、Linux x86-64、macOS x86-64 与 macOS arm64 均完成冻结 CLI/Web 的真实 Paper runtime + `wait` behavior PASS，并成功上传 JSON、HTML、原始日志、probe evidence、平台归档及 combined checksums。
 
-当前未发现 v0.8 RC 发布阻断项，可以进入 v0.8 最终 Release Gate。该判断不授权创建 tag、GitHub Release、TestPyPI/PyPI 发布或将版本改为最终 `0.8.0`。
+当前未发现 v0.8 发布阻断项，已进入最终 Release Gate。版本与文档修改不改变 Runtime Verifier 或 behavior 实现，因此不重复完整 Runtime/Behavior Provider Gate；最终 CI、包审计、四平台 standalone smoke、公开资产复核与安装验证仍为打 Tag 和完成发布的必要条件。
 
 发布边界：Behavior PASS 只证明配置声明的 typed observation 与每项检查后的新鲜健康样本；console command 的返回值不证明业务或玩家效果，不捕获文本输出。Folia PASS 不证明线程或跨 region 安全，Folia console command 仍为 `UNSUPPORTED`。PluginMatrix 不是 hostile-code sandbox。
 
@@ -20,7 +20,7 @@
 
 `codex/v0.8-behavior-core` 已实现有限、结构化的 Behavioral Verification，代码提交 `543076f`。
 配置、双 verdict、probe 协议、安全边界和 Sol 接续事项见 [BEHAVIOR_CORE.md](BEHAVIOR_CORE.md)。
-核心交接后的产品集成已进入上述 `0.8.0rc1` 状态；下方 v0.7.1 历史、Tag、Release 和 PyPI 均保持不变。
+核心交接后的产品集成曾以 `0.8.0rc1` 完成候选验证，现已进入上述 `0.8.0` 最终发布流程；下方 v0.7.1 历史、Tag、Release 和 PyPI 均保持不变。
 真实核心 Gate 已验证 Paper、Purpur、Folia 和双环境并行/取消；local 首轮因 Mojang bootstrap 下载超时而正确跳过行为检查，尚无本轮 local 行为成功结论。详细证据见上述交接页。
 
 以下为 2026-09-14 的 **v0.7.1 历史发布记录**：当时源码与公开稳定版本均为 v0.7.1。Release commit `49543d122fa3ec241f937e70b6d2cf1440705803` 已从 `codex/v0.7.1-usability` fast-forward 到 `main`；annotated tag、GitHub Release、TestPyPI 和 PyPI 发布均已完成。

@@ -2,9 +2,9 @@
 
 PluginMatrix is an early-stage local runtime verifier for Minecraft plugin JARs. It prepares an isolated server/Java environment, starts a real server, observes plugin discovery and lifecycle evidence, and writes an authoritative JSON report alongside the original `server.log` and optional static HTML.
 
-Version **0.8.0rc1** adds bounded Behavioral Verification after the existing runtime stability window. CLI, Web, application API, JSON/HTML reports, progress events and Matrix summaries now keep the runtime verdict, behavior verdict and final result separate. There is still one Runtime Verifier and no cloud service, account system, automatic JDK installation, player bot, script engine or complete feature testing.
+Version **0.8.0** adds bounded Behavioral Verification after the existing runtime stability window. CLI, Web, application API, JSON/HTML reports, progress events and Matrix summaries now keep the runtime verdict, behavior verdict and final result separate. There is still one Runtime Verifier and no cloud service, account system, automatic JDK installation, player bot, script engine or complete feature testing.
 
-The public stable release remains **0.7.1**, available from [PyPI](https://pypi.org/project/pluginmatrix/0.7.1/) and the immutable [GitHub Release](https://github.com/YouDaoRS/PluginMatrix/releases/tag/v0.7.1). `0.8.0rc1` is source/CI Release Candidate work only; no v0.8 tag, GitHub Release or PyPI publication exists. See [release status](docs/STATUS.md), [behavior contract](docs/BEHAVIOR_CORE.md), [publishing policy](docs/PUBLISHING.md), and [architecture](docs/ARCHITECTURE.md).
+The public stable release is **0.8.0**, available from [PyPI](https://pypi.org/project/pluginmatrix/0.8.0/) and the immutable [GitHub Release](https://github.com/YouDaoRS/PluginMatrix/releases/tag/v0.8.0). GitHub remains the source, release-asset and checksum channel. See [release status](docs/STATUS.md), [behavior contract](docs/BEHAVIOR_CORE.md), [publishing policy](docs/PUBLISHING.md), and [architecture](docs/ARCHITECTURE.md).
 
 ## What `PASS` means
 
@@ -57,7 +57,7 @@ The printed URL is bound to `127.0.0.1` only and normally opens in the default b
 
 The UI loads official Minecraft version/build choices through each selected Provider and stores bounded metadata under the normal cache directory. If the network is unavailable, it identifies cached or stale choices and keeps manual entry available. Installed Java/JDK candidates are discovered locally and shown with version and executable path; PluginMatrix only recommends a compatible choice and never installs or changes Java. English and Simplified Chinese can be selected in the header, and the choice is remembered by the browser.
 
-The public v0.7.1 Release includes PyInstaller `onedir` archives for Windows x86-64, Linux x86-64, and macOS x86-64/arm64. The v0.8 RC workflow builds the same four targets and exercises frozen CLI/Web behavior PASS before any final release decision. A full installed JDK is still required, and no Java runtime, server JAR, or third-party plugin is bundled. The archives are unsigned and the macOS builds are not notarized.
+The v0.8.0 Release includes PyInstaller `onedir` archives for Windows x86-64, Linux x86-64, and macOS x86-64/arm64. Every target exercises frozen CLI/Web runtime and behavior PASS before publication. A full installed JDK is still required, and no Java runtime, server JAR, or third-party plugin is bundled. The archives are unsigned and the macOS builds are not notarized.
 
 For development from a clean checkout:
 
