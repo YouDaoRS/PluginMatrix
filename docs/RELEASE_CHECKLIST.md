@@ -11,9 +11,9 @@
 - [x] 验证旧 v0.7 legacy Paper 配置与无 behavior 配置兼容。
 - [x] 单次重试 local Provider 行为 Gate；确认 9 个场景通过，首次失败属于外部 Mojang bootstrap 下载。
 - [x] 完整本机离线测试（217 passed、8 skipped）、`compileall`、JavaScript syntax、`git diff --check` 和干净 package build。
-- [ ] GitHub-hosted Ubuntu/Windows x Python 3.10/3.11 CI 全绿，包含 POSIX FIFO/symlink/process-group 与 Windows Job Object 覆盖。
-- [ ] Windows x86-64、Linux x86-64、macOS x86-64、macOS arm64 standalone 全绿；冻结 CLI/Web 均完成真实 Paper runtime + wait behavior PASS 并保留 JSON/HTML/log/protocol evidence。
-- [ ] 选择 RC commit，确认工作区干净、开发分支与 origin 同步，并判断是否可进入 v0.8 最终 Release Gate。
+- [x] GitHub-hosted Ubuntu/Windows x Python 3.10/3.11 CI 全绿，包含 POSIX FIFO/symlink/process-group 与 Windows Job Object 覆盖（[run 34929167890](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34929167890)）。
+- [x] Windows x86-64、Linux x86-64、macOS x86-64、macOS arm64 standalone 全绿；冻结 CLI/Web 均完成真实 Paper runtime + wait behavior PASS 并保留 JSON/HTML/log/protocol evidence（[run 34929167986](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34929167986)）。
+- [x] 选择 RC code candidate `388ade8`；结果记录提交只更新 RC 文档。确认工作区干净、开发分支与 origin 同步后，可进入 v0.8 最终 Release Gate。
 
 RC Gate 不包含最终 `0.8.0` 版本、tag、Release、签名/notarization、TestPyPI 或 PyPI。
 

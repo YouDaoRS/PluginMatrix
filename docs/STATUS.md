@@ -8,8 +8,11 @@
 - CLI、application API、单环境 JSON、Matrix JSON、静态 HTML、progress event、GitHub Job Summary 和 Web summary 使用同一语义：`result`/`verdict` 是 runtime verdict，`behavior.verdict` 独立保存，`verification_passed` 才是最终结果。
 - Web artifact 白名单与 hosted workflow 已扩展到 behavior runtime probe/response，继续执行打开后文件身份、link、size、mtime/ctime 校验；原始 `server.log` 不被摘要替代。
 - 旧 v0.7 legacy Paper 配置与不含 behavior 的配置继续 round-trip；没有 behavior 时为 `NOT_RUN`，runtime PASS 仍产生最终成功。含 behavior 时，最终 PASS 要求 runtime PASS 和 behavior PASS。
-- 本机浏览器验收已覆盖 behavior 编辑、wait 类型切换、规范化 JSON 生成、English / 简体中文切换和桌面布局。完整离线测试、hosted CI 与四平台 standalone 结果见本节后续更新。
+- 本机浏览器验收已覆盖 behavior 编辑、wait 类型切换、规范化 JSON 生成、English / 简体中文切换和桌面布局。本机 217 项测试通过、8 项按平台能力跳过；`compileall`、JavaScript syntax、`git diff --check` 和实际 sdist/wheel 构建审计通过。
 - local Provider 单次重试已成功：Paper 1.20.1 local `paperclip` 合同的 success/false/exception/disable/hang/cancel/missing 与 local+Paper Matrix 共 9 个结果全部匹配预期，退出码 0。`gate-summary.json` SHA-256 为 `4c30f55b1eb7b410665569d63995ba58d8cd451fbade38c1a58a4ced871fa93b`；首次失败因此确认是 Mojang bootstrap 下载外部故障，不是实现问题。证据位于 `C:\Users\11580\AppData\Local\Temp\pluginmatrix-08-local-retry-rc1`，不属于源码或发布资产。
+- RC code candidate `388ade8` 的 [CI run 34929167890](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34929167890) 首次运行全绿，覆盖 Ubuntu/Windows x Python 3.10/3.11。[Standalone Distribution run 34929167986](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34929167986) 也在首次运行全绿，Windows x86-64、Linux x86-64、macOS x86-64 与 macOS arm64 均完成冻结 CLI/Web 的真实 Paper runtime + `wait` behavior PASS，并成功上传 JSON、HTML、原始日志、probe evidence、平台归档及 combined checksums。
+
+当前未发现 v0.8 RC 发布阻断项，可以进入 v0.8 最终 Release Gate。该判断不授权创建 tag、GitHub Release、TestPyPI/PyPI 发布或将版本改为最终 `0.8.0`。
 
 发布边界：Behavior PASS 只证明配置声明的 typed observation 与每项检查后的新鲜健康样本；console command 的返回值不证明业务或玩家效果，不捕获文本输出。Folia PASS 不证明线程或跨 region 安全，Folia console command 仍为 `UNSUPPORTED`。PluginMatrix 不是 hostile-code sandbox。
 
