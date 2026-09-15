@@ -1,6 +1,13 @@
-# PluginMatrix 0.7 development architecture
+# PluginMatrix architecture — v0.9 core development
 
 One Runtime Verifier remains the only lifecycle/verdict implementation. Provider implementations are selected from a fixed registry; arbitrary code is not loaded from config.
+
+The public stable version is 0.8.0. The v0.9 addition is a preparation layer:
+`analysis`/`descriptor`/`dependencies` → versioned `profiles` and explained
+`recommendations` → schema-2 normalization in `matrix` → the same application
+execution services. `jdks` provides explicit official downloads and local
+integrity-checked use leases; it never configures system Java. The core API,
+security boundaries and product handoff are in [GUIDED_SETUP_CORE.md](GUIDED_SETUP_CORE.md).
 
 Development addition: [v0.8 behavior core](BEHAVIOR_CORE.md) extends the same probe
 and verifier process lifetime with a bounded sequential behavior phase after the
@@ -11,9 +18,11 @@ Matrix worker owns independent behavior state. The following v0.7 architecture
 and process ownership remain the foundation.
 
 ```text
-CLI / loopback Web UI
+CLI / loopback Web UI / future guided adapters
         |
-application.py: validation, run services, report loading/rendering
+application.py: static analysis, profiles, explained setup, validation, run services
+        |                         |
+        |                  jdks.py: explicit install / integrity / use lease
         |
 matrix.py -> scheduler.py (1..8 workers; ordered results; shared RunControl)
         |
@@ -59,7 +68,7 @@ Folia can print `Done` before cold worlds finish initialization. Its global sche
 
 Output validation includes config/plugin/dependencies/local-server inputs, hardlinks, symlinks/junctions, report/HTML, runtime and cache roots. Report writes and downloads are atomic. APIs, filenames, checksum values and embedded archive paths remain untrusted. HTML is derived from JSON, escapes text and percent-encodes relative artifact links, has no script or external assets and uses a restrictive CSP. Terminal control/bidirectional characters are escaped.
 
-This is not a hostile-code sandbox. Trusted plugins execute with the same JVM and OS account as the probe. Deliberately malicious code can forge evidence or leave a POSIX process group. No telemetry, plugin/log uploads, automatic JDK installation or platform service is added.
+This is not a hostile-code sandbox. Trusted plugins execute with the same JVM and OS account as the probe. Deliberately malicious code can forge evidence or leave a POSIX process group. No telemetry, plugin/log uploads, implicit JDK installation or platform service is added. v0.9 managed JDK installation is an explicit portable-download operation; config normalization and runtime selection never download a JDK.
 
 ## Behavioral Verification
 

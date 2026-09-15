@@ -1,5 +1,27 @@
 # PluginMatrix v0.8.0 Release Status
 
+## v0.9 Guided Setup core development（2026-09-15）
+
+当前公开稳定版本仍为 `0.8.0`。开发分支 `codex/v0.9-guided-core` 已实现共享静态分析、
+本地依赖图、四种版本化 profile、安全 Behavior 建议、可解释环境推荐、schema 2 兼容层、
+显式托管 JDK 下载/校验/选择/删除和稳定 application 服务。Runtime/Behavior PASS 语义未改变。
+
+- 225 项相关回归通过（219 passed / 6 skips）；最终托管引用和前置失败状态加固后的 89 项局部复验通过
+  （87 passed / 2 skips），含新增回归。`compileall` 和 `git diff --check` 通过。
+- 新 CLI smoke 通过；修复参数完整的 `init` 仍进入交互提示的问题，追加回归与 application
+  子集共 15 项通过。
+- 真实 Windows x64 Temurin 17.0.20.1+1 下载、SHA-256、Java/Javac、缓存完整性与使用租约通过；
+  使用中删除被拒绝，Gate 完成后删除成功，系统 Java 配置未改动。
+- Paper 1.20.1/196 的 quick、standard、strict，以及 1.20.1/196 + 1.20.4/499 的双环境
+  并行 Matrix 共五个真实结果全部符合预期。快速方案为 Runtime PASS / Behavior NOT_RUN，
+  其余为 Runtime PASS / Behavior PASS。日志、配置、来源和报告已保留。
+- 首轮安装暴露并修复了 Windows JDK `release` 文件 CRLF 解析问题；未发布无效缓存。
+- GPT-5.6 Sol 接续 Web 向导、界面/深色模式、历史、缓存页面、翻译、用户文档、跨平台
+  native/standalone 验收和发布准备。旧 Web 编辑器暂时拒绝 schema 2 导入，避免静默丢字段。
+
+完整合同、证据路径/hash、限制和交接清单见 [GUIDED_SETUP_CORE.md](GUIDED_SETUP_CORE.md)。
+此阶段不创建 Tag、Release，不发布 TestPyPI/PyPI，也不修改公开版本号。
+
 ## v0.8.0 Final Release（2026-09-15）
 
 PluginMatrix `0.8.0` 已正式发布。Release commit `72843cf205658df16c8728936b8104af2d0c0083` 已从 `codex/v0.8-behavior-core` fast-forward 到 `main`；annotated `v0.8.0`、GitHub Release、TestPyPI 和 PyPI 发布均已完成。

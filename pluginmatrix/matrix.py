@@ -15,10 +15,12 @@ from .probe import resolve_javac
 from .runtime import resolve_java, verify, write_report
 from .runtime import validate_plugin_inputs
 from .providers import ServerSpec, parse_server, get_provider
-from .control import RunControl
+from .control import RunControl, RunCancelled
 from .scheduler import schedule, validate_parallel
 from .locking import report_locks, validate_report_locks
 from .behavior import BehaviorPlan, parse_behavior, initial_behavior
+from .profiles import VerificationProfile, resolve_profile, profile_reference, validate_profile
+from .jdks import java_selection, JdkSelectionError, managed_reference, selection_failure
 
 
 class MatrixConfigError(ValueError):
@@ -50,9 +52,10 @@ class MatrixEnvironment:
         return f"paper-{paper}-java-{java}-build-{build}"
 
     def to_dict(self) -> dict[str, Any]:
+        java = {'managed': self.java[len('managed:'):]} if self.java.startswith('managed:') else self.java
         if self.server:
-            return {'server': self.server.to_dict(), 'java': self.java}
-        value: dict[str, Any] = {"paper": self.paper, "java": self.java}
+            return {'server': self.server.to_dict(), 'java': java}
+        value: dict[str, Any] = {"paper": self.paper, "java": java}
         if self.paper_build is not None:
             value["paper_build"] = self.paper_build
         return value
@@ -72,6 +75,13 @@ class MatrixConfig:
     dependencies: tuple[Path, ...] = ()
     html_path: Path | None = None
     behavior: BehaviorPlan | None = None
+    schema_version: int | None = None
+    profile: VerificationProfile | None = None
+    jdk_dir: Path | None = None
+
+    @property
+    def managed_jdk_root(self) -> Path:
+        return self.jdk_dir or self.source_path.parent / '.pluginmatrix/jdks'
 
     @property
     def protected_inputs(self) -> list[Path]:
@@ -80,6 +90,8 @@ class MatrixConfig:
 
     def to_dict(self) -> dict[str, Any]:
         return {
+            **({'schema': self.schema_version} if self.schema_version is not None else {}),
+            **({'profile': profile_reference(self.profile)} if self.profile else {}),
             "plugin": str(self.plugin.resolve()),
             "dependencies": [str(p.resolve()) for p in self.dependencies],
             "environments": [environment.to_dict() for environment in self.environments],
@@ -91,6 +103,7 @@ class MatrixConfig:
                 "timeout": self.timeout,
                 "stability_window": self.stability_window,
                 "max_parallel": self.max_parallel,
+                **({'jdk_dir': str(self.jdk_dir.resolve())} if self.jdk_dir is not None else {}),
                 **({'html_report': str(self.html_path.resolve())} if self.html_path else {}),
             },
         }
@@ -135,6 +148,15 @@ def _resolve_path(value: object, base: Path, label: str, must_exist: bool = Fals
     return path
 
 
+def _unique_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise MatrixConfigError(f'duplicate JSON field: {key}')
+        result[key] = value
+    return result
+
+
 def load_matrix_config(path: Path, *, stream=None) -> MatrixConfig:
     path = path.expanduser().resolve()
     if not path.is_file():
@@ -152,7 +174,7 @@ def load_matrix_config(path: Path, *, stream=None) -> MatrixConfig:
             data = stream.read(1024 * 1024 + 1)
         if len(data) > 1024 * 1024:
             raise MatrixConfigError('config exceeds 1 MiB')
-        raw = json.loads(data.decode("utf-8"))
+        raw = json.loads(data.decode("utf-8"), object_pairs_hook=_unique_object)
     except json.JSONDecodeError as exc:
         raise MatrixConfigError(
             f"field 'config' has invalid JSON at line {exc.lineno}, column {exc.colno}: {exc.msg}. "
@@ -163,9 +185,34 @@ def load_matrix_config(path: Path, *, stream=None) -> MatrixConfig:
             f"field 'config' could not be read as UTF-8 JSON: '{path}' ({type(exc).__name__}: {exc}). "
             "Fix: make the file readable and save it as UTF-8."
         ) from exc
+    except RecursionError as exc:
+        raise MatrixConfigError('config nesting exceeds the supported JSON depth') from exc
+    return parse_matrix_config(raw, source_path=path)
+
+
+def parse_matrix_config(raw: dict, *, source_path: Path) -> MatrixConfig:
+    """Normalize file/API documents identically, without network or execution.
+
+    source_path provides path resolution/protection; it need not have been saved.
+    """
+    path = Path(source_path).expanduser().absolute()
     document = _require_mapping(raw, "matrix config")
+    try:
+        if len(json.dumps(document, allow_nan=False).encode('utf-8')) > 1024 * 1024:
+            raise MatrixConfigError('config exceeds 1 MiB')
+    except (RecursionError, TypeError, ValueError) as exc:
+        raise MatrixConfigError(f'config is not bounded JSON: {exc}') from exc
+    schema = document.get('schema')
+    if 'schema' in document and (type(schema) is not int or schema not in (1, 2)):
+        raise MatrixConfigError('config.schema must be 1 (legacy) or 2 (guided setup)')
+    if 'profile' in document and schema != 2:
+        raise MatrixConfigError('profile requires config.schema 2; legacy configs may omit schema and profile')
+    try:
+        profile = resolve_profile(document.get('profile'))
+    except ValueError as exc:
+        raise MatrixConfigError(str(exc)) from exc
     plugin = _resolve_path(document.get("plugin"), path.parent, "plugin", must_exist=True)
-    unknown = set(document) - {'plugin', 'dependencies', 'environments', 'options', 'behavior'}
+    unknown = set(document) - {'schema', 'profile', 'plugin', 'dependencies', 'environments', 'options', 'behavior'}
     if unknown:
         raise MatrixConfigError(f'unknown configuration fields: {sorted(unknown)}')
     try:
@@ -202,6 +249,16 @@ def load_matrix_config(path: Path, *, stream=None) -> MatrixConfig:
             item = {**item, 'paper': spec.version, 'paper_build': spec.build}
         paper = item.get("paper")
         java = item.get("java")
+        if isinstance(java, dict):
+            from .jdks import IDENTIFIER
+            if (schema != 2 or set(java) != {'managed'} or not isinstance(java['managed'], str)
+                    or not IDENTIFIER.fullmatch(java['managed'])):
+                raise MatrixConfigError('managed java requires schema 2 and {"managed": "<installed JDK id>"}')
+            java = 'managed:' + java['managed']
+        if isinstance(java, str) and java.startswith('managed:'):
+            from .jdks import IDENTIFIER
+            if schema != 2 or not IDENTIFIER.fullmatch(java[len('managed:'):]):
+                raise MatrixConfigError('managed java requires schema 2 and a valid installed JDK id')
         if not isinstance(paper, str) or not re.fullmatch(r"\d+\.\d+(?:\.\d+)?", paper.strip()):
             raise MatrixConfigError(
                 f"field 'environments[{index - 1}].paper' has value {paper!r}; expected a Paper/Minecraft "
@@ -235,14 +292,16 @@ def load_matrix_config(path: Path, *, stream=None) -> MatrixConfig:
         environments.append(environment)
 
     options = _require_mapping(document.get("options", {}), "options")
-    if set(options) - {'timeout', 'stability_window', 'work_dir', 'cache_dir', 'report', 'html_report', 'max_parallel'}:
+    if set(options) - {'timeout', 'stability_window', 'work_dir', 'cache_dir', 'report', 'html_report', 'max_parallel', 'jdk_dir'}:
         raise MatrixConfigError('unknown options; consult pluginmatrix init or README')
+    if 'jdk_dir' in options and schema != 2:
+        raise MatrixConfigError('options.jdk_dir requires config.schema 2')
     try:
         parallel = validate_parallel(options.get('max_parallel', 1))
     except ValueError as exc:
         raise MatrixConfigError(str(exc)) from exc
-    timeout = options.get("timeout", 120)
-    stability = options.get("stability_window", 5)
+    timeout = options.get("timeout", profile.timeout if profile else 120)
+    stability = options.get("stability_window", profile.stability_window if profile else 5)
     if isinstance(timeout, bool) or not isinstance(timeout, int) or timeout <= 0:
         raise MatrixConfigError(
             f"field 'options.timeout' has value {timeout!r}; expected a positive integer number of seconds. "
@@ -260,6 +319,10 @@ def load_matrix_config(path: Path, *, stream=None) -> MatrixConfig:
         path.parent,
         "options.report",
     )
+    try:
+        validate_profile(profile, environments, stability)
+    except ValueError as exc:
+        raise MatrixConfigError(str(exc)) from exc
     return MatrixConfig(
         source_path=path,
         plugin=plugin,
@@ -271,6 +334,8 @@ def load_matrix_config(path: Path, *, stream=None) -> MatrixConfig:
         stability_window=stability,
         max_parallel=parallel, dependencies=dependencies,
         behavior=behavior,
+        schema_version=schema, profile=profile,
+        jdk_dir=_resolve_path(options['jdk_dir'], path.parent, 'options.jdk_dir') if 'jdk_dir' in options else None,
         html_path=_resolve_path(options['html_report'], path.parent, 'options.html_report') if 'html_report' in options else None,
     )
 
@@ -375,6 +440,14 @@ def validate_matrix_preconditions(
     try:
         plugin_metadata, _ = inspect_plugin(config.plugin)
         dependency_metadata = validate_plugin_inputs(config.plugin, plugin_metadata, list(config.dependencies))
+        if config.profile:
+            from .dependencies import dependency_report
+            graph = dependency_report([(config.plugin, plugin_metadata), *zip(config.dependencies, dependency_metadata)])
+            errors.extend(issue['reason'] for issue in graph['errors'])
+            if config.profile.complete_analysis:
+                for item in [plugin_metadata, *dependency_metadata]:
+                    if not item.get('analysis_complete') or item.get('bytecode', {}).get('unreadable_classes'):
+                        errors.append(f"{item['plugin_name']}: strict requires complete supported static declarations/bytecode")
     except PreflightError as exc:
         detail = next((check.detail for check in reversed(exc.checks) if check.status == "FAIL"), None)
         errors.append(
@@ -395,12 +468,18 @@ def validate_matrix_preconditions(
             continue
         checked_java.add(environment.java)
         try:
-            executable, runtime_version = java_resolver(environment.java)
+            with java_selection(environment.java, config.managed_jdk_root) as (selected, managed):
+                executable, runtime_version = java_resolver(selected)
+                if managed:
+                    java_runtimes[environment.java] = {
+                        'executable': executable, 'runtime_version': runtime_version,
+                        'javac': managed['javac'], 'managed_jdk': managed}
+                    continue
         except (OSError, ValueError) as exc:
             errors.append(
                 f"field 'java' has value {environment.java!r} for {environment.environment_id}; no compatible "
                 f"Java runtime is available ({exc}). Fix: install the requested JDK and put java/javac on PATH, "
-                "or set 'java' to the correct executable path. PluginMatrix does not download JDKs."
+                "or explicitly install/select a managed JDK. Validation does not download JDKs."
             )
         else:
             try:
@@ -458,6 +537,15 @@ def validate_matrix_preconditions(
 
 
 def validate_matrix_paths(config: MatrixConfig) -> None:
+    if config.profile is not None and (config.profile != resolve_profile(config.profile) or config.schema_version != 2):
+        raise MatrixConfigError('MatrixConfig.profile requires a registered immutable profile and schema_version=2')
+    validate_profile(config.profile, config.environments, config.stability_window)
+    if config.jdk_dir is not None or any(managed_reference(e.java, config.managed_jdk_root) for e in config.environments):
+        from .jdks import validate_store_separation
+        validate_store_separation(config.managed_jdk_root,
+                                  [config.work_dir, config.cache_dir, config.report_path,
+                                   *([config.html_path] if config.html_path else [])],
+                                  config.protected_inputs)
     if config.behavior is not None and not isinstance(config.behavior, BehaviorPlan):
         raise MatrixConfigError('MatrixConfig.behavior requires parse_behavior() output')
     parse_behavior(config.behavior)
@@ -544,6 +632,8 @@ def run_matrix(
     control: RunControl | None = None,
 ) -> dict[str, Any]:
     validate_matrix_paths(config)
+    if config.profile and preflight is None:
+        preflight = validate_matrix_preconditions(config)
     # A second invocation using this report fails instead of overwriting a live run.
     with report_locks([config.report_path, config.html_path], config.protected_inputs):
         return _run_matrix(config, verifier, progress, preflight, control or RunControl())
@@ -566,14 +656,21 @@ def _run_matrix(config, verifier, progress, preflight, control):
                 if progress:
                     with progress_lock:
                         progress(index + 1, total, environment)
-                result = verifier(
-                    plugin=config.plugin, paper_version=environment.paper, java=environment.java,
-                    paper_build=environment.paper_build, work_root=config.work_dir,
-                    cache_dir=config.cache_dir, timeout=config.timeout, stability=config.stability_window,
-                    dependencies=list(config.dependencies), server=environment.server_spec,
-                    control=control, environment_index=index,
-                    **({'behavior': config.behavior} if config.behavior else {}),
-                )
+                with java_selection(environment.java, config.managed_jdk_root, control) as (selected, managed):
+                    result = verifier(
+                        plugin=config.plugin, paper_version=environment.paper, java=selected,
+                        paper_build=environment.paper_build, work_root=config.work_dir,
+                        cache_dir=config.cache_dir, timeout=config.timeout, stability=config.stability_window,
+                        dependencies=list(config.dependencies), server=environment.server_spec,
+                        control=control, environment_index=index,
+                        **({'behavior': config.behavior} if config.behavior else {}),
+                    )
+                    if managed:
+                        result.metadata['managed_jdk'] = managed
+                        result.metadata['requested_java'] = environment.java
+        except (RunCancelled, JdkSelectionError) as exc:
+            result = selection_failure(exc, config.behavior)
+            result.metadata['requested_java'] = environment.java
         except BaseException as exc:
             if isinstance(exc, KeyboardInterrupt):
                 control.cancel()
@@ -584,6 +681,8 @@ def _run_matrix(config, verifier, progress, preflight, control):
                 metadata={'requested_java': environment.java})
             result.behavior = initial_behavior(config.behavior, 'runtime execution failed internally')
         result.metadata.setdefault('server', get_provider(environment.server_spec.type).requested_metadata(environment.server_spec))
+        if config.profile:
+            result.metadata['profile'] = profile_reference(config.profile)
         if result.workdir:
             result.metadata.setdefault('protected_inputs', []).extend(str(p.resolve()) for p in config.protected_inputs)
             runtime_report = Path(result.workdir) / 'result.json'

@@ -221,6 +221,23 @@ def _inspect_plugin(plugin_path: Path, jar: zipfile.ZipFile) -> tuple[dict[str, 
         )
     metadata["main_class_major"] = major
     metadata["main_class_java_target"] = java_target_name(major)
+    from .descriptor import inspect_declarations
+    metadata.update(inspect_declarations(plugin_yml, descriptor))
+    metadata['folia_declaration'] = 'true' if folia == 'true' else 'false' if folia == 'false' else 'absent'
+    # Base classes are observations, not proof that every class will be loaded.
+    # Versioned classes are deliberately excluded from the baseline estimate.
+    base_majors = []
+    invalid_classes = 0
+    for entry in jar.infolist():
+        if entry.filename.endswith('.class') and not entry.filename.startswith('META-INF/versions/'):
+            observed = _class_major_version(jar, _class_name_from_entry(entry.filename))
+            if observed is not None and observed >= 45:
+                base_majors.append(observed)
+            else:
+                invalid_classes += 1
+    metadata['bytecode'] = {'base_class_count': len(base_majors), 'unreadable_classes': invalid_classes,
+                            'max_base_java': max(base_majors) - 44 if base_majors else None,
+                            'multi_release_present': any(n.startswith('META-INF/versions/') for n in names)}
     checks.append(Check("Java bytecode", "PASS", f"major {major} ({java_target_name(major)})" if major else "unreadable"))
     checks.append(Check("dependencies", "PASS", f"depend={depend or 'none'}, softdepend={softdepend or 'none'}"))
     jar.close()

@@ -2,7 +2,9 @@
 
 ## 1. 项目定义
 
-PluginMatrix 是一个面向 Minecraft 插件开发者的发布前运行时兼容性验证工具。当前 v0.7 开发范围在 Paper、Purpur、Folia 和明确 local 合同的同一 Runtime Verifier 之上增加本地 Web UI 与独立程序包。下列小节保留历史需求演进，当前范围以第 15 节为准。
+PluginMatrix 是一个面向 Minecraft 插件开发者的发布前运行时兼容性验证工具。v0.7 在 Paper、Purpur、Folia 和明确 local 合同的同一 Runtime Verifier 之上增加本地 Web UI 与独立程序包，v0.8 增加结构化行为验证。下列小节保留历史需求演进，当前开发范围以第 17 节为准。
+
+公开稳定版本为 v0.8.0。v0.9 Guided Setup & One-click Verification 核心开发范围以第 17 节为准。
 
 它接收插件 JAR，在真实 Paper 服务器中运行，并尽可能准确地区分：
 
@@ -232,3 +234,17 @@ v0.8 在完整 runtime stability window 之后增加有限的结构化行为验�
 允许的检查仅为 `command_registered`、`permission_registered`、`service_registered`、`console_command` 和 `wait`。配置、数量、参数和超时有严格上限；不加入表达式、脚本、循环、自动重试、正则输出断言、玩家 Bot、第三方依赖下载或完整 E2E DSL。Folia 的 registry/wait 使用 global region scheduler，console command 因缺少通用 region ownership 合同返回 `UNSUPPORTED`。
 
 Web UI 必须完整导入、编辑、导出并再次运行 behavior 配置，双语展示每项结果，并只通过现有不可变文件身份检查开放 JSON、HTML、`server.log`、runtime probe 和 behavior response。Behavior PASS 只证明声明的 typed observation 与检查后健康状态，不证明命令业务效果、文本输出、玩家交互、线程安全或完整插件兼容性。
+
+## 17. v0.9 Guided Setup & One-click Verification
+
+v0.9 的目标是让不了解 Java、build、Matrix 或 Behavior schema 的用户也能正确配置验证。
+共享 application 层增加静态 JAR 分析、依赖图、版本化 quick/standard/matrix/strict profile、
+可编辑注册检查建议、带来源与未决项的环境推荐，以及显式选择的托管 Temurin JDK。
+核心合同、真实验证记录和 GPT-5.6 Sol 产品接续任务见 [GUIDED_SETUP_CORE.md](GUIDED_SETUP_CORE.md)。
+
+推荐不等于兼容性结论；`api-version` 不等于支持版本范围；未知目标和 Java 基线不猜测。
+自动建议不调用控制台命令。第三方依赖只能来自用户提供的本地 JAR。
+托管 JDK 必须核对官方来源、大小、SHA-256、平台与 Java/Javac，使用安全解压、
+原子缓存和跨进程使用租约；不修改 PATH、JAVA_HOME、注册表或系统 Java。
+新配置使用 schema 2，旧 schema/无 schema、无 profile、无 Behavior 的使用方式继续有效。
+Web 向导、历史、缓存页面和界面完善在共享核心之上完成，不能复制执行器或重定义 PASS。

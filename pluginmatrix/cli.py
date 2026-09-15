@@ -40,8 +40,10 @@ def build_parser() -> argparse.ArgumentParser:
     test.add_argument("--dependency", action="append", type=Path, default=[], help="local dependency plugin JAR; repeatable")
     test.add_argument("--work-dir", type=Path, default=Path(".pluginmatrix/runs"))
     test.add_argument("--cache-dir", type=Path, default=Path(".pluginmatrix/cache"))
-    test.add_argument("--timeout", type=int, default=120)
-    test.add_argument("--stability-window", type=int, default=5)
+    test.add_argument("--timeout", type=int)
+    test.add_argument("--stability-window", type=int)
+    test.add_argument('--profile', choices=['quick', 'standard', 'matrix', 'strict'])
+    test.add_argument('--jdk-dir', type=Path, default=Path('.pluginmatrix/jdks'))
     test.add_argument("--report", type=Path)
     test.add_argument('--html', type=Path, help='static HTML report output')
     test.add_argument('--behavior', type=Path, help='bounded behavior plan JSON (schema 1)')
@@ -72,6 +74,29 @@ def build_parser() -> argparse.ArgumentParser:
     init.add_argument('--runtime', choices=['paperclip', 'bukkit', 'folia'])
     init.add_argument('--max-parallel', type=int, default=1)
     init.add_argument('--force', action='store_true', help='explicitly replace an existing JSON config, never an input JAR')
+    init.add_argument('--profile', choices=['quick', 'standard', 'matrix', 'strict'])
+    analyze = subparsers.add_parser('analyze', help='static plugin metadata, local dependencies and editable Behavior suggestions')
+    analyze.add_argument('--plugin', required=True, type=Path)
+    analyze.add_argument('--dependency', action='append', type=Path, default=[])
+    analyze.add_argument('--json', action='store_true')
+    profiles = subparsers.add_parser('profiles', help='inspect versioned verification profiles')
+    profiles.add_argument('--json', action='store_true')
+    recommend = subparsers.add_parser('recommend', help='explain environment recommendations without starting a server')
+    recommend.add_argument('--plugin', required=True, type=Path)
+    recommend.add_argument('--dependency', action='append', type=Path, default=[])
+    recommend.add_argument('--minecraft')
+    recommend.add_argument('--server', choices=['paper', 'purpur', 'folia', 'local'])
+    recommend.add_argument('--build', type=int)
+    recommend.add_argument('--network', action='store_true', help='query official server metadata')
+    recommend.add_argument('--cache-dir', type=Path, default=Path('.pluginmatrix/cache'))
+    recommend.add_argument('--jdk-dir', type=Path, help='also inspect matching managed JDKs in this store')
+    recommend.add_argument('--json', action='store_true')
+    jdk = subparsers.add_parser('jdk', help='explicit portable managed JDK operations; never changes system Java')
+    jdk.add_argument('action', choices=['list', 'preview', 'install', 'remove'])
+    jdk.add_argument('--major', type=int)
+    jdk.add_argument('--id', help='installed id to remove, or reviewed preview id to pin an install')
+    jdk.add_argument('--directory', type=Path, default=Path('.pluginmatrix/jdks'))
+    jdk.add_argument('--json', action='store_true')
     html = subparsers.add_parser('report', help='render saved JSON as static HTML without recalculating verdicts')
     html.add_argument('source', type=Path)
     html.add_argument('--html', required=True, type=Path)
@@ -168,7 +193,7 @@ def main(argv: list[str] | None = None) -> int:
         except (OSError, ValueError) as exc:
             print(f'Could not start local Web UI: {exc}')
             return 2
-    if args.command in {'init', 'validate', 'doctor', 'providers', 'report'}:
+    if args.command in {'init', 'validate', 'doctor', 'providers', 'report', 'analyze', 'profiles', 'recommend', 'jdk'}:
         try:
             return _utility(args)
         except (OSError, ValueError) as exc:
@@ -209,7 +234,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.paper_build and not args.paper:
             raise ValueError('--paper-build requires --paper; use --build with --server')
         spec = _server(args, args.server or 'paper')
-        if args.timeout <= 0 or args.stability_window <= 0:
+        if (args.timeout is not None and args.timeout <= 0
+                or args.stability_window is not None and args.stability_window <= 0):
             raise ValueError('timeout and stability-window must be positive')
         inputs = [args.plugin, *args.dependency, *([spec.jar] if spec.jar else [])]
         behavior = None
@@ -236,6 +262,7 @@ def main(argv: list[str] | None = None) -> int:
             report_path=report_path, html_path=args.html,
             behavior=behavior,
             behavior_source=args.behavior,
+            profile=args.profile, jdk_dir=args.jdk_dir,
         )
     except (OSError, ValueError) as exc:
         print(f'Could not finish/save verification: {exc}')
@@ -272,8 +299,35 @@ def _server(args, kind):
 
 
 def _utility(args):
+    if args.command in ('analyze', 'profiles', 'recommend', 'jdk'):
+        code = 0
+        if args.command == 'analyze':
+            result = application.analyze_plugin(args.plugin, args.dependency)
+            code = 0 if result['valid'] else 2
+        elif args.command == 'profiles':
+            result = application.inspect_profiles()
+        elif args.command == 'recommend':
+            result = application.recommend_setup(plugin=args.plugin, dependencies=args.dependency,
+                                                  minecraft=args.minecraft, provider=args.server, build=args.build,
+                                                  network=args.network, cache_dir=args.cache_dir, jdk_dir=args.jdk_dir)
+            code = 0 if result['recommendation']['ready'] else 2
+        elif args.action == 'list':
+            result = application.inspect_managed_jdks(args.directory)
+        elif args.action == 'remove':
+            if not args.id:
+                raise ValueError('jdk remove requires --id from jdk list')
+            result = application.delete_managed_jdk(args.id, root=args.directory)
+        else:
+            if args.major is None:
+                raise ValueError('jdk preview/install requires --major')
+            result = (application.preview_managed_jdk(args.major) if args.action == 'preview' else
+                      application.install_managed_jdk(args.major, root=args.directory, expected_id=args.id))
+        sys.stdout.write(json.dumps(result, ensure_ascii=True, indent=2) + '\n')
+        return code
     if args.command == 'init':
-        if sys.stdin.isatty():
+        needs_local = (any(s in ('local', 'custom') for s in (args.server or []))
+                       and not all((args.server_jar, args.server_name, args.runtime)))
+        if sys.stdin.isatty() and (not args.plugin or not args.minecraft or not args.java or needs_local):
             args.plugin = args.plugin or Path(input('Plugin JAR path: '))
             args.server = args.server or [input('Provider (paper/purpur/folia/local) [paper]: ').strip() or 'paper']
             args.minecraft = args.minecraft or input('Minecraft version: ').strip()
@@ -285,8 +339,17 @@ def _utility(args):
         if not args.plugin or not args.minecraft or not args.java:
             raise ValueError('non-interactive init requires --plugin, --minecraft and --java')
         servers = [_server(args, kind) for kind in (args.server or ['paper'])]
-        path = application.init_configuration(args.config, plugin=args.plugin, servers=servers,
-                                              java=args.java, force=args.force, max_parallel=args.max_parallel)
+        if args.profile:
+            prepared = application.prepare_configuration(
+                plugin=args.plugin, environments=[{'server': s.to_dict(), 'java': args.java} for s in servers],
+                source_path=args.config, profile=args.profile, options={'max_parallel': args.max_parallel})
+            from .files import atomic_text, protect_inputs
+            protect_inputs(args.config, [args.plugin, *(s.jar for s in servers if s.jar)])
+            atomic_text(args.config, json.dumps(prepared['configuration'], indent=2) + '\n', overwrite=args.force)
+            path = args.config.resolve()
+        else:
+            path = application.init_configuration(args.config, plugin=args.plugin, servers=servers,
+                                                  java=args.java, force=args.force, max_parallel=args.max_parallel)
         print(f'Created config: {path}')
         return 0
     if args.command == 'report':

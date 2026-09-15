@@ -908,24 +908,7 @@ def write_report(result: VerificationResult, path: Path) -> None:
 
 
 def validate_plugin_inputs(plugin: Path, metadata: dict, dependencies: list[Path]) -> list[dict]:
-    names = {PROBE_PLUGIN_NAME.casefold()}
-    files = {'pluginmatrix-runtime-probe.jar', PROBE_FILE_NAME.casefold(), (PROBE_FILE_NAME + '.tmp').casefold()}
-    result = []
-    identities = []
-    for path, info in [(plugin, metadata)] + [(path, inspect_plugin(path)[0]) for path in dependencies]:
-        name = str(info.get('plugin_name') or '').casefold()
-        if not path.name.lower().endswith('.jar') or any(char in path.name for char in ':\\') or path.name.endswith((' ', '.')):
-            raise ValueError(f'unsupported plugin JAR filename: {path.name}')
-        if path.name.casefold() in files or name in names:
-            raise ValueError(f'plugin filename or identity conflicts with another plugin or runtime probe: {path}')
-        files.add(path.name.casefold())
-        names.add(name)
-        identities.append((name, info.get('provides', [])))
-        if path != plugin:
-            result.append(info)
-    for name, aliases in identities:
-        for alias in aliases:
-            if alias.casefold() in names:
-                raise ValueError(f'plugin provides identity conflicts with another plugin or runtime probe: {alias}')
-            names.add(alias.casefold())
-    return result
+    from .dependencies import validate_identities
+    items = [(plugin, metadata)] + [(path, inspect_plugin(path)[0]) for path in dependencies]
+    validate_identities(items)
+    return [info for path, info in items if path != plugin]

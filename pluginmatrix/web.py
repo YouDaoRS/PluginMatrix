@@ -209,6 +209,10 @@ class WebApplication:
         path = self._path_value(path_value, "config", ".json", MAX_JSON_BYTES)
         with _open_regular(path) as stream:
             config = application.load_matrix_config(path, stream=stream)
+        if config.schema_version == 2:
+            raise WebError(HTTPStatus.BAD_REQUEST,
+                           'This editor cannot yet preserve guided profiles/managed JDK selections. '
+                           'Use the shared application API or CLI for this configuration.')
         return {"source": str(path), "configuration": config.to_dict()}
 
     def generate_configuration(self, payload: object) -> dict:

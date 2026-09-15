@@ -1,4 +1,4 @@
-"""GUI-ready application API, version 1. No CLI argument parsing or terminal output."""
+"""Shared application API. Additive guided services; no UI-specific execution."""
 from __future__ import annotations
 
 import json
@@ -10,9 +10,10 @@ import subprocess
 import sys
 import time
 from dataclasses import replace
+from contextlib import ExitStack
 from pathlib import Path
 
-from .control import ProgressEvent, RunControl
+from .control import ProgressEvent, RunControl, RunCancelled
 from .files import atomic_json, atomic_text, protect_inputs, reject_links, validate_output_paths
 from .matrix import (MatrixConfig, MatrixConfigError, load_matrix_config, validate_matrix_preconditions,
                      validate_matrix_paths, matrix_exit_code, run_matrix as _run_matrix, _check_writable_directory)
@@ -22,8 +23,15 @@ from .locking import file_lock, report_locks, validate_report_locks
 from .runtime import verify as _verify, resolve_java, write_report
 from .probe import resolve_javac
 from .external import run_external
+from .analysis import analyze_plugin
+from .profiles import PROFILES, resolve_profile, profile_reference, validate_profile
+from .recommendations import recommend_environment, java_baseline
+from .jdks import (JdkStore, resolve_package, java_selection, validate_store_separation, managed_reference,
+                   JdkSelectionError, selection_failure)
+from .matrix import parse_matrix_config, MatrixEnvironment
 
 API_VERSION = 1
+GUIDED_API_VERSION = 1
 PROVIDER_CATALOG_TTL = 6 * 60 * 60
 MAX_PROVIDER_CACHE_BYTES = 1024 * 1024
 
@@ -65,9 +73,42 @@ def run_matrix(config: MatrixConfig | Path, *, max_parallel: int | None = None,
 
 def run_single(*, plugin: Path, server: ServerSpec, java: str,
                work_root: Path = Path('.pluginmatrix/runs'), cache_dir: Path = Path('.pluginmatrix/cache'),
-               timeout: int = 120, stability: int = 5, dependencies=None,
+               timeout: int | None = None, stability: int | None = None, dependencies=None,
                report_path: Path | None = None, html_path: Path | None = None,
-               control: RunControl | None = None, behavior=None, behavior_source: Path | None = None):
+               control: RunControl | None = None, behavior=None, behavior_source: Path | None = None,
+               profile=None, jdk_dir: Path = Path('.pluginmatrix/jdks')):
+    profile = resolve_profile(profile)
+    timeout = timeout if timeout is not None else profile.timeout if profile else 120
+    stability = stability if stability is not None else profile.stability_window if profile else 5
+    validate_profile(profile, [MatrixEnvironment(server.version, java, server.build, server)], stability)
+    dependencies = list(dependencies or [])
+    if profile:
+        analysis = analyze_plugin(plugin, dependencies)
+        _check_guided_analysis(analysis, profile)
+    setup_metadata = {'profile': profile_reference(profile)} if profile else {}
+    if managed_reference(java, jdk_dir):
+        validate_store_separation(jdk_dir, [work_root, cache_dir, *filter(None, [report_path, html_path])],
+                                  [plugin, *dependencies, *filter(None, [server.jar, behavior_source])])
+    with ExitStack() as stack:
+        prerequisite = None
+        try:
+            if control:
+                control.check()
+            selected, managed = stack.enter_context(java_selection(java, jdk_dir, control))
+        except (JdkSelectionError, RunCancelled) as exc:
+            selected, managed = java, None
+            prerequisite = selection_failure(exc, behavior)
+            setup_metadata['requested_java'] = java
+        if managed:
+            setup_metadata.update(managed_jdk=managed, requested_java=java)
+        return _run_single(plugin=plugin, server=server, java=selected, work_root=work_root, cache_dir=cache_dir,
+                           timeout=timeout, stability=stability, dependencies=dependencies,
+                           report_path=report_path, html_path=html_path, control=control, behavior=behavior,
+                           behavior_source=behavior_source, setup_metadata=setup_metadata, prerequisite=prerequisite)
+
+
+def _run_single(*, plugin, server, java, work_root, cache_dir, timeout, stability, dependencies,
+                report_path, html_path, control, behavior, behavior_source, setup_metadata, prerequisite):
     from .behavior import parse_behavior
     behavior = parse_behavior(behavior)
     dependencies = list(dependencies or [])
@@ -82,9 +123,14 @@ def run_single(*, plugin: Path, server: ServerSpec, java: str,
     with report_locks([report_path, html_path], inputs):
         control = control or RunControl()
         control.emit('environment_started', 0, provider=server.type)
-        result = _verify(plugin, server.version, java, work_root, cache_dir, timeout, stability,
-                         dependencies, server.build, server=server, control=control, environment_index=0,
-                         behavior=behavior)
+        result = prerequisite or _verify(plugin, server.version, java, work_root, cache_dir, timeout, stability,
+                                         dependencies, server.build, server=server, control=control, environment_index=0,
+                                         behavior=behavior)
+        if prerequisite:
+            result.metadata['server'] = get_provider(server.type).requested_metadata(server)
+            result.metadata['plugin_jar'] = str(plugin.resolve())
+            result.metadata['protected_inputs'] = [str(p.resolve()) for p in inputs]
+        result.metadata.update(setup_metadata)
         if behavior_source is not None:
             result.metadata.setdefault('protected_inputs', []).append(str(behavior_source.resolve()))
             result.metadata['behavior_config_source'] = str(behavior_source.resolve())
@@ -168,25 +214,8 @@ def doctor(java: str = 'java', directory: Path = Path('.pluginmatrix'), network:
 
 
 def minecraft_java_requirement(version: str) -> int | None:
-    """Return Paper's documented Java baseline for a release version."""
-    if not isinstance(version, str) or not re.fullmatch(r'\d+\.\d+(?:\.\d+)?', version):
-        return None
-    parts = tuple(int(part) for part in version.split('.'))
-    if parts[0] >= 26:
-        return 25
-    if parts[0] != 1 or len(parts) < 2:
-        return None
-    minor = parts[1]
-    patch = parts[2] if len(parts) > 2 else 0
-    if minor >= 21 or minor == 20 and patch >= 5:
-        return 21
-    if minor >= 17:
-        return 17
-    if minor == 16 and patch >= 5:
-        return 16
-    if minor >= 12:
-        return 11
-    return 8
+    """Legacy API alias for the bounded, reviewed recommendation policy."""
+    return java_baseline(version)
 
 
 def inspect_provider_catalog(provider_type: str, version: str | None = None,
@@ -262,7 +291,7 @@ def _read_provider_cache(path: Path, query: dict) -> dict | None:
 def _catalog_response(provider, version: str | None, record: dict, source: str) -> dict:
     data = record['data']
     return {'schema': 1, 'provider': provider.metadata.type, 'provider_name': provider.metadata.name,
-            'available': True, 'source': source, 'fetched_at': record['fetched_at'],
+            'available': True, 'source': source, 'fetched_at': record['fetched_at'], 'minecraft_version': version,
             'versions': data.get('versions', []), 'builds': data.get('builds', []),
             'recommended_build': data.get('recommended_build'),
             'recommended_java': minecraft_java_requirement(version) if version else None}
@@ -338,3 +367,113 @@ def discover_java_runtimes() -> dict:
 def _java_major(version: str) -> int | None:
     match = re.search(r'(?<![\d.])(?:1\.)?(\d+)(?:\.\d+)*', version)
     return int(match.group(1)) if match else None
+
+
+def inspect_profiles() -> dict:
+    return {'schema': GUIDED_API_VERSION, 'profiles': [p.to_dict() for p in PROFILES]}
+
+
+def _check_guided_analysis(analysis, profile):
+    if not analysis['valid']:
+        issues = [*analysis['errors'], *analysis['dependency_report']['errors']]
+        raise ValueError('guided preflight: ' + '; '.join(i['reason'] for i in issues))
+    if profile and profile.complete_analysis:
+        for metadata in [analysis['plugin'], *analysis['dependencies']]:
+            if not metadata['analysis_complete'] or metadata['bytecode']['unreadable_classes']:
+                raise ValueError(f"{metadata['plugin_name']}: strict requires complete static analysis")
+
+
+def prepare_configuration(*, plugin: Path, environments: list[dict], source_path: Path,
+                          profile='standard', dependencies=(), options=None, behavior=None,
+                          use_suggestions: bool = True) -> dict:
+    """Build an editable, concrete document. No JDK/server download or launch.
+
+    Explicit Behavior input takes precedence. Setting use_suggestions=False
+    keeps behavior absent. Saving/running never regenerates suggestions.
+    """
+    selected_profile = resolve_profile(profile)
+    dependencies = tuple(Path(p) for p in dependencies)
+    analysis = analyze_plugin(plugin, dependencies)
+    _check_guided_analysis(analysis, selected_profile)
+    if type(use_suggestions) is not bool:
+        raise ValueError('use_suggestions must be boolean')
+    if behavior is None and use_suggestions and selected_profile and selected_profile.suggest_registrations:
+        behavior = analysis['suggestions']['behavior']
+    raw = {'schema': 2, 'plugin': str(Path(plugin).resolve()),
+           'dependencies': [str(p.resolve()) for p in dependencies], 'environments': environments,
+           'options': options or {}}
+    if selected_profile:
+        raw['profile'] = profile_reference(selected_profile)
+    if behavior is not None:
+        from .behavior import parse_behavior
+        raw['behavior'] = parse_behavior(behavior).to_dict()
+    config = parse_matrix_config(raw, source_path=source_path)
+    validate_matrix_paths(config)
+    document = config.to_dict()
+    import hashlib
+    digest = hashlib.sha256(json.dumps(document, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+    return {'schema': GUIDED_API_VERSION, 'configuration': document, 'configuration_sha256': digest,
+            'analysis': analysis, 'review_required': True,
+            'scope': 'Concrete editable test configuration. No runtime compatibility conclusion.'}
+
+
+def normalize_configuration(document: dict, *, source_path: Path) -> dict:
+    """Lossless supported-schema normalization for editors/history adapters."""
+    config = parse_matrix_config(document, source_path=source_path)
+    validate_matrix_paths(config)
+    return {'schema': GUIDED_API_VERSION, 'configuration': config.to_dict()}
+
+
+def run_configuration(document: dict, *, source_path: Path, control=None, progress=None) -> dict:
+    """Single or multiple environments use the same Matrix/Runtime implementation."""
+    config = parse_matrix_config(document, source_path=source_path)
+    return run_matrix(config, control=control, progress=progress)
+
+
+def recommend_setup(*, plugin: Path, dependencies=(), minecraft=None, provider=None, build=None,
+                    network=False, cache_dir=Path('.pluginmatrix/cache'), java_runtimes=None, jdk_dir=None) -> dict:
+    analysis = analyze_plugin(plugin, dependencies)
+    catalog = None
+    if network and minecraft and (provider or 'paper') != 'local':
+        catalog = inspect_provider_catalog(provider or 'paper', minecraft, cache_dir)
+    runtimes = list(discover_java_runtimes()['runtimes'] if java_runtimes is None else java_runtimes)
+    managed_errors = []
+    if jdk_dir is not None:
+        store = JdkStore(jdk_dir)
+        baseline = java_baseline(minecraft)
+        candidates = [record for record in store.list()['jdks']
+                      if baseline is not None and record.get('major') == baseline]
+        if len(candidates) > 8:
+            managed_errors.append({'reason': 'Only the first eight matching managed JDKs were inspected; select an id explicitly for others.'})
+        for record in candidates[:8]:
+            try:
+                with store.lease(record['id']) as verified:
+                    runtimes.append(verified)
+            except (OSError, ValueError) as exc:
+                managed_errors.append({'id': record['id'], 'reason': str(exc)})
+    return {'schema': GUIDED_API_VERSION, 'analysis': analysis, 'catalog': catalog, 'managed_jdk_errors': managed_errors,
+            'recommendation': recommend_environment(analysis, minecraft=minecraft, provider=provider,
+                                                   catalog=catalog, java_runtimes=runtimes, build=build)}
+
+
+def inspect_managed_jdks(root=Path('.pluginmatrix/jdks')) -> dict:
+    return JdkStore(root).list()
+
+
+def preview_managed_jdk(major: int) -> dict:
+    """Explicit network metadata query; no archive download."""
+    return {'schema': GUIDED_API_VERSION, 'package': resolve_package(major).to_dict()}
+
+
+def install_managed_jdk(major: int, *, root=Path('.pluginmatrix/jdks'), expected_id=None, control=None) -> dict:
+    """Explicit opt-in download. expected_id pins a previously reviewed preview."""
+    if control:
+        control.check()
+    package = resolve_package(major)
+    if expected_id is not None and package.id != expected_id:
+        raise ValueError('official JDK selection changed since preview; review the new package')
+    return JdkStore(root).install(package, control)
+
+
+def delete_managed_jdk(ident: str, *, root=Path('.pluginmatrix/jdks')) -> dict:
+    return JdkStore(root).delete(ident)
