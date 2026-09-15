@@ -1,12 +1,33 @@
 # PluginMatrix Release Status
 
-## v0.9.0 Final Release Gate（2026-09-15）
+## v0.9.0 Final Release（2026-09-15）
 
-最终源码版本为 `0.9.0`，分支为 `codex/v0.9-guided-core`，基于核心提交 `776adc4`。
-已验收代码候选为 `0c1c97c72c20c2050254429bc6012d26a3d82146`（产品集成为 `57f49ae`）；
-候选记录提交 `f9f8cd0` 仅修改文档，没有后续代码变化或未关闭的发布阻断项。
-最终发布已获授权：复用下列完整 RC 证据，从最终 release commit 构建、验证并公开同一批资产，
-经 TestPyPI 验证后再原样发布至 PyPI。v0.8.0 及更早的 Tag、Release 和资产保持不变。
+PluginMatrix `0.9.0` 已正式发布。Release commit `e5faee42dbb9a7df46b28e4490de0f00a12f5ed2`
+已从 `codex/v0.9-guided-core` 安全 fast-forward 到 `main`；annotated `v0.9.0`、
+[GitHub Release](https://github.com/YouDaoRS/PluginMatrix/releases/tag/v0.9.0)、TestPyPI 和 PyPI 均已完成。
+
+- [最终 CI 34965077325](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34965077325)
+  的 Ubuntu/Windows × Python 3.10/3.11 四组全部通过。
+- [最终 standalone 34965077324](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34965077324)
+  的 Windows x64、Linux x64/arm64、macOS x64/arm64 与 combined checksums 全部通过。
+  首次 Windows runner 的 `java -version` 单次超过 10 秒；同提交另一组 Windows 已完整通过，
+  重跑后冻结构建、真实 Paper、Guided/JDK 与 Web smoke 全部通过，未修改代码。
+- GitHub Release 的 13 个资产已全部公开重下载并逐字节核对。wheel SHA-256 为
+  `af0ffb4a9b09760f5e0fb3786c0a1e5f2ff55a844b2c2cc6cc6882541895c582`；sdist 为
+  `83b997e9bcfffff0f603776bcba797a149a3d0bcfa250ac754af6ac2111443ab`。
+- Standalone SHA-256：Linux arm64 `56f4f106ae0f5b7b319717941f5fe684f014118452c1de6d2939f72ccd14ebeb`；
+  Linux x86-64 `820c087a54ccdacd9b74ae6dd412905c148ae93f7f7af03b85e2cadb5239f273`；
+  macOS arm64 `94b27134f561eb02783cbefa11365598eb82c19342fa373c8cb89ae8933d5088`；
+  macOS x86-64 `2c0985b3c5aa231ae344f12ba62cb287c8aba714ecc8439b643077c72965ff97`；
+  Windows x86-64 `6c30bb4fee4d1611996c4b02061eb4a03d1402b03799652c10b79261fb0bf514`；
+  `SHA256SUMS.txt` 为 `54077146d1efe38cbef7764e4b47c45f99e556eeb43da1c05950dbb6bb6cd3d4`。
+- [TestPyPI 34966540983](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34966540983) 与
+  [PyPI 34966694610](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34966694610) 均通过 Trusted Publishing；
+  两个索引和 GitHub Release 的 wheel/sdist byte-identical，正式 PyPI 未重新构建。
+- 全新 TestPyPI/PyPI pipx 安装、`--version`、Provider/profile JSON 与 loopback Web `/health`
+  均通过；公开 Windows standalone 的版本、profiles 与 Web health 也通过。
+- v0.5.0 至 v0.8.0 的 tag object、Release ID/时间/目标和全部资产 ID/名称/大小/digest/时间
+  与发布前基线一致，没有任何历史资产变化。
 
 - 已接入 Web 三步向导、明确目标与官方建议确认、简单/高级模式、深色/系统外观、双语与响应式布局。
 - schema 2、profile revision、托管 JDK ID/目录、明确 Behavior 检查和输出选项完整导入/编辑/导出；

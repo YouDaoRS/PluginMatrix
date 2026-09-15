@@ -8,14 +8,14 @@ Owner authorization covers the normal release commit, safe fast-forward merge to
 - [x] Reuse the complete local, hosted CI and five-platform standalone RC evidence below; do not repeat the expensive Provider/browser/full native RC gates for final-version and documentation-only changes.
 - [x] Set the authoritative version to `0.9.0` and align CHANGELOG, README, STATUS, VERSIONING, architecture, product and Guided Setup documentation plus release-readiness tests.
 - [x] Confirm managed JDKs come only from the official Eclipse Adoptium API and matching Temurin binary release, retain upstream package notices, and are never bundled in wheel, sdist, standalone or GitHub Release assets.
-- [ ] Create and push the final release commit, safely fast-forward `main`, and require final-commit hosted CI to pass before tagging.
-- [ ] Build and audit wheel/sdist plus Windows x86-64, Linux x86-64/arm64 and macOS x86-64/arm64 standalone assets from the final release commit; verify version, commit, clean provenance, notices, exclusions, SHA-256 and frozen CLI/Web/JDK smoke.
-- [ ] Fresh-install the exact final wheel and exercise version, Providers, Guided Setup configuration and loopback Web health.
-- [ ] Create and push annotated `v0.9.0`, publish the GitHub Release and attach the exact audited assets and checksums.
-- [ ] Redownload every public GitHub Release asset and compare names, bytes and SHA-256.
-- [ ] Publish the identical GitHub Release wheel/sdist to TestPyPI through Trusted Publishing, verify a clean install and smoke, then publish the same bytes to PyPI.
-- [ ] Verify public PyPI hashes, fresh pipx CLI/Web startup, and the public Windows standalone.
-- [ ] Compare v0.5.0 through v0.8.0 Tag/Release/asset metadata with the pre-release baseline, update final status, and leave `main` and the release branch clean and synchronized.
+- [x] Create and push final release commit `e5faee42dbb9a7df46b28e4490de0f00a12f5ed2`, safely fast-forward `main`, and pass [final CI 34965077325](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34965077325) before tagging.
+- [x] Build and audit wheel/sdist plus Windows x86-64, Linux x86-64/arm64 and macOS x86-64/arm64 standalone assets from the final release commit; verify version, commit, clean provenance, notices, exclusions, SHA-256 and frozen CLI/Web/JDK smoke in [standalone run 34965077324](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34965077324).
+- [x] Fresh-install the exact final wheel and exercise version, Providers, profiles and loopback Web health.
+- [x] Create and push annotated `v0.9.0`, publish the [GitHub Release](https://github.com/YouDaoRS/PluginMatrix/releases/tag/v0.9.0) and attach the exact 13 audited assets and checksums.
+- [x] Redownload every public GitHub Release asset and compare names, bytes and SHA-256; repeat Windows standalone CLI/Web smoke.
+- [x] Publish the identical GitHub Release wheel/sdist to TestPyPI through [Trusted Publishing 34966540983](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34966540983), verify a clean pipx install and smoke, then publish the same bytes to PyPI through [34966694610](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34966694610).
+- [x] Verify public PyPI hashes, fresh pipx CLI/Providers/Web startup, and the public Windows standalone.
+- [x] Compare v0.5.0 through v0.8.0 Tag/Release/asset metadata with the pre-release baseline, update final status, and leave `main` and the release branch clean and synchronized.
 
 ## v0.9.0rc1 Candidate Gate - 2026-09-15
 
