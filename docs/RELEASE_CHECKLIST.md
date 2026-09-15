@@ -11,8 +11,9 @@ the candidate only. No Tag, Release, main merge, TestPyPI or PyPI publication.
 - [x] Add readable CLI output, dual-language user documentation and owned-fixture examples.
 - [x] Finish the single final responsive/dark/bilingual browser acceptance.
 - [x] Run one complete offline RC suite, compilation, JavaScript syntax, diff checks and package audit (267 tests, 9 local platform skips).
-- [ ] Pass native frozen managed-JDK plus CLI/Web acceptance on all candidate targets.
-- [ ] Record the exact candidate commit, evidence and limitations, then push the final status update.
+- [x] Pass native frozen managed-JDK plus CLI/Web acceptance on Windows x64, Linux x64/arm64 and macOS x64/arm64 ([run 34953514365](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34953514365)).
+- [x] Pass Ubuntu/Windows x Python 3.10/3.11 CI on the corrected candidate ([run 34953514364](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34953514364)).
+- [x] Record verified code candidate `0c1c97c72c20c2050254429bc6012d26a3d82146`, retained workflow evidence, scoped portability fixes and unsigned/not-notarized limitations in STATUS.md. Final status push is documentation-only; no redundant code Gate rerun.
 
 ## v0.8.0 Final Release Gate - completed 2026-09-15
 

@@ -3,6 +3,8 @@
 ## v0.9.0rc1 Product Integration（2026-09-15）
 
 开发候选为 `0.9.0rc1`，分支为 `codex/v0.9-guided-core`，基于核心提交 `776adc4`。
+已验收代码候选为 `0c1c97c72c20c2050254429bc6012d26a3d82146`（产品集成为 `57f49ae`）；
+后续候选记录提交仅修改文档，不改变已验证代码或产物。
 公开稳定版本保持 `0.8.0`。本轮不合并 main、不创建 Tag/Release、不发布 TestPyPI/PyPI。
 
 - 已接入 Web 三步向导、明确目标与官方建议确认、简单/高级模式、深色/系统外观、双语与响应式布局。
@@ -27,15 +29,22 @@
   native 冻结 Gate 在 Windows x64 通过，Linux 暴露官方 TAR 内部许可证链接，
   macOS 暴露测试临时目录 `/var` 别名。已针对这三项修复并补充回归：
   32 项局部测试中 31 passed / 1 本机权限 skip；没有重复完整本机 RC 或浏览器测试。
-  修复后的 hosted/native 结果待记录，未完成项不记作通过。
+  修复后候选的 [CI 34953514364](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34953514364)
+  四组 Ubuntu/Windows × Python 3.10/3.11 全部通过。
 - TAR 仅将同一顶层 JDK 目录中指向原始普通成员的内部符号链接物化为普通副本；
   链接链/循环、目录链接、逃逸、硬链接和特殊文件仍拒绝，安装树继续完全无链接。
   Gate artifact 上传显式包含白名单中的隐藏 `.pluginmatrix` 证据，不上传 JDK 安装树。
+- [Standalone 34953514365](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34953514365)
+  的 Windows x64、Linux x64/arm64、macOS x64/arm64 五组原生验收及合并校验和全部通过：
+  JDK 文件系统回归、冻结包构建/smoke、官方 Temurin 下载/校验、真实 Paper CLI/Web、
+  schema 2 配置恢复、报告/artifact 访问及托管 JDK 删除均完成。
+  五份平台归档及校验和/运行证据保存在该 workflow artifacts（保留 14 天），没有发布为 Release。
 
 本轮沿用 Astra 已验证的 Runtime、Behavior、分析和 profile 合同，不重复完整 Provider Gate。
 新增跨平台冻结 Gate 直接验证官方托管 JDK 的下载/解压/Java/Javac/manifest、
 schema-2 CLI/Web 运行和删除，覆盖 Windows x64、Linux x64/arm64、macOS x64/arm64。
-独立包仍未签名、未 notarize；平台结论以实际 Gate 结果为准。
+RC1 产品集成与必要跨平台验收完成。独立包仍未签名、未 notarize；
+PASS 仍仅证明对应环境中已观察到的 Runtime/Behavior 合同，不证明所有插件功能兼容。
 
 ## v0.9 Guided Setup core development（2026-09-15）
 
