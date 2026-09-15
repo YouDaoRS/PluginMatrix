@@ -1,6 +1,6 @@
 # Release checklists
 
-## v0.8.0 Final Release Gate - authorized 2026-09-15
+## v0.8.0 Final Release Gate - completed 2026-09-15
 
 Owner authorization covers the normal release commit, safe fast-forward merge to `main`, annotated `v0.8.0` tag, GitHub Release assets, TestPyPI and PyPI publication through the existing Trusted Publishing workflow. Force pushes, history rewriting, old Release changes, EnhancedFly history work and v0.9 remain excluded.
 
@@ -15,14 +15,14 @@ Owner authorization covers the normal release commit, safe fast-forward merge to
 - [x] Windows x86-64、Linux x86-64、macOS x86-64、macOS arm64 standalone 全绿；冻结 CLI/Web 均完成真实 Paper runtime + wait behavior PASS 并保留 JSON/HTML/log/protocol evidence（[run 34929167986](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34929167986)）。
 - [x] 选择 RC code candidate `388ade8`；结果记录提交 `6f883c2` 只更新 RC 文档，候选工作区与 origin 同步。
 - [x] 将权威版本统一为 `0.8.0`，并对齐 CHANGELOG、README、STATUS、VERSIONING、behavior 交接文档和 release-readiness tests。
-- [ ] 创建并推送最终 release commit，安全 fast-forward 合入 `main`，等待最终提交 CI 通过后再打 Tag。
-- [ ] 从最终 release commit 构建并审计 wheel、sdist 和 Windows/Linux/macOS x86-64/macOS arm64 standalone；验证版本、provenance、许可证、归档内容、SHA-256 及冻结 CLI/Web/behavior smoke。
-- [ ] 使用最终 wheel 完成隔离 CLI、Web、behavior 配置/报告 smoke。
-- [ ] 创建 annotated `v0.8.0`，发布 GitHub Release，并上传同一批已验证资产与 combined checksum。
-- [ ] 从公开 GitHub Release 重下载全部资产并逐字节核对。
-- [ ] 通过 Trusted Publishing 将 GitHub Release 中完全相同的 wheel/sdist 先发布到 TestPyPI，完成隔离安装、版本、CLI、Web、behavior 配置验证后，再发布到正式 PyPI；正式 PyPI 不重新构建。
-- [ ] 从正式 PyPI 重下载 wheel/sdist、核对 SHA-256，并完成 pipx、CLI、Web 和 behavior 基础验证。
-- [ ] 确认旧 Tag、Release 和资产未变化，`main` 与远端同步，工作区干净。
+- [x] 创建并推送最终 release commit `72843cf205658df16c8728936b8104af2d0c0083`，安全 fast-forward 合入 `main`；最终 [CI run 34933468358](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34933468358) 通过后才打 Tag。
+- [x] 从最终 release commit 构建并审计 wheel、sdist 和 Windows/Linux/macOS x86-64/macOS arm64 standalone；验证版本、provenance、许可证、归档内容、SHA-256 及冻结 CLI/Web/behavior smoke（[run 34933468354](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34933468354)）。
+- [x] 使用最终 wheel 完成隔离 CLI、Web、behavior 配置/报告 smoke。
+- [x] 创建 annotated `v0.8.0`，发布 [GitHub Release](https://github.com/YouDaoRS/PluginMatrix/releases/tag/v0.8.0)，并上传同一批 11 个已验证资产与 combined checksum。
+- [x] 从公开 GitHub Release 重下载全部资产并逐字节核对。
+- [x] 通过 Trusted Publishing 将 GitHub Release 中完全相同的 wheel/sdist 先发布到 TestPyPI（[run 34934372164](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34934372164)），完成隔离安装、版本、CLI、Web、behavior 配置验证后，再原样发布到正式 PyPI（[run 34934563716](https://github.com/YouDaoRS/PluginMatrix/actions/runs/34934563716)）；正式 PyPI 未重新构建。
+- [x] 从正式 PyPI 重下载 wheel/sdist、核对 SHA-256，并完成全新 pipx、CLI、Web 和 behavior 基础验证。
+- [x] 确认 v0.5.0 至 v0.7.1 的旧 Tag、Release 和资产未变化，`main` 与远端同步，发布工作区干净。
 
 No code signing, installer, notarization, auto-update, cloud service, new Provider or v0.9 work is part of this release.
 
