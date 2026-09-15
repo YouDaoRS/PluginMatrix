@@ -282,6 +282,7 @@ class ProcessRun:
     evidence: RuntimeEvidence
     exit_code: int | None
     timed_out: bool
+    behavior: dict | None = None
 
 
 def resolve_java(java: str) -> tuple[str, str]:
@@ -440,7 +441,10 @@ def run_server_process(
     allowed_sources: tuple[Path, ...] | None = None, provider_type: str = 'paper',
     control: RunControl | None = None, environment_index: int | None = None,
     regionized_runtime: bool = False,
+    behavior=None,
 ) -> ProcessRun:
+    from .behavior import initial_behavior, run_behavior
+    behavior_report = initial_behavior(behavior)
     if any(isinstance(value, bool) or not math.isfinite(value) or value <= 0 for value in (timeout, stability)):
         raise ValueError('timeout and stability_window must be positive finite seconds')
     evidence = RuntimeEvidence(plugin_name=plugin_name, plugin_jar_name=plugin_jar_name,
@@ -577,6 +581,15 @@ def run_server_process(
                                 evidence.observation_complete = True
                                 evidence.add('stability_window_completed', now - started, source='process',
                                              detail=f'configured_seconds={stability}; observed_seconds={now-window_start:.3f}; sequence={sequence}')
+                                if behavior and evidence.verdict(True, False)[0] == 'PASS':
+                                    # Freeze the runtime window. Later log text and behavioral
+                                    # exceptions must not be attributed to startup/enable.
+                                    def drain_behavior_log():
+                                        log.read(65536)
+                                    behavior_report = run_behavior(
+                                        behavior, process=process, probe_path=probe_path,
+                                        runtime_evidence=evidence, run_id=run_id, control=control,
+                                        environment_index=environment_index, drain_log=drain_behavior_log)
                                 break
                             if now >= window_start + stability + PROBE_FRESHNESS_SECONDS:
                                 evidence.direct_runtime_error = 'missing final probe sample or log could not be fully consumed'
@@ -609,7 +622,7 @@ def run_server_process(
                     evidence.add('cleanup_failure', time.monotonic() - started, source='process', detail=str(exc))
                     break
     evidence.finalize(time.monotonic() - started, exit_code is None, timed_out)
-    return ProcessRun(evidence=evidence, exit_code=exit_code, timed_out=timed_out)
+    return ProcessRun(evidence=evidence, exit_code=exit_code, timed_out=timed_out, behavior=behavior_report)
 
 
 def _runtime_checks(evidence: RuntimeEvidence, process_run: ProcessRun) -> list[Check]:
@@ -654,8 +667,12 @@ def verify(
     server: ServerSpec | None = None,
     control: RunControl | None = None,
     environment_index: int | None = None,
+    behavior=None,
 ) -> VerificationResult:
+    from .behavior import parse_behavior, initial_behavior
+    behavior = parse_behavior(behavior)
     result = VerificationResult()
+    result.behavior = initial_behavior(behavior)
     control = control or RunControl()
     server = server or ServerSpec('paper', paper_version, paper_build)
     provider = get_provider(server.type)
@@ -799,6 +816,7 @@ def verify(
                 run_id=run_id,
                 regionized=result.metadata['server']['regionized_runtime'],
                 standalone_api=server.runtime == 'bukkit',
+                behavior=behavior,
             )
         except RuntimeError as exc:
             result.result = "ENVIRONMENT_INVALID"
@@ -830,7 +848,9 @@ def verify(
             provider_type=server.type,
             regionized_runtime=bool(result.metadata['server']['regionized_runtime']),
             control=control, environment_index=environment_index,
+            behavior=behavior,
         )
+        result.behavior = process_run.behavior or initial_behavior(behavior)
         evidence = process_run.evidence
         result.evidence = evidence.events
         if evidence.direct_runtime_observed:

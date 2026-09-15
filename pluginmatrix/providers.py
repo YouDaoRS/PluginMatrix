@@ -177,7 +177,14 @@ class ServerProvider:
                     requested_build=spec.build if spec.build is not None else 'latest',
                     resolved_build=None, regionized_runtime=regionized,
                     runtime_profile=spec.runtime or ('folia' if regionized else 'paperclip'),
+                    behavior_capabilities=self.behavior_capabilities(spec),
                     pass_scope=FOLIA_SCOPE if regionized else PASS_SCOPE, provider_metadata=dict(spec.metadata))
+
+    def behavior_capabilities(self, spec: ServerSpec) -> dict:
+        regionized = self.metadata.regionized or spec.runtime == 'folia'
+        return {'schema': 1, 'command_registered': True, 'permission_registered': True,
+                'service_registered': True, 'wait': True, 'console_command': not regionized,
+                'console_command_reason': 'no safe region ownership contract' if regionized else None}
 
     def resolve(self, spec: ServerSpec) -> dict:
         self.validate(spec)

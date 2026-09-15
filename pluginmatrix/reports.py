@@ -51,6 +51,7 @@ def _environments(report: dict) -> list[dict]:
     return [{'id': metadata.get('server_type', 'paper'),
              'verdict': report.get('result'), 'failure_stage': report.get('failure_stage'),
              'reason': report.get('reason'), 'metadata': metadata,
+             'behavior': report.get('behavior'),
              'evidence': report.get('evidence', []),
              'artifacts': {'runtime_report': report.get('report_path'), 'server_log': report.get('log_path'), 'run_dir': report.get('workdir')}}]
 
@@ -108,8 +109,10 @@ def html_document(report: dict, source: Path, destination: Path) -> str:
         metadata = _object(env.get('metadata'), 'environment metadata')
         resolved = _object(env.get('resolved'), 'environment resolved data')
         server = _object(metadata.get('server') or resolved.get('server'), 'environment server')
+        behavior = _object(env.get('behavior'), 'behavior')
         rows.append(f'<tr><td><a href="#env-{index}">{_e(env.get("id"))}</a></td>'
                     f'<td>{_e(server.get("server_type", "paper"))}</td><td>{_e(env.get("verdict"))}</td>'
+                    f'<td>{_e(behavior.get("verdict", "NOT_RUN"))}</td>'
                     f'<td>{_e(env.get("failure_stage"))}</td><td>{_e(env.get("reason"))}</td></tr>')
         artifacts = []
         for label, value in _object(env.get('artifacts'), 'environment artifacts').items():
@@ -127,6 +130,7 @@ def html_document(report: dict, source: Path, destination: Path) -> str:
         limit = FOLIA_SCOPE if server.get('regionized_runtime') else PASS_SCOPE
         sections.append(f'<section id="env-{index}"><h2>{_e(env.get("id"))}</h2><p>{_e(limit)}</p>'
                         f'<ul>{"".join(artifacts)}</ul><details><summary>Metadata</summary><pre>{_json(metadata or env.get("resolved", {}))}</pre></details>'
+                        f'<details><summary>Behavior checks and post-check health</summary><pre>{_json(behavior)}</pre></details>'
                         f'<details><summary>Evidence</summary><pre>{_json(env.get("evidence", []))}</pre></details></section>')
     plugin = _object(report.get('plugin') or report.get('metadata'), 'plugin')
     return ('<!doctype html><html lang="en"><meta charset="utf-8">'
@@ -138,7 +142,7 @@ def html_document(report: dict, source: Path, destination: Path) -> str:
             f'<h1>PluginMatrix report</h1><p>{_e(plugin.get("plugin_name") or plugin.get("plugin_jar"))} {_e(plugin.get("plugin_version"))}</p>'
             f'<p>{_e(PASS_SCOPE)}</p><p>JSON is the authoritative report. Raw server logs are linked, not embedded.</p>'
             f'<p>Stored summary: {_e(json.dumps(report.get("summary", {})))}</p>'
-            '<table><thead><tr><th>Environment</th><th>Provider</th><th>Verdict</th><th>Failure stage</th><th>Reason</th></tr></thead>'
+            '<table><thead><tr><th>Environment</th><th>Provider</th><th>Runtime verdict</th><th>Behavior verdict</th><th>Failure stage</th><th>Reason</th></tr></thead>'
             f'<tbody>{"".join(rows)}</tbody></table>{"".join(sections)}</html>')
 
 

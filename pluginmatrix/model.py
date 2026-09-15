@@ -45,10 +45,20 @@ class VerificationResult:
     report_path: str | None = None
     log_path: str | None = None
     workdir: str | None = None
+    behavior: dict[str, Any] = field(default_factory=lambda: {
+        'schema': 1, 'verdict': 'NOT_RUN', 'reason': None, 'plan': None,
+        'plan_sha256': None, 'checks': [], 'post_health': {'status': 'NOT_RUN'}})
+
+    @property
+    def passed(self) -> bool:
+        from .behavior import verification_passed
+        return verification_passed(self.result, self.behavior)
 
     def to_dict(self) -> dict[str, Any]:
         return {
             **asdict(self),
+            "runtime_verdict": self.result,
+            "verification_passed": self.passed,
             "checks": [asdict(check) for check in self.checks],
             "evidence": [asdict(event) for event in self.evidence],
         }

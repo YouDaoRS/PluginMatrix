@@ -75,8 +75,8 @@ def render_job_summary(report_path: Path) -> str:
         [
             f"**Plugin:** {_cell(plugin.get('plugin_name') or plugin.get('plugin_jar'))}",
             "",
-            "| Environment | Verdict | Failure stage | Primary evidence |",
-            "|---|---|---|---|",
+            "| Environment | Verdict | Behavior | Failure stage | Primary evidence |",
+            "|---|---|---|---|---|",
         ]
     )
     for environment in environments:
@@ -84,8 +84,10 @@ def render_job_summary(report_path: Path) -> str:
             continue
         verdict = environment.get("verdict")
         stage = environment.get("failure_stage") or ("—" if verdict == "PASS" else "unknown")
+        behavior = environment.get('behavior')
+        behavior = behavior if isinstance(behavior, dict) else {}
         lines.append(
-            f"| `{_cell(environment.get('id'))}` | `{_cell(verdict)}` | `{_cell(stage)}` | "
+            f"| `{_cell(environment.get('id'))}` | `{_cell(verdict)}` | `{_cell(behavior.get('verdict'), 'NOT_RUN')}` | `{_cell(stage)}` | "
             f"`{_evidence_text(environment)}` |"
         )
 
@@ -99,14 +101,17 @@ def render_job_summary(report_path: Path) -> str:
     failures = [
         environment
         for environment in environments
-        if isinstance(environment, dict) and environment.get("verdict") != "PASS"
+        if isinstance(environment, dict) and not environment.get('verification_passed', environment.get('verdict') == 'PASS')
     ]
     if failures:
         lines.extend(["", "### Failures", ""])
         for environment in failures:
+            behavior = environment.get('behavior')
+            behavior = behavior if isinstance(behavior, dict) else {}
             lines.append(
                 f"- `{_cell(environment.get('id'))}` — `{_cell(environment.get('verdict'), 'UNKNOWN_FAILURE')}` "
                 f"at `{_cell(environment.get('failure_stage'))}`: {_cell(environment.get('reason'), 'No reason recorded')}. "
+                f"Behavior: `{_cell(behavior.get('verdict'), 'NOT_RUN')}` {_cell(behavior.get('reason'), '')}. "
                 f"Evidence: `{_evidence_text(environment)}`"
             )
     lines.extend(

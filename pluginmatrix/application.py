@@ -67,9 +67,13 @@ def run_single(*, plugin: Path, server: ServerSpec, java: str,
                work_root: Path = Path('.pluginmatrix/runs'), cache_dir: Path = Path('.pluginmatrix/cache'),
                timeout: int = 120, stability: int = 5, dependencies=None,
                report_path: Path | None = None, html_path: Path | None = None,
-               control: RunControl | None = None):
+               control: RunControl | None = None, behavior=None, behavior_source: Path | None = None):
+    from .behavior import parse_behavior
+    behavior = parse_behavior(behavior)
     dependencies = list(dependencies or [])
     inputs = [plugin, *dependencies, *([server.jar] if server.jar else [])]
+    if behavior_source is not None:
+        inputs.append(behavior_source)
     validate_output_paths(work_root, cache_dir, inputs, report_path)
     if html_path:
         validate_output_paths(work_root, cache_dir, [*inputs, *([report_path] if report_path else [])], html_path)
@@ -79,12 +83,17 @@ def run_single(*, plugin: Path, server: ServerSpec, java: str,
         control = control or RunControl()
         control.emit('environment_started', 0, provider=server.type)
         result = _verify(plugin, server.version, java, work_root, cache_dir, timeout, stability,
-                         dependencies, server.build, server=server, control=control, environment_index=0)
+                         dependencies, server.build, server=server, control=control, environment_index=0,
+                         behavior=behavior)
+        if behavior_source is not None:
+            result.metadata.setdefault('protected_inputs', []).append(str(behavior_source.resolve()))
+            result.metadata['behavior_config_source'] = str(behavior_source.resolve())
         if report_path or result.workdir:
             write_report(result, report_path or Path(result.workdir) / 'result.json')
             if html_path:
                 _render_html_report(Path(result.report_path), html_path)
-        control.emit('environment_completed', 0, verdict=result.result)
+        control.emit('environment_completed', 0, verdict=result.result,
+                     behavior_verdict=result.behavior['verdict'], verification_passed=result.passed)
         return result
 
 

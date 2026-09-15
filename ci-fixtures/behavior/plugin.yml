@@ -1,0 +1,12 @@
+name: PluginMatrixBehavior
+version: 1.0.0
+main: pluginmatrix.fixtures.BehaviorFixture
+api-version: '1.13'
+folia-supported: true
+commands:
+  pmbehavior:
+    description: Project-owned behavior verifier fixture
+    permission: pluginmatrix.behavior
+permissions:
+  pluginmatrix.behavior:
+    default: op

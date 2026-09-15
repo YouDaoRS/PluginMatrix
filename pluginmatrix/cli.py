@@ -44,6 +44,7 @@ def build_parser() -> argparse.ArgumentParser:
     test.add_argument("--stability-window", type=int, default=5)
     test.add_argument("--report", type=Path)
     test.add_argument('--html', type=Path, help='static HTML report output')
+    test.add_argument('--behavior', type=Path, help='bounded behavior plan JSON (schema 1)')
     matrix = subparsers.add_parser("matrix", help="run one plugin across multiple server/Java environments")
     matrix.add_argument("config", type=Path, help="JSON matrix configuration file")
     matrix.add_argument('--max-parallel', type=int, help='bounded concurrency, 1 through 8 (default 1)')
@@ -104,7 +105,8 @@ def _print_result(result) -> None:
         print(f"  Failure stage      {result.failure_stage}")
     if result.reason:
         print(f"  Reason             {result.reason}")
-    print(f"\nRESULT: {'PASS' if result.result == 'PASS' else 'FAIL'}")
+    print(f"  Behavior           {result.behavior['verdict']}")
+    print(f"\nRESULT: {'PASS' if result.passed else 'FAIL'}")
     if result.report_path:
         print(f"Report: {result.report_path}")
     if result.log_path:
@@ -116,15 +118,18 @@ def _print_result(result) -> None:
 def _print_matrix_result(report: dict, report_path: Path) -> None:
     print("\nEnvironment                         Result")
     for environment in report["environments"]:
-        print(f"{environment['id']:<35} {environment['verdict']}")
+        print(f"{environment['id']:<35} runtime={environment['verdict']} behavior={environment.get('behavior', {}).get('verdict', 'NOT_RUN')}")
     summary = report["summary"]
     print(f"\nSummary: {summary['passed']} passed, {summary['failed']} failed")
-    failures = [environment for environment in report["environments"] if environment.get("verdict") != "PASS"]
+    failures = [environment for environment in report["environments"]
+                if not environment.get('verification_passed', environment.get('verdict') == 'PASS')]
     if failures:
         print("\nFailures")
         for environment in failures:
             print(f"  {environment.get('id', 'unknown environment')}")
             print(f"    Verdict: {environment.get('verdict', 'UNKNOWN_FAILURE')}")
+            if environment.get('behavior'):
+                print(f"    Behavior: {environment['behavior']['verdict']}")
             print(f"    Failure stage: {environment.get('failure_stage') or 'unknown'}")
             if environment.get("reason"):
                 print(f"    Reason: {environment['reason']}")
@@ -201,6 +206,15 @@ def main(argv: list[str] | None = None) -> int:
         if args.timeout <= 0 or args.stability_window <= 0:
             raise ValueError('timeout and stability-window must be positive')
         inputs = [args.plugin, *args.dependency, *([spec.jar] if spec.jar else [])]
+        behavior = None
+        if args.behavior:
+            from .behavior import parse_behavior
+            with args.behavior.open('rb') as stream:
+                data = stream.read(65537)
+            if len(data) > 65536:
+                raise ValueError('behavior config exceeds 64 KiB')
+            behavior = parse_behavior(json.loads(data))
+            inputs.append(args.behavior)
         validate_output_paths(args.work_dir, args.cache_dir, inputs, report_path)
         if args.html:
             validate_output_paths(args.work_dir, args.cache_dir, [*inputs, *([report_path] if report_path else [])], args.html)
@@ -214,6 +228,8 @@ def main(argv: list[str] | None = None) -> int:
             timeout=args.timeout, stability=args.stability_window,
             dependencies=[path.resolve() for path in args.dependency], server=spec,
             report_path=report_path, html_path=args.html,
+            behavior=behavior,
+            behavior_source=args.behavior,
         )
     except (OSError, ValueError) as exc:
         print(f'Could not finish/save verification: {exc}')
@@ -231,7 +247,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f'Could not save report {report_path}: {exc}')
         return 3
     _print_result(result)
-    return 0 if result.result == "PASS" else 1
+    return 0 if result.passed else 1
 
 
 def _server(args, kind):

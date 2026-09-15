@@ -18,6 +18,7 @@ from .providers import ServerSpec, parse_server, get_provider
 from .control import RunControl
 from .scheduler import schedule, validate_parallel
 from .locking import report_locks, validate_report_locks
+from .behavior import BehaviorPlan, parse_behavior, initial_behavior
 
 
 class MatrixConfigError(ValueError):
@@ -70,6 +71,7 @@ class MatrixConfig:
     max_parallel: int = 1
     dependencies: tuple[Path, ...] = ()
     html_path: Path | None = None
+    behavior: BehaviorPlan | None = None
 
     @property
     def protected_inputs(self) -> list[Path]:
@@ -81,6 +83,7 @@ class MatrixConfig:
             "plugin": str(self.plugin.resolve()),
             "dependencies": [str(p.resolve()) for p in self.dependencies],
             "environments": [environment.to_dict() for environment in self.environments],
+            **({'behavior': self.behavior.to_dict()} if self.behavior else {}),
             "options": {
                 "work_dir": str(self.work_dir.resolve()),
                 "cache_dir": str(self.cache_dir.resolve()),
@@ -162,9 +165,13 @@ def load_matrix_config(path: Path, *, stream=None) -> MatrixConfig:
         ) from exc
     document = _require_mapping(raw, "matrix config")
     plugin = _resolve_path(document.get("plugin"), path.parent, "plugin", must_exist=True)
-    unknown = set(document) - {'plugin', 'dependencies', 'environments', 'options'}
+    unknown = set(document) - {'plugin', 'dependencies', 'environments', 'options', 'behavior'}
     if unknown:
         raise MatrixConfigError(f'unknown configuration fields: {sorted(unknown)}')
+    try:
+        behavior = parse_behavior(document.get('behavior'))
+    except ValueError as exc:
+        raise MatrixConfigError(str(exc)) from exc
     dependencies = document.get('dependencies', [])
     if not isinstance(dependencies, list) or len(dependencies) > 128:
         raise MatrixConfigError('dependencies must be an array of at most 128 local JAR paths')
@@ -263,6 +270,7 @@ def load_matrix_config(path: Path, *, stream=None) -> MatrixConfig:
         timeout=timeout,
         stability_window=stability,
         max_parallel=parallel, dependencies=dependencies,
+        behavior=behavior,
         html_path=_resolve_path(options['html_report'], path.parent, 'options.html_report') if 'html_report' in options else None,
     )
 
@@ -450,6 +458,9 @@ def validate_matrix_preconditions(
 
 
 def validate_matrix_paths(config: MatrixConfig) -> None:
+    if config.behavior is not None and not isinstance(config.behavior, BehaviorPlan):
+        raise MatrixConfigError('MatrixConfig.behavior requires parse_behavior() output')
+    parse_behavior(config.behavior)
     validate_parallel(config.max_parallel)
     validate_output_paths(config.work_dir, config.cache_dir, config.protected_inputs, config.report_path)
     for lock in validate_report_locks([config.report_path, config.html_path], config.protected_inputs):
@@ -483,6 +494,8 @@ def _result_entry(environment: MatrixEnvironment, result: VerificationResult) ->
     primary_evidence = runtime_report or result.log_path or result.workdir
     if result.log_path and Path(result.log_path).is_file():
         primary_evidence = result.log_path
+    if result.behavior['verdict'] not in ('NOT_RUN', 'SKIPPED') and runtime_report:
+        primary_evidence = runtime_report
     return {
         "id": _environment_id(environment, result),
         "requested": environment.to_dict(),
@@ -493,6 +506,9 @@ def _result_entry(environment: MatrixEnvironment, result: VerificationResult) ->
             "java": result.metadata.get("java_runtime_version") or result.metadata.get("requested_java"),
         },
         "verdict": result.result,
+        "runtime_verdict": result.result,
+        "behavior": result.behavior,
+        "verification_passed": result.passed,
         "failure_stage": result.failure_stage,
         "reason": result.reason,
         'metadata': result.metadata,
@@ -537,6 +553,7 @@ def _run_matrix(config, verifier, progress, preflight, control):
         try:
             if control.cancelled:
                 result = VerificationResult(result='CANCELLED', failure_stage='cancelled', reason='cancelled before launch')
+                result.behavior = initial_behavior(config.behavior, 'cancelled before runtime prerequisite')
             else:
                 if progress:
                     with progress_lock:
@@ -547,6 +564,7 @@ def _run_matrix(config, verifier, progress, preflight, control):
                     cache_dir=config.cache_dir, timeout=config.timeout, stability=config.stability_window,
                     dependencies=list(config.dependencies), server=environment.server_spec,
                     control=control, environment_index=index,
+                    **({'behavior': config.behavior} if config.behavior else {}),
                 )
         except BaseException as exc:
             if isinstance(exc, KeyboardInterrupt):
@@ -556,6 +574,7 @@ def _run_matrix(config, verifier, progress, preflight, control):
                 result='UNKNOWN_FAILURE', failure_stage='internal',
                 reason=f'{type(exc).__name__}: {exc}',
                 metadata={'requested_java': environment.java})
+            result.behavior = initial_behavior(config.behavior, 'runtime execution failed internally')
         result.metadata.setdefault('server', get_provider(environment.server_spec.type).requested_metadata(environment.server_spec))
         if result.workdir:
             result.metadata.setdefault('protected_inputs', []).extend(str(p.resolve()) for p in config.protected_inputs)
@@ -571,7 +590,8 @@ def _run_matrix(config, verifier, progress, preflight, control):
         entry = _result_entry(environment, result)
         if not entry['primary_evidence']:
             entry['primary_evidence'] = str(config.report_path.resolve())
-        control.emit('environment_completed', index, verdict=result.result)
+        control.emit('environment_completed', index, verdict=result.result,
+                     behavior_verdict=result.behavior['verdict'], verification_passed=result.passed)
         return entry, errors, result.metadata
 
     completed = schedule(config.environments, worker, config.max_parallel, control)
@@ -583,12 +603,15 @@ def _run_matrix(config, verifier, progress, preflight, control):
         if not plugin_metadata.get('plugin_name'):
             plugin_metadata.update({k: v for k, v in metadata.items()
                                     if k.startswith('plugin_') or k in {'api_version', 'depend', 'softdepend', 'loadbefore'}})
-    passed = sum(entry['verdict'] == 'PASS' for entry in results)
+    passed = sum(entry['verification_passed'] for entry in results)
     report = {
         'pluginmatrix_version': __version__, 'report_schema': 1,
         'config_source': str(config.source_path.resolve()), 'plugin': plugin_metadata,
         'config': config.to_dict(), 'preflight': preflight or {}, 'environments': results,
         'summary': {'total': len(results), 'passed': passed, 'failed': len(results) - passed},
+        'runtime_summary': {'passed': sum(e['runtime_verdict'] == 'PASS' for e in results)},
+        'behavior_summary': {status: sum(e['behavior']['verdict'] == status for e in results)
+                             for status in ('PASS', 'FAIL', 'ERROR', 'TIMEOUT', 'CANCELLED', 'UNSUPPORTED', 'SKIPPED', 'NOT_RUN')},
         'internal_errors': sum(item[1] for item in completed), 'cancelled': control.cancelled,
         'artifacts': {'matrix_report': str(config.report_path.resolve()), 'runtime_root': str(config.work_dir.resolve())},
     }

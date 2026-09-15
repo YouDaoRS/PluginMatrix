@@ -19,6 +19,26 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def read_evidence_bytes(path: Path, limit: int) -> bytes:
+    """Bounded reads of regular, unlinked evidence files; never block on a FIFO."""
+    reject_links(path)
+    flags = os.O_RDONLY | getattr(os, 'O_BINARY', 0) | getattr(os, 'O_NONBLOCK', 0) | getattr(os, 'O_NOFOLLOW', 0)
+    descriptor = os.open(path, flags)
+    with os.fdopen(descriptor, 'rb') as stream:
+        info = os.fstat(stream.fileno())
+        current = path.lstat()
+        if (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1
+                or (info.st_dev, info.st_ino) != (current.st_dev, current.st_ino)
+                or stat.S_ISLNK(current.st_mode) or getattr(current, 'st_file_attributes', 0) & 0x400):
+            raise ValueError('evidence must be a regular file without links or path substitution')
+        if info.st_size > limit:
+            raise ValueError(f'evidence exceeds {limit} bytes')
+        data = stream.read(limit + 1)
+    if len(data) > limit:
+        raise ValueError(f'evidence exceeds {limit} bytes')
+    return data
+
+
 def protect_inputs(output: Path, inputs: Iterable[Path]) -> None:
     reject_links(output)
     output = output.resolve()

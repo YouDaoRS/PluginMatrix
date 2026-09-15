@@ -35,8 +35,11 @@ def build_probe_plugin(
     run_id: str = "",
     regionized: bool = False,
     standalone_api: bool = False,
+    behavior=None,
 ) -> Path:
-    """Compile a tiny read-only Bukkit plugin against the exact Paper artifact."""
+    """Compile the runtime probe and optional fixed behavior allowlist."""
+    from .behavior_probe import java_behavior
+    behavior_source, behavior_call = java_behavior(behavior, run_id, regionized)
     javac = resolve_javac(java_executable)
     if not javac:
         raise RuntimeError("a JDK javac executable is required to build the runtime probe")
@@ -140,7 +143,10 @@ public final class RuntimeProbe extends JavaPlugin {{
         }} catch (Exception exception) {{
             getLogger().severe("Unable to write runtime evidence: " + exception);
         }}
+        {behavior_call}
     }}
+
+    {behavior_source}
 
     private static String escape(String value) {{
         StringBuilder result = new StringBuilder();
@@ -226,12 +232,8 @@ def _extract_paper_libraries(paper_jar: Path, destination: Path, standalone_api:
 
 def read_probe_evidence(path: Path) -> dict[str, object] | None:
     try:
-        from .files import reject_links
-        reject_links(path)
-        with path.open('rb') as stream:
-            data = stream.read(16385)
-        if len(data) > 16384:
-            return None
+        from .files import read_evidence_bytes
+        data = read_evidence_bytes(path, 16384)
         payload = json.loads(data.decode('utf-8'))
     except (OSError, ValueError, RecursionError):
         return None

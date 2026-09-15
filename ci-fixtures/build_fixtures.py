@@ -12,6 +12,7 @@ from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
 
 FIXTURES = {
+    "behavior": "PluginMatrixBehavior.jar",
     "smoke": "PluginMatrixSmoke.jar",
     "enable-failure": "PluginMatrixEnableFailure.jar",
     "folia-success": "PluginMatrixFoliaSuccess.jar",

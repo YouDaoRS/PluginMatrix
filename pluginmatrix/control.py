@@ -49,7 +49,8 @@ class RunControl:
     def emit(self, kind: str, environment_index: int | None = None, **data) -> None:
         # Only bounded implementation-owned values; never configuration, paths or logs.
         safe = {k: v for k, v in data.items() if k in {
-            'total', 'completed', 'provider', 'verdict', 'elapsed', 'duration', 'max_parallel', 'cached'
+            'total', 'completed', 'provider', 'verdict', 'elapsed', 'duration', 'max_parallel', 'cached',
+            'checks', 'check_id', 'check_type', 'behavior_verdict', 'verification_passed'
         } and (type(v) in (int, float, bool) or isinstance(v, str) and len(v) <= 64)}
         with self._lock:
             if self._observer:
