@@ -1,5 +1,6 @@
 import io
 import json
+import os
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -18,7 +19,7 @@ class GuidedWebTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
         self.jar = make_plugin(self.root / "Example.jar", extra="commands:\n  ping:\n    description: Ping\n")
         self.app = WebApplication(self.root / "web", self.root / "cache")
         self.addCleanup(self.app.close)
@@ -27,6 +28,20 @@ class GuidedWebTests(unittest.TestCase):
         return {"schema": 2, "profile": {"id": "standard", "revision": 1}, "plugin": str(self.jar),
                 "environments": [{"server": {"type": "paper", "version": "1.20.1", "build": 196}, "java": "17"}],
                 "options": {"jdk_dir": str(self.root / "jdks")}, **extra}
+
+    @unittest.skipUnless(os.name == "nt", "Windows 8.3 path aliases")
+    def test_windows_short_path_alias_is_canonicalized(self):
+        import ctypes
+        directory = self.root / "Long directory name for short path"
+        directory.mkdir()
+        buffer = ctypes.create_unicode_buffer(32768)
+        length = ctypes.windll.kernel32.GetShortPathNameW(str(directory), buffer, len(buffer))
+        if not length or length >= len(buffer) or buffer.value == str(directory):
+            self.skipTest("8.3 aliases unavailable on this filesystem")
+        app = WebApplication(Path(buffer.value) / "web", Path(buffer.value) / "cache")
+        self.addCleanup(app.close)
+        self.assertEqual(app.state_dir, (directory / "web").resolve())
+        self.assertEqual(app.cache_dir, (directory / "cache").resolve())
 
     def test_guided_import_export_preserves_profile_managed_id_options_and_edited_behavior(self):
         ident = "temurin-17-windows-x64-" + "a" * 64

@@ -64,6 +64,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: standalone-${{ matrix.platform }}-${{ matrix.architecture }}
+          include-hidden-files: true
           path: |
             dist/standalone/pluginmatrix-*.zip
             dist/standalone/pluginmatrix-*.tar.gz

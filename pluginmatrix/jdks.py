@@ -210,13 +210,31 @@ def _remove_tree(root: Path, path: Path):
         shutil.rmtree(path)
 
 
+def _tar_link_target(name: str, target: str) -> str:
+    """Resolve a TAR symlink lexically within its single top-level JDK tree."""
+    if (not isinstance(target, str) or not target or len(target) > 512
+            or target.startswith('/') or '\\' in target or ':' in target
+            or any(ord(c) < 32 for c in target)):
+        raise ValueError('unsafe JDK TAR link target')
+    parts = name.split('/')[:-1]
+    if not parts:
+        raise ValueError('JDK TAR link must stay within its top-level directory')
+    for part in target.split('/'):
+        if part == '..':
+            if len(parts) <= 1:
+                raise ValueError('JDK TAR link escapes its top-level directory')
+            parts.pop()
+        elif part != '.':
+            parts.append(_relative(part))
+    return _relative('/'.join(parts))
+
+
 def _extract(archive: Path, destination: Path, control: RunControl):
-    """Extract regular files only. Archive links are rejected, never followed."""
+    """Create only regular files; direct internal TAR symlinks become copies."""
     destination.mkdir()
     seen, spelling, expanded = set(), {}, 0
 
-    def copy(name, size, directory, mode, source):
-        nonlocal expanded
+    def reserve(name):
         control.check()
         name = _relative(name)
         key = name.casefold()
@@ -228,6 +246,12 @@ def _extract(archive: Path, destination: Path, control: RunControl):
             if spelling.setdefault(unicodedata.normalize('NFC', prefix).casefold(), prefix) != prefix:
                 raise ValueError('case-colliding JDK archive parent paths')
         seen.add(key)
+        return name
+
+    def copy(name, size, directory, mode, source, *, reserved=False):
+        nonlocal expanded
+        control.check()
+        name = name if reserved else reserve(name)
         expanded += size
         if size < 0 or expanded > MAX_EXPANDED:
             raise ValueError('JDK archive exceeds 2 GiB expanded limit')
@@ -265,15 +289,34 @@ def _extract(archive: Path, destination: Path, control: RunControl):
                     with jar.open(entry) as source:
                         copy(entry.orig_filename, entry.file_size, False, mode, source)
     else:
+        regular, links = {}, []
         with tarfile.open(archive, 'r|gz') as tar:
             for entry in tar:
-                if not entry.isfile() and not entry.isdir():
-                    raise ValueError('JDK TAR links and special files are unsupported')
-                if entry.isdir():
+                if entry.issym():
+                    name = reserve(entry.name)
+                    if entry.size != 0:
+                        raise ValueError('JDK TAR links must have no payload')
+                    links.append((name, _tar_link_target(name, entry.linkname)))
+                elif entry.isdir():
                     copy(entry.name, 0, True, entry.mode, None)
-                else:
+                elif entry.isfile():
                     with tar.extractfile(entry) as source:
                         copy(entry.name, entry.size, False, entry.mode, source)
+                    regular[_relative(entry.name)] = (entry.size, entry.mode)
+                else:
+                    raise ValueError('JDK TAR hardlinks and special files are unsupported')
+        # Only original regular members qualify, so link chains/cycles and
+        # directory links cannot influence extraction paths or escape the tree.
+        for name, target in links:
+            if target not in regular:
+                raise ValueError('JDK TAR link must target a direct regular archive member')
+            size, mode = regular[target]
+            source_path = _checked_child(destination, target)
+            with source_path.open('rb') as source:
+                info = os.fstat(source.fileno())
+                if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_size != size:
+                    raise ValueError('JDK TAR link source changed during extraction')
+                copy(name, size, False, mode, source, reserved=True)
 
 
 class JdkStore:

@@ -26,7 +26,7 @@ class JdkTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
         self.system, self.arch = host_platform()
         self.suffix = '.exe' if self.system == 'windows' else ''
         self.store = JdkStore(self.root/'jdks')
@@ -262,6 +262,58 @@ class JdkTests(unittest.TestCase):
             with tempfile.TemporaryDirectory(dir=self.root) as directory:
                 with self.assertRaises(ValueError):
                     _extract(archive, Path(directory)/'payload', RunControl())
+
+    def tar_members(self, members):
+        archive = self.root / 'links.tar.gz'
+        with tarfile.open(archive, 'w:gz') as tar:
+            for name, kind, value in members:
+                entry = tarfile.TarInfo(name)
+                entry.type, entry.mode = kind, 0o644
+                if kind == tarfile.REGTYPE:
+                    entry.size = len(value)
+                    tar.addfile(entry, io.BytesIO(value))
+                else:
+                    entry.linkname = value
+                    tar.addfile(entry)
+        return archive
+
+    def test_tar_internal_license_links_become_bounded_regular_copies(self):
+        archive = self.tar_members([
+            ('jdk/legal/module/LICENSE', tarfile.SYMTYPE, '../java.base/LICENSE'),
+            ('jdk/legal/java.base/LICENSE', tarfile.REGTYPE, b'license'),
+        ])
+        payload = self.root / 'payload'
+        _extract(archive, payload, RunControl())
+        original = payload / 'jdk/legal/java.base/LICENSE'
+        copied = payload / 'jdk/legal/module/LICENSE'
+        self.assertEqual(copied.read_bytes(), b'license')
+        self.assertFalse(copied.is_symlink())
+        self.assertEqual(copied.stat().st_nlink, 1)
+        self.assertFalse(copied.samefile(original))
+        with patch('pluginmatrix.jdks.MAX_EXPANDED', 13), self.assertRaisesRegex(ValueError, 'expanded'):
+            _extract(archive, self.root / 'bounded', RunControl())
+        self.assertFalse((self.root / 'bounded/jdk/legal/module/LICENSE').exists())
+
+    def test_tar_links_reject_escape_missing_directory_chain_and_collision(self):
+        cases = [
+            [('jdk/link', tarfile.SYMTYPE, target)]
+            for target in ('/absolute', '../../outside', '../outside', 'C:/escape',
+                           '..\\outside', 'missing', 'CON', './', 'link')
+        ]
+        cases += [
+            [('jdk/dir', tarfile.DIRTYPE, ''), ('jdk/link', tarfile.SYMTYPE, 'dir')],
+            [('jdk/file', tarfile.REGTYPE, b'x'), ('jdk/first', tarfile.SYMTYPE, 'file'),
+             ('jdk/second', tarfile.SYMTYPE, 'first')],
+            [('jdk/first', tarfile.SYMTYPE, 'second'), ('jdk/second', tarfile.SYMTYPE, 'first')],
+            [('jdk/file', tarfile.REGTYPE, b'x'), ('jdk/FILE', tarfile.SYMTYPE, 'file')],
+            [('jdk/file', tarfile.REGTYPE, b'x'), ('jdk/link', tarfile.LNKTYPE, 'jdk/file')],
+            [('jdk/a', tarfile.SYMTYPE, 'file'), ('jdk/a/file', tarfile.REGTYPE, b'x')],
+        ]
+        for members in cases:
+            with self.subTest(members=members), tempfile.TemporaryDirectory(dir=self.root) as directory:
+                archive = self.tar_members(members)
+                with self.assertRaises((ValueError, OSError)):
+                    _extract(archive, Path(directory) / 'payload', RunControl())
 
     def test_preview_pin_cannot_silently_change_download(self):
         with patch('pluginmatrix.application.resolve_package', return_value=self.package), \

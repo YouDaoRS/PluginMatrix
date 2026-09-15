@@ -9,6 +9,15 @@ acceptance and [GUIDED_SETUP.md](GUIDED_SETUP.md) for the user workflow. The old
 Web schema-2 guard and JSON-only CLI limitation described below were removed
 by the product integration, using the same shared core contracts.
 
+RC1 portability update: TAR symlinks are accepted only when they resolve
+lexically within the same top-level JDK directory to an original regular archive
+member. They are materialized as independent regular copies, charged against the
+same entry/expanded-size limits and included in the manifest. Forward references
+are supported; directory links, chains/cycles, escapes, hardlinks, special files
+and ZIP links remain rejected. No filesystem links are created. This supersedes
+the historical all-archive-links rejection below. Native acceptance is recorded
+in STATUS.md.
+
 ## Invariants
 
 - The existing Runtime Verifier, Behavior protocol, five check types, fresh

@@ -23,7 +23,14 @@
 - 一次完整本机 RC 离线验证共 267 项：258 passed / 9 平台型 skips；包含实际 sdist/wheel
   构建与归档排除检查。`compileall`、JavaScript syntax 和 `git diff --check` 通过。
   首次并发编译遇到 Windows pyc 临时锁，测试结束后单独编译通过，没有重复完整测试。
-- native 冻结验收等待开发候选提交的 hosted workflow；未完成项不记作通过。
+- 首轮候选 `57f49ae` 的 hosted CI 在 Ubuntu 通过，Windows 暴露 8.3 路径别名；
+  native 冻结 Gate 在 Windows x64 通过，Linux 暴露官方 TAR 内部许可证链接，
+  macOS 暴露测试临时目录 `/var` 别名。已针对这三项修复并补充回归：
+  32 项局部测试中 31 passed / 1 本机权限 skip；没有重复完整本机 RC 或浏览器测试。
+  修复后的 hosted/native 结果待记录，未完成项不记作通过。
+- TAR 仅将同一顶层 JDK 目录中指向原始普通成员的内部符号链接物化为普通副本；
+  链接链/循环、目录链接、逃逸、硬链接和特殊文件仍拒绝，安装树继续完全无链接。
+  Gate artifact 上传显式包含白名单中的隐藏 `.pluginmatrix` 证据，不上传 JDK 安装树。
 
 本轮沿用 Astra 已验证的 Runtime、Behavior、分析和 profile 合同，不重复完整 Provider Gate。
 新增跨平台冻结 Gate 直接验证官方托管 JDK 的下载/解压/Java/Javac/manifest、

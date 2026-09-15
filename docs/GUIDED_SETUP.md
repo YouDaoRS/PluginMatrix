@@ -57,6 +57,9 @@ This development branch is not a published release.
 及来源，再点击下载。使用的是可移动归档，不执行 MSI 或系统安装器，不修改系统 Java。
 `not_checked` 只表示列出了 receipt；“校验完整性”会验证整个已解压树，运行前也会校验。
 运行中的托管 JDK 有跨进程租约，删除会被拒绝。
+Linux/macOS TAR 中指向同一 JDK 目录内普通归档文件的符号链接会转换为独立副本，
+计入解压限额及完整性清单。越界、目录链接、链接链/循环、硬链接和特殊文件仍拒绝，
+安装目录不创建文件系统链接。
 
 缓存目录可以在高级模式中明确指定。导入配置的 `java.managed` 和 `options.jdk_dir`
 是一组引用，不能只把它替换为 executable 路径。
@@ -108,6 +111,9 @@ application's combined result. A one-environment retry removes only an inapplica
 Temurin installation is an explicit preview/download action using official metadata,
 size/SHA-256 verification, bounded extraction, atomic publication and per-process leases.
 No system Java settings change. A listing is not a fresh integrity verification.
+Direct internal TAR symlinks become independent, bounded, manifest-checked regular
+copies. Escapes, directory links, link chains/cycles, hardlinks and special files
+are rejected; installed trees contain no filesystem links.
 Server cache deletion is limited to recognized JAR/receipt pairs; persistent locks,
 bootstrap caches and unrelated files remain. There is no recursive cleanup button.
 

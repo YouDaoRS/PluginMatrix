@@ -157,6 +157,9 @@ class WebApplication:
         reject_links(self.state_dir)
         reject_links(self.cache_dir)
         self.state_dir.mkdir(parents=True, exist_ok=True)
+        # Normalize Windows 8.3 aliases only after rejecting links/reparse points.
+        self.state_dir = self.state_dir.resolve()
+        self.cache_dir = self.cache_dir.resolve()
         self._uploads = tempfile.TemporaryDirectory(prefix="pluginmatrix-web-")
         self.upload_root = Path(self._uploads.name).resolve()
         self._files: dict[str, Path] = {}
