@@ -424,6 +424,13 @@ def normalize_configuration(document: dict, *, source_path: Path) -> dict:
     return {'schema': GUIDED_API_VERSION, 'configuration': config.to_dict()}
 
 
+def normalize_configuration_text(text: str, *, source_path: Path) -> dict:
+    from .matrix import _unique_object
+    if not isinstance(text, str) or len(text.encode("utf-8")) > 1024 * 1024:
+        raise ValueError("configuration must be at most 1 MiB of JSON")
+    return normalize_configuration(json.loads(text, object_pairs_hook=_unique_object), source_path=source_path)
+
+
 def run_configuration(document: dict, *, source_path: Path, control=None, progress=None) -> dict:
     """Single or multiple environments use the same Matrix/Runtime implementation."""
     config = parse_matrix_config(document, source_path=source_path)
@@ -457,7 +464,18 @@ def recommend_setup(*, plugin: Path, dependencies=(), minecraft=None, provider=N
 
 
 def inspect_managed_jdks(root=Path('.pluginmatrix/jdks')) -> dict:
-    return JdkStore(root).list()
+    result = JdkStore(root).list()
+    staging = Path(root).expanduser().absolute() / "staging"
+    reject_links(staging)
+    result["staging"] = []
+    if staging.exists():
+        for index, entry in enumerate(staging.iterdir()):
+            if index >= 256:
+                result["staging_truncated"] = True
+                break
+            result["staging"].append({"name": entry.name, "status": "incomplete_or_active",
+                                      "removable": False})
+    return result
 
 
 def preview_managed_jdk(major: int) -> dict:
@@ -477,3 +495,34 @@ def install_managed_jdk(major: int, *, root=Path('.pluginmatrix/jdks'), expected
 
 def delete_managed_jdk(ident: str, *, root=Path('.pluginmatrix/jdks')) -> dict:
     return JdkStore(root).delete(ident)
+
+
+def verify_managed_jdk(ident: str, *, root=Path('.pluginmatrix/jdks'), control=None) -> dict:
+    with JdkStore(root).lease(ident, control) as record:
+        return record
+
+
+def inspect_server_cache(root=Path('.pluginmatrix/cache')) -> dict:
+    from .server_cache import inspect
+    return inspect(root)
+
+
+def manage_server_cache(ident: str, *, root=Path('.pluginmatrix/cache'), delete=False) -> dict:
+    from .server_cache import manage
+    return manage(ident, root, delete=delete)
+
+
+def download_server_cache(server: dict, *, root=Path('.pluginmatrix/cache'), control=None) -> dict:
+    from .server_cache import download
+    return download(server, root, control)
+
+
+def inspect_download_caches(cache_dir, jdk_dir) -> dict:
+    def bounded_result(function, root, empty):
+        try:
+            return function(root)
+        except (OSError, ValueError) as exc:
+            return {"schema": 1, **empty, "warnings": [str(exc)[:4096]]}
+    return {"jdk_directory": str(jdk_dir),
+            "jdks": bounded_result(inspect_managed_jdks, jdk_dir, {"jdks": [], "staging": []}),
+            "servers": bounded_result(inspect_server_cache, cache_dir, {"entries": []})}

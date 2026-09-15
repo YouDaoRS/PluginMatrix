@@ -1,0 +1,18 @@
+{
+  "schema": 2,
+  "profile": {"id": "standard", "revision": 1},
+  "plugin": "../ci-fixtures/PluginMatrixSmoke.jar",
+  "environments": [
+    {"server": {"type": "paper", "version": "1.20.1", "build": 196}, "java": 17}
+  ],
+  "behavior": {
+    "schema": 1,
+    "checks": [{"id": "settle", "type": "wait", "seconds": 1, "timeout": 5}]
+  },
+  "options": {
+    "work_dir": "../.pluginmatrix/runs",
+    "cache_dir": "../.pluginmatrix/cache",
+    "report": "../.pluginmatrix/guided-standard.json",
+    "html_report": "../.pluginmatrix/guided-standard.html"
+  }
+}

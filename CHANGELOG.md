@@ -2,6 +2,18 @@
 
 PluginMatrix follows the version policy in `docs/VERSIONING.md`. No entry below implies that a Git tag, GitHub Release, or PyPI release exists. Earlier entries without dates were development milestones rather than formal releases.
 
+## 0.9.0rc1 - 2026-09-15
+
+- Integrate Guided Setup: local JAR analysis and dependency diagnostics, explicit Minecraft target, explained official build/JDK recommendations, versioned profiles and editable safe Behavior suggestions.
+- Add a compact local Web wizard, guided/advanced views, light/dark/system themes, English/Simplified Chinese, and responsive review and result pages.
+- Preserve schema 2, immutable profile revisions, opaque managed JDK IDs/storage, explicit checks and options through import, JSON editing, export, saved projects and reruns. Unknown fields and duplicate JSON keys remain errors.
+- Persist local projects and bounded run history, input/configuration hashes and immutable artifact identities. Restore failed environments from the application's combined result, never from a new Web verdict.
+- Expose explicit Temurin preview/download/integrity/removal and ID-based official server JAR cache management. System Java, third-party plugins, lock files and runtime bootstrap trees are not deleted or auto-installed.
+- Add readable CLI analysis/profile/recommendation/JDK output, `jdk verify`, guided init dependency/JDK/Behavior options, user guides and profile examples.
+- Extend native frozen CLI/Web acceptance to managed JDK acquisition, integrity, schema-2 execution and removal, including Linux arm64.
+
+This is a development-branch candidate only. No Tag, Release or package-index publication.
+
 ## 0.8.0 - 2026-09-15
 
 - Add bounded Behavioral Verification after the full runtime stability window, with typed registration, console-command return, service, permission and wait checks plus a fresh post-check health barrier.

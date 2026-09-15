@@ -28,7 +28,7 @@ def request_json(url: str, cookie: str, token: str, payload: dict | None = None)
         return json.load(response)
 
 
-def verify_web(executable: Path, java: str, evidence: Path) -> dict:
+def verify_web(executable: Path, java: str, evidence: Path, jdk_dir: Path | None = None) -> dict:
     with socket.socket() as probe:
         probe.bind(("127.0.0.1", 0))
         port = probe.getsockname()[1]
@@ -66,6 +66,19 @@ def verify_web(executable: Path, java: str, evidence: Path) -> dict:
                 {"id": "settle", "type": "wait", "seconds": 1, "timeout": 5}
             ]},
         }
+        if jdk_dir:
+            payload.pop("mode")
+            payload.update(schema=2, profile={"id": "standard", "revision": 1})
+            payload["options"]["jdk_dir"] = str(jdk_dir)
+            payload["environments"][0]["java"] = {"managed": java.removeprefix("managed:")}
+            payload = {"configuration": payload}
+            normalized = request_json(base + "/api/config/normalize", cookie, token, payload)
+            assert normalized["configuration"]["profile"]["revision"] == 1
+            profiles = request_json(base + "/api/profiles", cookie, token)
+            assert len(profiles["profiles"]) == 4
+            analysis = request_json(base + "/api/guided/analyze", cookie, token,
+                                    {"plugin": str(ROOT / "ci-fixtures" / "PluginMatrixSmoke.jar")})
+            assert analysis["valid"]
         job = request_json(base + "/api/jobs", cookie, token, payload)
         deadline = time.monotonic() + 180
         while job["status"] in {"queued", "running", "cancelling"}:
@@ -79,8 +92,19 @@ def verify_web(executable: Path, java: str, evidence: Path) -> dict:
                 or environment.get("verification_passed") is not True):
             raise RuntimeError(f"frozen Web UI did not return the application PASS: {job!r}")
         labels = {item["label"] for item in job.get("artifacts", [])}
-        if labels != {"JSON report", "HTML report", "server.log", "behavior runtime probe"}:
+        expected = ({"Matrix JSON report", "Matrix HTML report", "Environment 1 JSON report",
+                     "Environment 1 server.log", "Environment 1 behavior runtime probe"} if jdk_dir else
+                    {"JSON report", "HTML report", "server.log", "behavior runtime probe"})
+        if labels != expected:
             raise RuntimeError(f"frozen Web UI artifact allowlist is incomplete: {sorted(labels)!r}")
+        if jdk_dir:
+            restored = request_json(base + f"/api/jobs/{job['id']}/restore", cookie, token, {})
+            assert restored["configuration"]["environments"][0]["java"] == {"managed": java.removeprefix("managed:")}
+            assert restored["configuration"]["behavior"]["checks"][0]["id"] == "settle"
+            for artifact in job["artifacts"]:
+                request = urllib.request.Request(base + artifact["url"], headers={"Cookie": cookie})
+                with urllib.request.urlopen(request, timeout=10) as response:
+                    assert response.status == 200
         return {"job": job["id"], "runtime_verdict": "PASS", "behavior_verdict": "PASS",
                 "verification_passed": True, "artifacts": sorted(labels)}
     finally:
@@ -103,6 +127,24 @@ def main(argv: list[str] | None = None) -> int:
         bundle = matches[0]
     executable = bundle / executable_name
     evidence = ROOT / ".pluginmatrix" / "standalone-gate"
+    evidence.mkdir(parents=True, exist_ok=True)
+    jdk_dir = evidence / "managed-jdks"
+    def invoke_json(*arguments, timeout=700):
+        completed = subprocess.run([str(executable), *arguments, "--json"], cwd=ROOT,
+                                   capture_output=True, text=True, timeout=timeout)
+        if completed.returncode:
+            raise RuntimeError(f"frozen guided command failed: {arguments[0:2]}\n{completed.stdout}\n{completed.stderr}")
+        return json.loads(completed.stdout)
+    before = {key: os.environ.get(key) for key in ("PATH", "JAVA_HOME", "JDK_HOME")}
+    preview = invoke_json("jdk", "preview", "--major", "17")
+    (evidence / "jdk-preview.json").write_text(json.dumps(preview, indent=2), encoding="utf-8")
+    installed = invoke_json("jdk", "install", "--major", "17", "--id", preview["package"]["id"],
+                            "--directory", str(jdk_dir))
+    (evidence / "jdk-install.json").write_text(json.dumps(installed, indent=2), encoding="utf-8")
+    assert installed["integrity"] == "verified"
+    verified = invoke_json("jdk", "verify", "--id", installed["id"], "--directory", str(jdk_dir))
+    assert verified["major"] == 17 and verified["integrity"] == "verified"
+    managed_java = "managed:" + installed["id"]
     report = evidence / "result.json"
     html = evidence / "result.html"
     behavior = evidence / "behavior.json"
@@ -113,7 +155,8 @@ def main(argv: list[str] | None = None) -> int:
     command = [
         str(executable), "test",
         "--plugin", str(ROOT / "ci-fixtures" / "PluginMatrixSmoke.jar"),
-        "--server", "paper", "--minecraft", "1.20.1", "--build", "196", "--java", args.java,
+        "--server", "paper", "--minecraft", "1.20.1", "--build", "196", "--java", managed_java,
+        "--jdk-dir", str(jdk_dir), "--profile", "quick",
         "--timeout", "120", "--stability-window", "2",
         "--work-dir", str(evidence / "runs"), "--cache-dir", str(ROOT / ".pluginmatrix" / "cache"),
         "--report", str(report), "--html", str(html),
@@ -128,7 +171,15 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit(f"frozen result lacks PASS/probe evidence: {result.get('result')!r}")
     if not html.is_file() or not Path(result.get("log_path", "")).is_file():
         raise SystemExit("frozen runtime did not preserve HTML report and server.log")
-    web = verify_web(executable, args.java, evidence)
+    web = verify_web(executable, managed_java, evidence, jdk_dir)
+    deleted = invoke_json("jdk", "remove", "--id", installed["id"], "--directory", str(jdk_dir))
+    assert deleted["deleted"]
+    assert invoke_json("jdk", "list", "--directory", str(jdk_dir))["jdks"] == []
+    assert before == {key: os.environ.get(key) for key in before}
+    (evidence / "guided-summary.json").write_text(json.dumps({
+        "jdk": installed, "deleted": deleted, "system_java_unchanged": True, "web": web,
+        "runtime_verdict": result["runtime_verdict"], "behavior_verdict": result["behavior"]["verdict"]
+    }, indent=2), encoding="utf-8")
     print(json.dumps({"runtime_verdict": result["runtime_verdict"], "behavior_verdict": result["behavior"]["verdict"],
                       "verification_passed": result["verification_passed"], "report": str(report), "html": str(html), "web": web}, indent=2))
     return 0

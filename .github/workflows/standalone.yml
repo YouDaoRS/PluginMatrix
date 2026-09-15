@@ -32,6 +32,9 @@ jobs:
           - os: ubuntu-22.04
             platform: linux
             architecture: x86_64
+          - os: ubuntu-24.04-arm
+            platform: linux
+            architecture: arm64
           - os: macos-15-intel
             platform: macos
             architecture: x86_64
@@ -50,6 +53,8 @@ jobs:
           java-version: '17'
       - name: Install package and standalone builder
         run: python -m pip install -e ".[standalone]"
+      - name: Native guided integration and JDK filesystem regressions
+        run: python -m unittest discover -s tests -p "test_jdks.py" -v
       - name: Build and smoke-test compressed bundle
         run: python standalone/build.py --java 17
       - name: Exercise Provider, runtime probe, report, log, and Web resources from frozen CLI
@@ -65,10 +70,15 @@ jobs:
             dist/standalone/pluginmatrix-*.sha256
             .pluginmatrix/standalone-gate/result.json
             .pluginmatrix/standalone-gate/result.html
+            .pluginmatrix/standalone-gate/jdk-preview.json
+            .pluginmatrix/standalone-gate/jdk-install.json
+            .pluginmatrix/standalone-gate/guided-summary.json
             .pluginmatrix/standalone-gate/runs/**/server.log
             .pluginmatrix/standalone-gate/runs/**/server/plugins/pluginmatrix-runtime-probe.json
             .pluginmatrix/standalone-gate/runs/**/server/plugins/pluginmatrix-behavior-response.json
             .pluginmatrix/standalone-gate/web-state/reports/*
+            .pluginmatrix/standalone-gate/web-state/configs/*.json
+            .pluginmatrix/standalone-gate/web-state/history/*.json
             .pluginmatrix/standalone-gate/web-state/runs/**/server.log
             .pluginmatrix/standalone-gate/web-state/runs/**/server/plugins/pluginmatrix-runtime-probe.json
             .pluginmatrix/standalone-gate/web-state/runs/**/server/plugins/pluginmatrix-behavior-response.json

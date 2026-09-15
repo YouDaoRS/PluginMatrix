@@ -134,6 +134,127 @@ const messages = {
   }
 };
 
+Object.assign(messages.en, {
+  localScope: "Local execution & verification scope", choosePlugin: "Choose plugin JAR", noPluginSelected: "No plugin selected",
+  useLocalPath: "Use an existing local path", localDependencies: "Local dependency JARs", analyzeNext: "Analyze & continue",
+  selectedEnvironment: "Selected environment", runSummary: "Startup {timeout} s · Stability {stability} s · Concurrency {parallel}",
+  incompleteDownloads: "Incomplete or active staging (not installed)", diag_MISSING_DEPENDENCY: "Provide the local JAR for {name}, required by {plugin}.",
+  diag_DEPENDENCY_CASE_MISMATCH: "Correct the declared dependency name and capitalization: {plugin} / {name}.",
+  diag_OPTIONAL_DEPENDENCY_ABSENT: "Optional local dependency not supplied: {name} ({plugin}).",
+  diag_DEPENDENCY_CYCLE: "Resolve the required-dependency cycle before running.", diag_IDENTITY_CONFLICT: "Resolve duplicate plugin names, file names or provides aliases.",
+  diag_STATIC_ANALYSIS_FAILED: "Correct the JAR or descriptor error shown in the recorded evidence.",
+  appearance: "Appearance", systemTheme: "System", lightTheme: "Light", darkTheme: "Dark",
+  verifyTab: "Verify", projectsTab: "Projects & history", cacheTab: "Downloads & cache",
+  simpleMode: "Guided", advancedMode: "Advanced", profile: "Verification profile", customProfile: "Custom / legacy",
+  wizardInput: "1. Plugin", wizardEnvironment: "2. Environment", wizardReview: "3. Review & run",
+  analyzeContinue: "Analyze plugin", continueEnvironment: "Choose environment", recommendEnvironment: "Check official recommendation",
+  applyRecommendation: "Use reviewed recommendation", prepareReview: "Prepare review", manageJdks: "Manage JDKs",
+  jdkDirectory: "Managed JDK directory", configurationEditor: "Configuration import / export", selectConfig: "Select JSON configuration",
+  applyJson: "Validate & apply JSON", projectName: "Project name", saveProject: "Save project", refresh: "Refresh",
+  searchHistory: "Filter by name, version or result", savedProjects: "Saved projects", runHistory: "Run history",
+  managedJdks: "Managed Temurin JDKs", jdkMajor: "JDK major version", previewOfficial: "Preview official package",
+  downloadReviewed: "Download reviewed JDK", serverCache: "Server download cache", downloadServer: "Download fixed official build",
+  retryFailed: "Restore failed environments", trustInputs: "I trust these local JARs and accept the Minecraft EULA.",
+  trustRequired: "Confirm that you trust the JARs and accept the Minecraft EULA before running.",
+  profile_quick: "One environment. Startup 120 s; stability 5 s. No automatic Behavior checks.",
+  profile_standard: "One environment. Startup 180 s; stability 10 s. Review command and permission registration checks.",
+  profile_matrix: "2-256 explicit environments. Startup 180 s; stability 10 s. Concurrency 1-8.",
+  profile_strict: "Fixed builds, complete supported static analysis and at least 30 s stability. Not a full compatibility guarantee.",
+  profile_custom: "Explicit configuration; no profile defaults or automatic checks.",
+  analysisReady: "Static prerequisites satisfied", analysisBlocked: "Static prerequisites need attention",
+  staticScope: "Static analysis is not a runtime PASS or a safety guarantee.",
+  dependenciesTitle: "Local dependency diagnostics", suggestionsTitle: "Suggested registration checks",
+  omissions: "Omitted declarations", recommendationReady: "Recommendation ready for review", recommendationBlocked: "Unresolved prerequisites",
+  recommendationScope: "Recommendation only. No compatibility verdict has been assigned.",
+  emptyProjects: "No saved projects.", emptyHistory: "No verification runs yet.", emptyCache: "No recognized cached packages.",
+  openProject: "Open project", viewResult: "View result", restoreRun: "Restore configuration",
+  projectSaved: "Project saved locally.", changedInputs: "Inputs have changed or are missing: {paths}. Re-analyze before running.",
+  managedIntegrity: "Integrity: {state}", verifyIntegrity: "Verify integrity", deleteCache: "Delete",
+  confirmDelete: "Delete only this managed cache entry? {name}", source: "Source", pendingOperation: "Cache operation in progress...",
+  operationComplete: "Cache operation completed.", noRecommendation: "Review a current, resolved recommendation first.",
+  staleRecommendation: "Inputs changed. Request a fresh recommendation.", reviewRequired: "Configuration prepared. Review the profile, environment and checks.",
+  checksReviewed: "Registration checks only; no console commands are generated.",
+  scopeNotice: "Local execution, no remote uploads. Saving or running keeps selected JAR copies and evidence in the local project store. JARs execute with your OS permissions. PASS covers only the recorded runtime and declared Behavior checks; not all functionality or Folia thread safety.",
+  configGenerated: "Configuration normalized. Save a project to retain browser-selected JARs across sessions.",
+  jdkStorageScope: "Only managed entries can be deleted. System Java, persistent locks and server bootstrap caches are retained.",
+  originalReason: "Recorded reason", nextSteps: "Next steps", sourceHash: "Configuration SHA-256",
+  javaUnknown: "No reviewed Java baseline for this target. Select and validate a full JDK explicitly.",
+  managedSelection: "Managed JDK (verified before use)", configEdited: "JSON has unapplied edits.",
+  event_jdk_download_started: "Downloading the reviewed Temurin JDK.", event_jdk_download_completed: "JDK archive checksum verified.",
+  event_jdk_installed: "Managed JDK installed and verified.", nativePlatform: "Platform",
+  fix_ENVIRONMENT_INVALID: "Check the recorded prerequisite. Select a matching full JDK with javac; provide missing dependencies as local JARs.",
+  fix_SERVER_START_FAILED: "Open server.log and check the first server/bootstrap error. Confirm the fixed build and required upstream downloads.",
+  fix_SERVER_START_TIMEOUT: "Inspect server.log for download or startup progress before changing the timeout.",
+  fix_PLUGIN_NOT_DISCOVERED: "Check plugin.yml, the declared name and the target JAR identity against the report.",
+  fix_PLUGIN_LOAD_FAILED: "Inspect the load exception and supply declared local dependencies; correct the plugin descriptor or bytecode target.",
+  fix_PLUGIN_ENABLE_FAILED: "Inspect the onEnable exception and the plugin's local configuration and dependencies.",
+  fix_PLUGIN_DISABLED: "Inspect the disable reason and the last fresh probe sample; fix the reported plugin prerequisite.",
+  fix_PLUGIN_UNSUPPORTED: "Use a supported server target. Only declare Folia support after implementing and validating its threading contract.",
+  fix_UNKNOWN_FAILURE: "Inspect the original report, server.log and probe evidence. Do not infer success from missing evidence.",
+  fix_CANCELLED: "Restore the configuration and start a new isolated run when ready.",
+  fix_BEHAVIOR: "Review the failed check's typed observation and post-check health. Correct the plugin or the explicit assertion; runtime PASS remains separate."
+});
+Object.assign(messages["zh-CN"], {
+  localScope: "本地执行与验证范围", choosePlugin: "选择插件 JAR", noPluginSelected: "尚未选择插件",
+  useLocalPath: "使用已有的本地路径", localDependencies: "本地依赖插件 JAR", analyzeNext: "分析并继续",
+  selectedEnvironment: "本次验证环境", runSummary: "启动超时 {timeout} 秒 · 稳定观察 {stability} 秒 · 并发 {parallel}",
+  incompleteDownloads: "未完成或正在下载的暂存条目（尚未安装）", diag_MISSING_DEPENDENCY: "{plugin} 缺少依赖 {name}，请提供对应的本地 JAR。",
+  diag_DEPENDENCY_CASE_MISMATCH: "请修正依赖声明名称及大小写：{plugin} / {name}。",
+  diag_OPTIONAL_DEPENDENCY_ABSENT: "尚未提供可选本地依赖：{name}（{plugin}）。",
+  diag_DEPENDENCY_CYCLE: "必需依赖存在循环，请修正后再运行。", diag_IDENTITY_CONFLICT: "请修正重复的插件名称、文件名或 provides 别名。",
+  diag_STATIC_ANALYSIS_FAILED: "请根据原始证据修正 JAR 或描述符错误。",
+  appearance: "外观", systemTheme: "跟随系统", lightTheme: "浅色", darkTheme: "深色",
+  verifyTab: "验证", projectsTab: "项目与历史", cacheTab: "下载与缓存",
+  simpleMode: "简单向导", advancedMode: "高级模式", profile: "验证方案", customProfile: "自定义 / 旧版",
+  wizardInput: "1. 插件", wizardEnvironment: "2. 环境", wizardReview: "3. 确认并运行",
+  analyzeContinue: "分析插件", continueEnvironment: "选择运行环境", recommendEnvironment: "查询官方环境建议",
+  applyRecommendation: "采用已确认的建议", prepareReview: "生成待确认配置", manageJdks: "管理 JDK",
+  jdkDirectory: "托管 JDK 目录", configurationEditor: "导入 / 导出配置", selectConfig: "选择 JSON 配置文件",
+  applyJson: "校验并应用 JSON", projectName: "项目名称", saveProject: "保存项目", refresh: "刷新",
+  searchHistory: "按名称、版本或结果筛选", savedProjects: "已保存项目", runHistory: "运行历史",
+  managedJdks: "托管 Temurin JDK", jdkMajor: "JDK 主版本", previewOfficial: "预览官方安装包",
+  downloadReviewed: "下载已确认的 JDK", serverCache: "服务端下载缓存", downloadServer: "下载指定官方构建",
+  retryFailed: "恢复失败环境", trustInputs: "我信任这些本地 JAR，并接受 Minecraft EULA。",
+  trustRequired: "运行前请确认信任 JAR 并接受 Minecraft EULA。",
+  profile_quick: "单环境。启动超时 120 秒，稳定观察 5 秒。不自动添加行为检查。",
+  profile_standard: "单环境。启动超时 180 秒，稳定观察 10 秒。确认命令与权限注册检查后运行。",
+  profile_matrix: "2–256 个明确环境。启动超时 180 秒，稳定观察 10 秒。支持 1–8 并发。",
+  profile_strict: "固定构建、完整的受支持静态分析、至少 30 秒稳定观察。不保证完整业务兼容。",
+  profile_custom: "使用明确配置，不应用方案默认值或自动检查。",
+  analysisReady: "静态前置条件已满足", analysisBlocked: "静态前置条件需要处理",
+  staticScope: "静态分析不代表运行时通过，也不保证插件安全。",
+  dependenciesTitle: "本地依赖诊断", suggestionsTitle: "建议的注册检查", omissions: "未生成的声明",
+  recommendationReady: "建议已就绪，等待确认", recommendationBlocked: "尚有未解决的前置条件",
+  recommendationScope: "仅为环境建议，尚未形成兼容性结论。",
+  emptyProjects: "暂无已保存项目。", emptyHistory: "暂无验证历史。", emptyCache: "暂无可识别的缓存包。",
+  openProject: "打开项目", viewResult: "查看结果", restoreRun: "恢复配置",
+  projectSaved: "项目已保存到本机。", changedInputs: "输入已变化或缺失：{paths}。运行前请重新分析。",
+  managedIntegrity: "完整性：{state}", verifyIntegrity: "校验完整性", deleteCache: "删除",
+  confirmDelete: "仅删除此托管缓存条目？{name}", source: "来源", pendingOperation: "正在处理缓存操作...",
+  operationComplete: "缓存操作完成。", noRecommendation: "请先获取并确认没有未决项的建议。",
+  staleRecommendation: "输入已变化，请重新查询建议。", reviewRequired: "配置已生成，请确认方案、环境与检查项。",
+  checksReviewed: "仅生成注册检查，不会自动执行控制台命令。",
+  scopeNotice: "仅在本机执行，不远程上传。保存项目或运行时，会在本地保留所选 JAR 副本与证据。JAR 使用当前系统账户权限执行。PASS 仅涵盖记录的运行窗口和声明的行为检查，不代表全部功能兼容或 Folia 线程安全。",
+  configGenerated: "配置已规范化。保存项目可在会话结束后继续使用浏览器选择的 JAR。",
+  jdkStorageScope: "仅能删除托管条目。系统 Java、持久锁文件和服务端 bootstrap 缓存会保留。",
+  originalReason: "原始原因", nextSteps: "处理建议", sourceHash: "配置 SHA-256",
+  javaUnknown: "此目标尚无经审查的 Java 基线，请明确选择并验证完整 JDK。",
+  managedSelection: "托管 JDK（使用前校验）", configEdited: "JSON 有尚未应用的编辑。",
+  event_jdk_download_started: "正在下载已确认的 Temurin JDK。", event_jdk_download_completed: "JDK 归档校验通过。",
+  event_jdk_installed: "托管 JDK 已安装并校验。", nativePlatform: "平台",
+  fix_ENVIRONMENT_INVALID: "先查看报告中的前置错误。选择含 javac 的匹配 JDK；缺失依赖需手动提供本地 JAR。",
+  fix_SERVER_START_FAILED: "打开 server.log，检查最早的启动或 bootstrap 错误，确认固定构建及上游依赖下载。",
+  fix_SERVER_START_TIMEOUT: "先检查 server.log 的下载与启动进度，再决定是否调整超时。",
+  fix_PLUGIN_NOT_DISCOVERED: "核对 plugin.yml、声明名称，以及报告中的目标 JAR 身份。",
+  fix_PLUGIN_LOAD_FAILED: "查看加载异常，提供声明的本地依赖，并修正插件描述符或字节码目标。",
+  fix_PLUGIN_ENABLE_FAILED: "查看 onEnable 异常，检查插件本地配置及依赖。",
+  fix_PLUGIN_DISABLED: "查看禁用原因和最后的新鲜探针样本，修复报告指出的插件前置问题。",
+  fix_PLUGIN_UNSUPPORTED: "改用支持的服务端目标。只有实现并验证 Folia 线程合同后才能声明支持。",
+  fix_UNKNOWN_FAILURE: "检查原始报告、server.log 与探针证据。不能从缺少证据推断成功。",
+  fix_CANCELLED: "准备好后恢复配置，启动新的隔离验证。",
+  fix_BEHAVIOR: "检查失败项的结构化 observation 与检查后健康样本，修正插件或明确断言；运行时 PASS 保持独立。"
+});
+
 let language = null;
 try { language = localStorage.getItem("pluginmatrix-language"); } catch (_) { /* Browser storage is optional. */ }
 if (!messages[language]) language = navigator.language.toLowerCase().startsWith("zh") ? "zh-CN" : "en";
@@ -141,6 +262,12 @@ let activeJob = null, eventCursor = 0, pollTimer = null, lastJob = null, eventHi
 let javaCatalog = { runtimes: [], recommended: null }, providerNames = { paper: "Paper", purpur: "Purpur", folia: "Folia", local: "Local server" };
 const catalogRequests = new Map();
 let cardSequence = 0;
+let configurationBase = { schema: 2, profile: { id: "standard", revision: 1 } };
+let profileCatalog = [], wizardStep = 0, currentView = "verify", projectId = null;
+let analysisResult = null, recommendationResult = null, recommendationFingerprint = null;
+let behaviorReviewed = false, configDirty = false, currentSource = null, jdkPreview = null, cacheJob = null;
+let historyData = [], projectsData = [], runSubmitting = false;
+const uploadedFiles = new WeakMap();
 
 function t(key, values = {}) {
   let text = (messages[language] && messages[language][key]) || messages.en[key] || key;
@@ -169,6 +296,66 @@ function setStatus(text, error = false) {
   byId("status").textContent = text;
   byId("status").classList.toggle("error", error);
 }
+function element(tag, text, className) {
+  const node = document.createElement(tag); if (text !== undefined) node.textContent = text;
+  if (className) node.className = className; return node;
+}
+function detailsFor(title, data) {
+  const details = element("details"); details.append(element("summary", title), element("pre", JSON.stringify(data, null, 2))); return details;
+}
+function actionButton(text, action, className = "secondary") {
+  const button = element("button", text, className); button.type = "button";
+  button.addEventListener("click", () => busy(button, action)); return button;
+}
+async function busy(button, action) {
+  if (button.disabled) return;
+  button.disabled = true;
+  try { return await action(); } catch (error) { setStatus(t("errorPrefix", { message: error.message }), true); }
+  finally { button.disabled = false; }
+}
+function setView(view) {
+  currentView = view;
+  document.querySelectorAll(".workspace-view").forEach((node) => node.classList.toggle("hidden", node.id !== `${view}-view`));
+  document.querySelectorAll("[data-view]").forEach((node) => { if (node.dataset.view === view) node.setAttribute("aria-current", "page"); else node.removeAttribute("aria-current"); });
+  if (view === "projects") loadHistory();
+  if (view === "cache") refreshCache();
+}
+function setStep(step) {
+  wizardStep = step;
+  const advanced = document.querySelector('input[name="experience"]:checked').value === "advanced";
+  document.body.classList.toggle("advanced", advanced);
+  document.querySelectorAll(".wizard-page").forEach((node) => node.classList.toggle("hidden", !advanced && Number(node.dataset.wizard) !== step));
+  byId("wizard-nav").classList.toggle("hidden", advanced);
+  document.querySelectorAll("[data-step]").forEach((node) => node.setAttribute("aria-current", Number(node.dataset.step) === step ? "step" : "false"));
+  renderReview();
+}
+function renderReview() {
+  const host = byId("review-summary"); host.replaceChildren();
+  host.append(element("h3", t("selectedEnvironment")));
+  for (const card of document.querySelectorAll(".environment")) {
+    const provider = card.querySelector(".provider").value, version = card.querySelector(".minecraft").value;
+    const java = card.dataset.manualJava === "true" ? card.querySelector(".java").value : card.querySelector(".java-select").value;
+    const runtime = javaCatalog.runtimes.find(r => r.path === java);
+    const title = [providerDisplay(provider), version, `${t("build")} ${card.querySelector(".build").value}`].join(" / ");
+    const row = element("div", undefined, "review-environment");
+    row.append(element("strong", title), element("span", runtime?.major ? `JDK ${runtime.major}` : (java.startsWith("managed:") ? t("managedSelection") : java)));
+    row.title = java; host.append(row);
+  }
+  byId("run-summary").textContent = t("runSummary", { timeout: byId("timeout").value, stability: byId("stability").value, parallel: byId("parallel").value });
+}
+function refreshSourceName() {
+  const name = byId("plugin-file").files[0]?.name || byId("plugin-path").value.split(/[\\/]/).pop();
+  byId("plugin-file-name").textContent = name || t("noPluginSelected");
+  byId("plugin-file-name").removeAttribute("data-i18n");
+}
+function updateProfile() { byId("profile-description").textContent = t(`profile_${byId("profile").value || "custom"}`); }
+function setConfigurationText(document) { byId("configuration").value = JSON.stringify(document, null, 2); configDirty = false; }
+function fingerprint() {
+  return JSON.stringify([byId("plugin-path").value, [...byId("plugin-file").files].map(f => [f.name, f.size, f.lastModified]),
+    byId("dependency-paths").value, [...byId("dependency-files").files].map(f => [f.name, f.size, f.lastModified]),
+    [...document.querySelectorAll(".environment")].map(c => [c.querySelector(".provider").value, c.querySelector(".minecraft").value, c.querySelector(".build").value]),
+    byId("jdk-directory").value]);
+}
 function setManualJava(card, manual) {
   if (!javaCatalog.runtimes.length) manual = true;
   card.dataset.manualJava = manual ? "true" : "false";
@@ -185,12 +372,12 @@ function populateJava(card, requested = card.dataset.requestedJava || "") {
   for (const runtime of javaCatalog.runtimes) {
     const option = document.createElement("option");
     option.value = runtime.path;
-    option.textContent = `Java ${runtime.version}${runtime.jdk ? " JDK" : " JRE"} - ${runtime.path}`;
+    option.textContent = runtime.source === "managed" ? `JDK ${runtime.major} · ${t("managedSelection")} · ${runtime.id}` : `Java ${runtime.version}${runtime.jdk ? " JDK" : " JRE"} - ${runtime.path}`;
     select.appendChild(option);
   }
-  const match = javaCatalog.runtimes.find((runtime) => runtime.path === requested)
-    || (/^\d+$/.test(requested) ? javaCatalog.runtimes.find((runtime) => runtime.jdk && runtime.major === Number(requested)) : null)
-    || javaCatalog.runtimes.find((runtime) => runtime.path === javaCatalog.recommended);
+  const match = requested ? (javaCatalog.runtimes.find((runtime) => runtime.path === requested)
+    || (/^\d+$/.test(requested) ? javaCatalog.runtimes.find((runtime) => runtime.jdk && runtime.major === Number(requested)) : null))
+    : javaCatalog.runtimes.find((runtime) => runtime.path === javaCatalog.recommended);
   if (match) select.value = match.path;
   card.querySelector(".java").value = requested || (match ? String(match.major) : "21");
   setManualJava(card, Boolean(requested && !match) || !match);
@@ -202,9 +389,11 @@ function addEnvironment(value = {}) {
   const fragment = byId("environment-template").content.cloneNode(true);
   const card = fragment.querySelector(".environment");
   const server = value.server || {};
-  card.dataset.requestedJava = String(value.java || "21");
+  card.dataset.requestedJava = value.java && typeof value.java === "object" ? `managed:${value.java.managed}` : String(value.java || "");
+  card.originalServer = { ...server };
+  card.originalEnvironment = { ...value };
   card.querySelector(".provider").value = server.type || "paper";
-  card.querySelector(".minecraft").value = server.version || value.paper || "1.21.4";
+  card.querySelector(".minecraft").value = server.version || value.paper || "";
   card.dataset.recommendedJava = javaRequirement(card.querySelector(".minecraft").value) || "";
   card.querySelector(".build").value = server.build ?? value.paper_build ?? "latest";
   card.querySelector(".heap").value = server.heap_mb || 1024;
@@ -222,7 +411,6 @@ function addEnvironment(value = {}) {
   let versionTimer = null;
   card.querySelector(".minecraft").addEventListener("input", () => {
     clearTimeout(versionTimer);
-    card.querySelector(".build").value = "latest";
     card.dataset.recommendedJava = javaRequirement(card.querySelector(".minecraft").value) || "";
     versionTimer = setTimeout(() => loadBuilds(card, false), 350);
     updateJavaHint(card);
@@ -294,15 +482,8 @@ function catalogText(data, count, item) {
   return t("catalogOnline", { count, item: t(item) });
 }
 function javaRequirement(version) {
-  if (!/^\d+\.\d+(?:\.\d+)?$/.test(version)) return null;
-  const parts = version.split(".").map(Number), major = parts[0], minor = parts[1], patch = parts[2] || 0;
-  if (major >= 26) return 25;
-  if (major !== 1) return null;
-  if (minor >= 21 || (minor === 20 && patch >= 5)) return 21;
-  if (minor >= 17) return 17;
-  if (minor === 16 && patch >= 5) return 16;
-  if (minor >= 12) return 11;
-  return 8;
+  // The application catalog supplies the reviewed baseline; the browser never extrapolates it.
+  return null;
 }
 function providerDisplay(type, fallback = "") {
   if (type === "local") return t("localServer");
@@ -320,11 +501,9 @@ async function loadProviderVersions(card, providerChanged) {
     const list = card.querySelector(".version-options"); list.replaceChildren();
     for (const version of data.versions || []) { const option = document.createElement("option"); option.value = version; list.appendChild(option); }
     const input = card.querySelector(".minecraft");
-    if ((providerChanged || !input.value.trim()) && data.versions.length) input.value = data.versions[0];
-    else if (data.versions.length && !data.versions.includes(input.value.trim())) input.value = data.versions[0];
     status.textContent = catalogText(data, data.versions.length, "versions");
     status.classList.toggle("warning", data.source === "stale_cache" || !data.available);
-    await loadBuilds(card, providerChanged);
+    await loadBuilds(card, false);
   } catch (error) {
     status.textContent = `${t("catalogUnavailable")} ${error.message}`; status.classList.add("error");
   }
@@ -334,7 +513,7 @@ async function loadBuilds(card, resetBuild) {
   const version = card.querySelector(".minecraft").value.trim();
   if (provider === "local" || !/^\d+\.\d+(?:\.\d+)?$/.test(version)) { updateJavaHint(card); return; }
   const input = card.querySelector(".build");
-  if (resetBuild || !input.value.trim()) input.value = "latest";
+  if (!input.value.trim()) input.value = "latest";
   card.dataset.recommendedJava = javaRequirement(version) || "";
   updateJavaHint(card);
   const status = card.querySelector(".catalog-status");
@@ -367,7 +546,7 @@ function updateJavaHint(card) {
   const runtime = javaCatalog.runtimes.find((item) => item.path === card.querySelector(".java-select").value);
   if (!runtime) { hint.textContent = required ? t("javaRequired", { version, required }) : t("noJava"); hint.classList.add("warning"); return; }
   if (!runtime.jdk) { hint.textContent = t("javaNeedJdk"); hint.classList.add("error"); return; }
-  if (!required) { hint.textContent = t("javaDetected", { count: javaCatalog.runtimes.length }); return; }
+  if (!required) { hint.textContent = t("javaUnknown"); return; }
   if (runtime.major < required) { hint.textContent = t("javaTooOld", { actual: runtime.major, required, version }); hint.classList.add("error"); }
   else if (runtime.major > required) { hint.textContent = t("javaNewer", { actual: runtime.major, required, version }); hint.classList.add("warning"); }
   else { hint.textContent = t("javaCompatible", { major: runtime.major, version }); hint.classList.add("success"); }
@@ -383,13 +562,14 @@ async function loadProviders() {
   } catch (_) { /* Static names remain available. */ }
 }
 async function upload(file, kind) {
+  if (uploadedFiles.has(file)) return uploadedFiles.get(file);
   const response = await fetch("/api/import", { method: "POST", credentials: "same-origin", headers: {
     "Content-Type": "application/octet-stream", "X-PluginMatrix-Token": token,
     "X-PluginMatrix-Filename": encodeURIComponent(file.name), "X-PluginMatrix-File-Kind": kind
   }, body: file });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || t("fileImportFailed"));
-  return { file_id: data.file_id };
+  const reference = { file_id: data.file_id }; uploadedFiles.set(file, reference); return reference;
 }
 async function fileReference(pathInput, fileInput, kind) {
   const path = pathInput.value.trim();
@@ -398,25 +578,34 @@ async function fileReference(pathInput, fileInput, kind) {
   setStatus(t("importing", { name: fileInput.files[0].name }));
   return upload(fileInput.files[0], kind);
 }
-async function collect() {
-  const mode = document.querySelector('input[name="mode"]:checked').value;
+async function collectInputs() {
   const plugin = await fileReference(byId("plugin-path"), byId("plugin-file"), "plugin");
   const dependencies = byId("dependency-paths").value.split(/\r?\n/).map((value) => value.trim()).filter(Boolean);
   for (const file of byId("dependency-files").files) { setStatus(t("importing", { name: file.name })); dependencies.push(await upload(file, "dependency")); }
+  return { plugin, dependencies };
+}
+async function collect() {
+  const { plugin, dependencies } = await collectInputs();
   const environments = [];
   for (const card of document.querySelectorAll(".environment")) {
     const type = card.querySelector(".provider").value, buildText = card.querySelector(".build").value.trim();
-    const server = { type, version: card.querySelector(".minecraft").value.trim(), heap_mb: Number(card.querySelector(".heap").value) };
+    const server = { ...(card.originalServer.type === type ? card.originalServer : {}), type, version: card.querySelector(".minecraft").value.trim(), heap_mb: Number(card.querySelector(".heap").value) };
     if (type === "local") {
       server.jar = await fileReference(card.querySelector(".server-path"), card.querySelector(".server-file"), "server");
       server.name = card.querySelector(".server-name").value.trim(); server.runtime = card.querySelector(".runtime").value;
     } else server.build = buildText === "" || buildText === "latest" ? "latest" : Number(buildText);
     const java = card.dataset.manualJava === "true" ? card.querySelector(".java").value.trim() : card.querySelector(".java-select").value;
-    environments.push({ server, java });
+    const environment = { server, java: java.startsWith("managed:") ? { managed: java.slice(8) } : java };
+    environments.push(environment);
   }
-  const payload = { mode, plugin, dependencies, environments, options: {
+  const payload = { ...configurationBase, plugin, dependencies, environments, options: { ...(configurationBase.options || {}),
     timeout: Number(byId("timeout").value), stability_window: Number(byId("stability").value), max_parallel: Number(byId("parallel").value)
   } };
+  if (byId("profile").value) { payload.schema = 2; payload.profile = { id: byId("profile").value, revision: configurationBase.profile?.revision || 1 }; }
+  else delete payload.profile;
+  if (payload.schema === 2 && byId("jdk-directory").value.trim()) payload.options.jdk_dir = byId("jdk-directory").value.trim();
+  else delete payload.options.jdk_dir;
+  delete payload.behavior;
   if (byId("behavior-enabled").checked) {
     payload.behavior = {
       schema: 1,
@@ -434,12 +623,16 @@ async function collect() {
       })
     };
   }
-  return payload;
+  return { configuration: payload };
 }
 function applyConfiguration(config) {
+  configurationBase = structuredClone(config); behaviorReviewed = true; configDirty = false;
+  byId("profile").value = config.profile?.id || ""; updateProfile();
+  byId("jdk-directory").value = config.options?.jdk_dir || "";
   byId("plugin-path").value = config.plugin || ""; byId("dependency-paths").value = (config.dependencies || []).join("\n");
+  byId("plugin-file").value = ""; byId("dependency-files").value = "";
   const options = config.options || {}; byId("timeout").value = options.timeout || 120; byId("stability").value = options.stability_window || 5;
-  byId("parallel").value = options.max_parallel || 1; document.querySelector('input[name="mode"][value="matrix"]').checked = true;
+  byId("parallel").value = options.max_parallel || 1; document.querySelector(`input[name="mode"][value="${config.environments.length > 1 ? "matrix" : "single"}"]`).checked = true;
   byId("environments").replaceChildren(); (config.environments || []).forEach(addEnvironment); if (!(config.environments || []).length) addEnvironment(); renumber();
   byId("behavior-checks").replaceChildren();
   if (config.behavior) {
@@ -450,6 +643,8 @@ function applyConfiguration(config) {
     byId("behavior-timeout").value = 60;
     setBehaviorEnabled(false);
   }
+  setConfigurationText(config);
+  refreshSourceName(); renderReview();
 }
 function verdictText(value) { return t(`verdict_${value || "UNKNOWN_FAILURE"}`); }
 function checkTypeText(value) {
@@ -511,6 +706,13 @@ function renderResults(job) {
     const details = document.createElement("details"), summary = document.createElement("summary"), pre = document.createElement("pre");
     summary.textContent = t("technicalDetails"); pre.textContent = JSON.stringify({ id: env.id, runtime_verdict: runtime, behavior_verdict: behavior.verdict, verification_passed: finalPass, failure_stage: env.failure_stage, reason: env.reason, behavior_reason: behavior.reason }, null, 2);
     details.append(summary, pre); row.append(head, details);
+    const reason = element("p", t(`reason_${runtime}`));
+    const original = element("p", `${t("originalReason")}: ${env.reason || "-"}`, "recorded-reason");
+    row.append(reason, original);
+    if (!finalPass) {
+      const fixKey = runtime === "PASS" ? "BEHAVIOR" : runtime;
+      row.append(element("p", `${t("nextSteps")}: ${t(`fix_${fixKey}`)}`, "diagnostic"));
+    }
     if ((behavior.checks || []).length) {
       const checks = document.createElement("div"); checks.className = "behavior-results";
       for (const check of behavior.checks) {
@@ -551,13 +753,14 @@ function renderJob(job, rebuild = false) {
   const cancel = byId("cancel"); cancel.classList.toggle("hidden", !active); cancel.disabled = job.status === "cancelling";
   cancel.textContent = t(job.status === "cancelling" ? "cancelling" : "cancelTask");
   byId("rerun").classList.toggle("hidden", active || !job.summary);
+  byId("retry-failed").classList.toggle("hidden", active || !job.summary?.environments?.some(e => e.verification_passed === false));
   renderResults(job); renderArtifacts(job);
 }
 async function poll() {
   if (!activeJob) return;
   try {
     const job = await api(`/api/jobs/${activeJob}?after=${eventCursor}`); eventCursor = job.next_event; renderJob(job);
-    if (["queued", "running", "cancelling"].includes(job.status)) pollTimer = setTimeout(poll, 500); else activeJob = null;
+    if (["queued", "running", "cancelling"].includes(job.status)) pollTimer = setTimeout(poll, 500); else { activeJob = null; loadHistory(); }
   } catch (error) { setStatus(t("errorPrefix", { message: error.message }), true); pollTimer = setTimeout(poll, 1500); }
 }
 
@@ -565,6 +768,7 @@ byId("language").addEventListener("change", () => {
   language = byId("language").value;
   try { localStorage.setItem("pluginmatrix-language", language); } catch (_) { /* Keep the in-memory choice. */ }
   applyLanguage();
+  updateProfile(); renderAnalysis(); renderRecommendation(); renderHistory(); renderReview(); refreshSourceName();
   document.querySelectorAll(".environment").forEach((card) => {
     setManualJava(card, card.dataset.manualJava === "true"); updateJavaHint(card); loadProviderVersions(card, false);
   });
@@ -575,14 +779,21 @@ byId("behavior-enabled").addEventListener("change", () => setBehaviorEnabled(byI
 byId("add-behavior-check").addEventListener("click", () => addBehaviorCheck());
 document.querySelectorAll('input[name="mode"]').forEach((input) => input.addEventListener("change", renumber));
 async function startRun() {
+  if (runSubmitting || activeJob) return;
+  runSubmitting = true; byId("run").disabled = true;
   try {
+    if (!byId("trust-inputs").checked) throw new Error(t("trustRequired"));
+    if (configDirty) await applyJson();
     clearTimeout(pollTimer); const payload = await collect(); const job = await api("/api/jobs", { method: "POST", body: payload });
+    applyConfiguration(job.configuration);
     activeJob = job.id; eventCursor = job.next_event; eventHistory = []; lastJob = null;
     byId("progress").replaceChildren(); byId("result").replaceChildren(); byId("artifacts").replaceChildren(); renderJob(job); poll();
   } catch (error) { setStatus(t("errorPrefix", { message: error.message }), true); }
+  finally { runSubmitting = false; byId("run").disabled = Boolean(activeJob); }
 }
 byId("run").addEventListener("click", startRun);
-byId("rerun").addEventListener("click", startRun);
+byId("rerun").addEventListener("click", () => busy(byId("rerun"), async () => { await restoreRun(lastJob.id, false); }));
+byId("retry-failed").addEventListener("click", () => busy(byId("retry-failed"), async () => { await restoreRun(lastJob.id, true); }));
 byId("cancel").addEventListener("click", async () => {
   if (!activeJob) return;
   try {
@@ -595,21 +806,307 @@ byId("cancel").addEventListener("click", async () => {
 byId("generate").addEventListener("click", async () => {
   try {
     const data = await api("/api/config/generate", { method: "POST", body: await collect() });
-    byId("configuration").value = JSON.stringify(data.configuration, null, 2); setStatus(t("configGenerated"));
+    setConfigurationText(data.configuration); byId("config-editor").open = true; setStatus(t("configGenerated"));
   } catch (error) { setStatus(t("errorPrefix", { message: error.message }), true); }
 });
 byId("import-config").addEventListener("click", async () => {
   try {
     const data = await api("/api/config/import", { method: "POST", body: { path: byId("config-path").value.trim() } });
-    applyConfiguration(data.configuration); byId("configuration").value = JSON.stringify(data.configuration, null, 2); setStatus(t("configImported", { source: data.source }));
+    currentSource = data.source; applyConfiguration(data.configuration); setStatus(t("configImported", { source: data.source }));
   } catch (error) { setStatus(t("errorPrefix", { message: error.message }), true); }
 });
-byId("download-config").addEventListener("click", () => {
-  const text = byId("configuration").value;
-  if (!text.trim()) { setStatus(t("generateFirst"), true); return; }
-  try { JSON.parse(text); } catch (error) { setStatus(t("invalidJson", { error: error.message }), true); return; }
-  const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([text + "\n"], { type: "application/json" }));
-  link.download = "pluginmatrix-matrix.json"; link.click(); URL.revokeObjectURL(link.href);
-});
+byId("download-config").addEventListener("click", () => busy(byId("download-config"), async () => {
+  if (configDirty) await applyJson();
+  const data = await api("/api/config/normalize", { method: "POST", body: await collect() });
+  setConfigurationText(data.configuration);
+  const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([byId("configuration").value + "\n"], { type: "application/json" }));
+  link.download = "pluginmatrix-matrix.json"; link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+}));
 
-applyLanguage(); addEnvironment(); setBehaviorEnabled(false); loadProviders(); loadJava();
+function renderAnalysis() {
+  const host = byId("analysis-result"); host.replaceChildren(); if (!analysisResult) return;
+  const data = analysisResult;
+  host.append(element("h3", t(data.valid ? "analysisReady" : "analysisBlocked"), data.valid ? "success" : "error"));
+  if (data.plugin) {
+    const metadata = data.plugin;
+    host.append(element("p", `${metadata.plugin_name} ${metadata.plugin_version || metadata.version || ""}`));
+    host.append(detailsFor(t("technicalDetails"), metadata));
+  }
+  const issues = [...(data.errors || []), ...(data.dependency_report?.errors || []), ...(data.dependency_report?.warnings || [])];
+  for (const issue of issues) {
+    const key = `diag_${issue.code}`;
+    host.append(element("p", messages.en[key] ? t(key, issue) : (issue.reason || JSON.stringify(issue)), "diagnostic"));
+    host.append(detailsFor(t("originalReason"), issue));
+  }
+  if (!data.valid) byId("dependency-editor").open = true;
+  host.append(detailsFor(t("dependenciesTitle"), data.dependency_report));
+  if (data.suggestions) {
+    host.append(detailsFor(t("suggestionsTitle"), data.suggestions));
+    if (data.suggestions.omitted?.length) host.append(detailsFor(t("omissions"), data.suggestions.omitted));
+  }
+  host.append(element("p", t("staticScope"), "hint"));
+}
+async function analyzeInputs() {
+  analysisResult = await api("/api/guided/analyze", { method: "POST", body: await collectInputs() }); renderAnalysis();
+  if (!analysisResult.valid) { setStep(0); throw new Error(t("analysisBlocked")); }
+  if (!byId("project-name").value) byId("project-name").value = analysisResult.plugin?.plugin_name || "";
+  setStatus(t("analysisReady")); return analysisResult;
+}
+function renderRecommendation() {
+  const host = byId("recommendation-result"); host.replaceChildren(); if (!recommendationResult) return;
+  const data = recommendationResult.recommendation;
+  host.append(element("h3", t(data.ready ? "recommendationReady" : "recommendationBlocked"), data.ready ? "success" : "warning"));
+  host.append(element("p", [data.selection.provider, data.selection.minecraft, data.selection.build, data.java_major ? `JDK ${data.java_major}` : null].filter(Boolean).join(" / ")));
+  for (const issue of [...data.conflicts, ...data.unresolved]) host.append(element("p", issue, "diagnostic"));
+  host.append(detailsFor(t("source"), data.reasons), element("p", t("recommendationScope"), "hint"));
+  byId("apply-recommendation").disabled = !data.ready;
+}
+async function prepareReview() {
+  await analyzeInputs();
+  const payload = (await collect()).configuration;
+  if (!payload.profile) {
+    const normalized = await api("/api/config/normalize", { method: "POST", body: { configuration: payload } });
+    applyConfiguration(normalized.configuration);
+  } else {
+    const data = await api("/api/guided/prepare", { method: "POST", body: {
+      ...await collectInputs(), environments: payload.environments, profile: payload.profile,
+      options: payload.options, ...(payload.behavior ? { behavior: payload.behavior } : {}),
+      use_suggestions: !behaviorReviewed
+    } });
+    applyConfiguration(data.configuration);
+  }
+  setStep(2); setStatus(t("reviewRequired"));
+}
+async function applyJson() {
+  const payload = { configuration: byId("configuration").value };
+  if (currentSource) payload.source = currentSource;
+  const data = await api("/api/config/normalize", { method: "POST", body: payload });
+  applyConfiguration(data.configuration); setStatus(t("configGenerated")); return data;
+}
+async function restoreRun(id, failedOnly) {
+  const data = await api(`/api/jobs/${id}/restore`, { method: "POST", body: { failed_only: failedOnly } });
+  applyConfiguration(data.configuration); setView("verify"); setStep(2); byId("trust-inputs").checked = false;
+  if (data.changed_sources.length) setStatus(t("changedInputs", { paths: data.changed_sources.join(", ") }), true);
+  else setStatus(t("reviewRequired"));
+}
+function renderHistory() {
+  const query = byId("history-filter").value.toLowerCase();
+  const projects = byId("projects-list"), history = byId("history-list"); projects.replaceChildren(); history.replaceChildren();
+  for (const project of projectsData.filter(p => JSON.stringify(p).toLowerCase().includes(query))) {
+    const row = element("article", undefined, "history-row");
+    row.append(element("strong", project.name), element("time", new Date(project.updated_at * 1000).toLocaleString(language)));
+    row.append(actionButton(t("openProject"), async () => {
+      projectId = project.id; byId("project-name").value = project.name; applyConfiguration(project.configuration);
+      setView("verify"); setStep(2); byId("trust-inputs").checked = false;
+    }));
+    row.append(detailsFor(t("sourceHash"), { configuration_sha256: project.configuration_sha256, sources: project.sources }));
+    projects.append(row);
+  }
+  if (!projects.childElementCount) projects.append(element("p", t("emptyProjects"), "hint"));
+  for (const job of historyData.filter(j => j.mode !== "maintenance" && JSON.stringify(j).toLowerCase().includes(query))) {
+    const row = element("article", undefined, "history-row");
+    row.append(element("strong", `${job.sources?.[0]?.name || job.configuration?.plugin?.split(/[\\/]/).pop() || job.id.slice(0, 8)} · ${jobStatus(job)}`),
+      element("time", new Date(job.created_at * 1000).toLocaleString(language)));
+    row.append(actionButton(t("viewResult"), async () => {
+      const data = await api(`/api/jobs/${job.id}`); eventHistory = []; renderJob(data, true);
+      if (!activeJob && ["queued", "running", "cancelling"].includes(data.status)) { activeJob = data.id; eventCursor = 0; poll(); }
+      document.querySelector(".results").scrollIntoView({ behavior: "smooth" });
+    }));
+    if (!["queued", "running", "cancelling"].includes(job.status)) row.append(actionButton(t("restoreRun"), () => restoreRun(job.id, false)));
+    row.append(detailsFor(t("technicalDetails"), { configuration_sha256: job.configuration_sha256, sources: job.sources,
+      environments: job.summary?.environments?.map(e => ({ provider: e.provider, version: e.minecraft_version, runtime: e.runtime_verdict, behavior: e.behavior?.verdict, verification_passed: e.verification_passed })) }));
+    history.append(row);
+  }
+  if (!history.childElementCount) history.append(element("p", t("emptyHistory"), "hint"));
+}
+async function loadHistory() {
+  try {
+    const [jobs, projects] = await Promise.all([api("/api/jobs"), api("/api/projects")]);
+    historyData = jobs.jobs; projectsData = projects.projects; renderHistory();
+    if (projects.warnings?.length && currentView === "projects") setStatus(projects.warnings.join("\n"), true);
+  } catch (error) { setStatus(error.message, true); }
+}
+function packageSummary(data) {
+  const packageData = data.package || data;
+  const row = element("div", undefined, "package-summary");
+  row.append(element("h3", packageData.release || packageData.name || packageData.filename || packageData.id || data.id || ""),
+    element("p", [packageData.os, packageData.architecture, packageData.major ? `JDK ${packageData.major}` : "",
+      packageData.size ? `${(packageData.size / 1024 / 1024).toFixed(1)} MiB` : ""].filter(Boolean).join(" · ")),
+    element("p", `SHA-256: ${packageData.sha256 || data.sha256 || "-"}`, "hash"),
+    detailsFor(t("source"), data));
+  return row;
+}
+async function runCache(action, payload) {
+  if (cacheJob) throw new Error(t("pendingOperation"));
+  byId("cache-status").textContent = t("pendingOperation");
+  const job = await api(`/api/cache/${action}`, { method: "POST", body: payload });
+  cacheJob = job.id; byId("cancel-cache").classList.remove("hidden"); byId("cancel-cache").disabled = false;
+  try {
+    let current = job;
+    while (["queued", "running", "cancelling"].includes(current.status)) {
+      await new Promise(resolve => setTimeout(resolve, 600));
+      current = await api(`/api/jobs/${job.id}`);
+      const event = current.events?.at(-1);
+      byId("cache-status").textContent = event ? t(`event_${event.kind}`) : t("pendingOperation");
+    }
+    if (current.status !== "completed") throw new Error(current.error || jobStatus(current));
+    byId("cache-status").textContent = t("operationComplete");
+    return current.operation_result;
+  } catch (error) { byId("cache-status").textContent = error.message; throw error; }
+  finally { cacheJob = null; byId("cancel-cache").classList.add("hidden"); }
+}
+async function refreshCache() {
+  try {
+    const data = await api("/api/cache");
+    if (!byId("jdk-directory").value && configurationBase.schema === 2) byId("jdk-directory").value = data.jdk_directory;
+    if (!byId("cache-jdk-directory").value) byId("cache-jdk-directory").value = byId("jdk-directory").value || data.jdk_directory;
+    const directory = byId("cache-jdk-directory").value.trim();
+    const jdks = directory === data.jdk_directory ? data.jdks : await api("/api/cache/jdks", { method: "POST", body: { directory } });
+    const list = byId("jdk-list"); list.replaceChildren();
+    for (const item of jdks.jdks || []) {
+      const row = element("article", undefined, "cache-entry");
+      row.append(packageSummary(item), element("p", t("managedIntegrity", { state: item.integrity })));
+      if (item.error) row.append(element("p", item.error, "error"));
+      row.append(actionButton(t("verifyIntegrity"), async () => {
+        const result = await runCache("jdk-verify", { id: item.id, directory });
+        row.append(element("p", t("managedIntegrity", { state: result.integrity }), "success"));
+      }));
+      row.append(actionButton(t("deleteCache"), async () => {
+        if (!confirm(t("confirmDelete", { name: item.id }))) return;
+        await runCache("jdk-remove", { id: item.id, directory }); await refreshCache();
+      }, "danger"));
+      list.append(row);
+    }
+    if (!list.childElementCount) list.append(element("p", t("emptyCache"), "hint"));
+    for (const warning of jdks.warnings || []) list.append(element("p", warning, "warning"));
+    if (jdks.staging?.length) list.append(detailsFor(t("incompleteDownloads"), jdks.staging));
+    list.append(element("p", t("jdkStorageScope"), "hint"));
+    // Preserve the opaque managed ID and its matching store; never substitute its executable.
+    if (directory === byId("jdk-directory").value.trim()) {
+      javaCatalog.runtimes = [...javaCatalog.runtimes.filter(r => r.source !== "managed"), ...(jdks.jdks || []).filter(j => j.integrity !== "invalid").map(j => ({ ...j, path: `managed:${j.id}`, version: String(j.major) }))];
+      document.querySelectorAll(".environment").forEach(card => {
+        const value = card.dataset.manualJava === "true" ? card.querySelector(".java").value : card.querySelector(".java-select").value;
+        populateJava(card, value);
+      });
+    }
+    const servers = byId("server-cache-list"); servers.replaceChildren();
+    for (const item of data.servers.entries) {
+      const row = element("article", undefined, "cache-entry"); row.append(packageSummary(item));
+      row.append(actionButton(t("verifyIntegrity"), async () => {
+        const verified = await runCache("server-verify", { id: item.id });
+        row.append(element("p", t("managedIntegrity", { state: verified.integrity }), "success"));
+      }));
+      row.append(actionButton(t("deleteCache"), async () => {
+        if (!confirm(t("confirmDelete", { name: item.name }))) return;
+        await runCache("server-remove", { id: item.id }); await refreshCache();
+      }, "danger")); servers.append(row);
+    }
+    if (!servers.childElementCount) servers.append(element("p", t("emptyCache"), "hint"));
+    for (const warning of data.servers.warnings || []) servers.append(element("p", warning, "warning"));
+  } catch (error) { byId("cache-status").textContent = error.message; }
+}
+function setTheme() {
+  const choice = byId("theme").value;
+  document.documentElement.dataset.theme = choice === "system" ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : choice;
+  try { localStorage.setItem("pluginmatrix-theme", choice); } catch (_) { /* Optional persistence. */ }
+}
+byId("theme").addEventListener("change", setTheme);
+byId("plugin-file").addEventListener("change", () => {
+  byId("plugin-path").value = ""; analysisResult = null; recommendationResult = null;
+  behaviorReviewed = false; projectId = null; refreshSourceName(); renderAnalysis(); renderRecommendation();
+});
+byId("plugin-path").addEventListener("input", () => { byId("plugin-file").value = ""; refreshSourceName(); });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (byId("theme").value === "system") setTheme(); });
+document.querySelectorAll("[data-view]").forEach(button => button.addEventListener("click", () => setView(button.dataset.view)));
+document.querySelectorAll("[data-step]").forEach(button => button.addEventListener("click", () => setStep(Number(button.dataset.step))));
+document.querySelectorAll('[name="experience"]').forEach(input => input.addEventListener("change", () => setStep(wizardStep)));
+byId("profile").addEventListener("change", () => {
+  const profile = profileCatalog.find(p => p.id === byId("profile").value);
+  configurationBase.schema = 2;
+  configurationBase.profile = profile ? { id: profile.id, revision: profile.revision } : undefined;
+  if (profile) {
+    byId("timeout").value = profile.timeout; byId("stability").value = profile.stability_window;
+    document.querySelector(`input[name="mode"][value="${profile.id === "matrix" || profile.id === "strict" ? "matrix" : "single"}"]`).checked = true;
+    if (profile.id === "matrix" && document.querySelectorAll(".environment").length === 1) addEnvironment();
+    renumber();
+  }
+  updateProfile();
+});
+byId("analyze").addEventListener("click", () => busy(byId("analyze"), analyzeInputs));
+byId("input-next").addEventListener("click", () => busy(byId("input-next"), async () => { await analyzeInputs(); setStep(1); }));
+byId("environment-next").addEventListener("click", () => busy(byId("environment-next"), prepareReview));
+byId("open-jdks").addEventListener("click", () => setView("cache"));
+byId("recommend").addEventListener("click", () => busy(byId("recommend"), async () => {
+  const card = document.querySelector(".environment"), selectedBuild = card.querySelector(".build").value.trim();
+  const payload = { ...await collectInputs(), minecraft: card.querySelector(".minecraft").value.trim(),
+    provider: card.querySelector(".provider").value, ...(byId("jdk-directory").value ? { jdk_dir: byId("jdk-directory").value } : {}),
+    ...(/^\d+$/.test(selectedBuild) ? { build: Number(selectedBuild) } : {}) };
+  const fingerprintBefore = fingerprint();
+  recommendationResult = await api("/api/guided/recommend", { method: "POST", body: payload });
+  recommendationFingerprint = fingerprintBefore;
+  analysisResult = recommendationResult.analysis; renderAnalysis(); renderRecommendation();
+}));
+byId("apply-recommendation").addEventListener("click", () => busy(byId("apply-recommendation"), async () => {
+  if (!recommendationResult?.recommendation.ready) throw new Error(t("noRecommendation"));
+  if (fingerprint() !== recommendationFingerprint) throw new Error(t("staleRecommendation"));
+  const choice = recommendationResult.recommendation.selection, card = document.querySelector(".environment");
+  card.querySelector(".build").value = choice.build;
+  if (choice.jdk_dir) byId("jdk-directory").value = choice.jdk_dir;
+  populateJava(card, choice.java);
+  setStatus(t("reviewRequired"));
+}));
+byId("behavior-editor").addEventListener("input", () => { behaviorReviewed = true; });
+byId("behavior-enabled").addEventListener("change", () => { behaviorReviewed = true; });
+byId("configuration").addEventListener("input", () => { configDirty = true; setStatus(t("configEdited")); });
+byId("apply-json").addEventListener("click", () => busy(byId("apply-json"), applyJson));
+byId("config-file").addEventListener("change", () => busy(byId("apply-json"), async () => {
+  const file = byId("config-file").files[0]; if (!file) return;
+  if (file.size > 1024 * 1024) throw new Error("JSON exceeds 1 MiB");
+  byId("configuration").value = await file.text(); configDirty = true; currentSource = byId("config-path").value.trim() || null;
+  await applyJson();
+}));
+byId("save-project").addEventListener("click", () => busy(byId("save-project"), async () => {
+  if (configDirty) await applyJson();
+  const normalized = await api("/api/config/normalize", { method: "POST", body: await collect() });
+  const project = await api("/api/projects", { method: "POST", body: {
+    name: byId("project-name").value, configuration: normalized.configuration, ...(projectId ? { id: projectId } : {})
+  } });
+  projectId = project.id; applyConfiguration(project.configuration); setStatus(t("projectSaved")); await loadHistory();
+}));
+byId("history-filter").addEventListener("input", renderHistory);
+byId("refresh-history").addEventListener("click", loadHistory);
+byId("refresh-cache").addEventListener("click", refreshCache);
+byId("preview-jdk").addEventListener("click", () => busy(byId("preview-jdk"), async () => {
+  jdkPreview = null; byId("install-jdk").disabled = true;
+  const major = Number(byId("jdk-major").value);
+  const result = await runCache("jdk-preview", { major });
+  if (Number(byId("jdk-major").value) !== major) return;
+  jdkPreview = result.package; byId("jdk-preview").replaceChildren(packageSummary(jdkPreview)); byId("install-jdk").disabled = false;
+}));
+byId("jdk-major").addEventListener("change", () => { jdkPreview = null; byId("install-jdk").disabled = true; byId("jdk-preview").replaceChildren(); });
+byId("install-jdk").addEventListener("click", () => busy(byId("install-jdk"), async () => {
+  if (!jdkPreview) throw new Error(t("noRecommendation"));
+  const directory = byId("cache-jdk-directory").value.trim();
+  await runCache("jdk-install", { major: jdkPreview.major, id: jdkPreview.id, directory });
+  if (!byId("jdk-directory").value) byId("jdk-directory").value = directory;
+  await refreshCache();
+}));
+byId("cancel-cache").addEventListener("click", () => busy(byId("cancel-cache"), async () => {
+  if (cacheJob) await api(`/api/jobs/${cacheJob}/cancel`, { method: "POST", body: {} });
+}));
+byId("download-server").addEventListener("click", () => busy(byId("download-server"), async () => {
+  await runCache("server-download", { server: { type: byId("cache-provider").value, version: byId("cache-version").value.trim(), build: Number(byId("cache-build").value) } });
+  await refreshCache();
+}));
+async function initialize() {
+  try { byId("theme").value = localStorage.getItem("pluginmatrix-theme") || "system"; } catch (_) { /* Optional persistence. */ }
+  setTheme(); applyLanguage(); addEnvironment(); setBehaviorEnabled(false); setStep(0); updateProfile();
+  document.querySelectorAll("input, select, textarea").forEach((input) => { if (!input.name) input.name = input.id || input.className; });
+  const data = await api("/api/profiles"); profileCatalog = data.profiles;
+  const profile = profileCatalog.find(p => p.id === "standard");
+  if (profile) { byId("timeout").value = profile.timeout; byId("stability").value = profile.stability_window; }
+  await loadProviders(); await loadJava(); await refreshCache(); await loadHistory();
+  const active = historyData.find(j => j.mode !== "maintenance" && ["queued", "running", "cancelling"].includes(j.status));
+  if (active) { activeJob = active.id; eventCursor = 0; poll(); }
+}
+initialize().catch(error => setStatus(error.message, true));

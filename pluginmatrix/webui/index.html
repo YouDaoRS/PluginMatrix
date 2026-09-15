@@ -14,6 +14,7 @@
         <h1>PluginMatrix</h1>
       </div>
       <div class="header-meta">
+        <label><span data-i18n="appearance">Appearance</span><select id="theme"><option value="system" data-i18n="systemTheme">System</option><option value="light" data-i18n="lightTheme">Light</option><option value="dark" data-i18n="darkTheme">Dark</option></select></label>
         <label class="language-label">
           <span data-i18n="language">Language</span>
           <select id="language">
@@ -25,43 +26,76 @@
       </div>
     </header>
     <main>
-      <section class="notice">
-        <strong data-i18n="localOnly">Local only.</strong>
+      <nav class="workspace-nav" aria-label="Workspace">
+        <button type="button" data-view="verify" aria-current="page" data-i18n="verifyTab">Verify</button>
+        <button type="button" data-view="projects" data-i18n="projectsTab">Projects &amp; history</button>
+        <button type="button" data-view="cache" data-i18n="cacheTab">Downloads &amp; cache</button>
+      </nav>
+      <p id="status" class="status" role="status" aria-live="polite" data-i18n="noTask">No task running.</p>
+      <div id="verify-view" class="workspace-view">
+      <details class="notice">
+        <summary data-i18n="localScope">Local execution &amp; verification scope</summary>
         <span data-i18n="scopeNotice">Files selected here are copied only to this local process and are never uploaded to a remote service. PASS has the same narrow meaning as the CLI: ready, matching identity and CodeSource, enabled, and stable probe evidence. Folia PASS does not prove thread or cross-region safety.</span>
-      </section>
+      </details>
+      <div class="workspace-toolbar">
+        <div class="mode">
+          <label><input type="radio" name="experience" value="simple" checked /><span data-i18n="simpleMode">Guided</span></label>
+          <label><input type="radio" name="experience" value="advanced" /><span data-i18n="advancedMode">Advanced</span></label>
+        </div>
+        <label><span data-i18n="profile">Verification profile</span><select id="profile"><option value="standard">standard</option><option value="quick">quick</option><option value="matrix">matrix</option><option value="strict">strict</option><option value="" data-i18n="customProfile">Custom / legacy</option></select></label>
+      </div>
+      <p id="profile-description" class="hint"></p>
+      <nav id="wizard-nav" class="wizard-nav" aria-label="Verification setup">
+        <button type="button" data-step="0" data-i18n="wizardInput">1. Plugin</button>
+        <button type="button" data-step="1" data-i18n="wizardEnvironment">2. Environment</button>
+        <button type="button" data-step="2" data-i18n="wizardReview">3. Review &amp; run</button>
+      </nav>
 
-      <section class="panel">
+      <section class="panel wizard-page" data-wizard="0">
         <div class="section-title">
           <div><span class="step">01</span><h2 data-i18n="inputs">Inputs</h2></div>
-          <div class="mode">
+          <div class="mode advanced-only">
             <label><input type="radio" name="mode" value="single" checked /><span data-i18n="single">Single</span></label>
             <label><input type="radio" name="mode" value="matrix" /><span data-i18n="matrix">Matrix</span></label>
           </div>
         </div>
-        <div class="grid two">
-          <label><span data-i18n="pluginPath">Plugin JAR path</span><input id="plugin-path" type="text" placeholder="C:\plugins\MyPlugin.jar or /home/me/MyPlugin.jar" /></label>
-          <label><span data-i18n="selectPlugin">Or select plugin JAR</span><input id="plugin-file" type="file" accept=".jar" /></label>
+        <div class="input-choice">
+          <label class="file-picker"><span data-i18n="choosePlugin">Choose plugin JAR</span><strong id="plugin-file-name" data-i18n="noPluginSelected">No plugin selected</strong><input id="plugin-file" type="file" accept=".jar" /></label>
+          <details class="path-choice"><summary data-i18n="useLocalPath">Use an existing local path</summary>
+            <label><span data-i18n="pluginPath">Plugin JAR path</span><input id="plugin-path" type="text" placeholder="C:\plugins\MyPlugin.jar or /home/me/MyPlugin.jar" /></label>
+          </details>
         </div>
+        <details id="dependency-editor" class="dependency-editor"><summary data-i18n="localDependencies">Local dependency JARs</summary>
         <label><span data-i18n="dependencyPaths">Dependency JAR paths</span> <span class="hint" data-i18n="onePerLine">one path per line</span><textarea id="dependency-paths" rows="3" placeholder="C:\plugins\Vault.jar"></textarea></label>
         <label><span data-i18n="selectDependencies">Or select dependency JARs</span><input id="dependency-files" type="file" accept=".jar" multiple /></label>
+        </details>
+        <div class="actions"><button id="input-next" type="button" data-i18n="analyzeNext">Analyze &amp; continue</button><button id="analyze" type="button" class="secondary" data-i18n="analyzeContinue">Analyze plugin</button></div>
+        <div id="analysis-result" aria-live="polite"></div>
       </section>
 
-      <section class="panel">
+      <section class="panel wizard-page" data-wizard="1">
         <div class="section-title">
           <div><span class="step">02</span><h2 data-i18n="environments">Environments</h2></div>
           <button id="add-environment" type="button" class="secondary" data-i18n="addEnvironment">Add environment</button>
         </div>
         <div id="environments"></div>
+        <div class="actions">
+          <button id="recommend" type="button" data-i18n="recommendEnvironment">Check official recommendation</button>
+          <button id="apply-recommendation" type="button" class="secondary" disabled data-i18n="applyRecommendation">Use reviewed recommendation</button>
+        </div>
+        <div id="recommendation-result" aria-live="polite"></div>
+        <div class="actions"><button id="environment-next" type="button" data-i18n="prepareReview">Prepare review</button><button id="open-jdks" type="button" class="secondary" data-i18n="manageJdks">Manage JDKs</button></div>
       </section>
 
-      <section class="panel">
+      <section class="panel wizard-page" data-wizard="2">
+        <div id="review-summary" class="review-summary"></div>
         <div class="section-title">
           <div><span class="step">03</span><h2 data-i18n="behaviorChecks">Behavior checks</h2></div>
           <label class="toggle-label"><input id="behavior-enabled" type="checkbox" /><span data-i18n="enableBehavior">Enable behavior verification</span></label>
         </div>
         <div id="behavior-editor" class="hidden">
           <div class="behavior-toolbar">
-            <label><span data-i18n="behaviorTimeout">Behavior phase timeout (seconds)</span><input id="behavior-timeout" type="number" min="1" max="300" value="60" /></label>
+            <label class="advanced-only"><span data-i18n="behaviorTimeout">Behavior phase timeout (seconds)</span><input id="behavior-timeout" type="number" min="1" max="300" value="60" /></label>
             <button id="add-behavior-check" type="button" class="secondary" data-i18n="addBehaviorCheck">Add check</button>
           </div>
           <p class="hint" data-i18n="behaviorScope">Checks run only after runtime stability passes. Final PASS requires both runtime PASS and behavior PASS.</p>
@@ -69,34 +103,71 @@
         </div>
       </section>
 
-      <section class="panel">
+      <section class="panel wizard-page" data-wizard="2">
         <div class="section-title"><div><span class="step">04</span><h2 data-i18n="runOptions">Run options</h2></div></div>
-        <div class="grid three">
+        <div class="grid three advanced-only">
           <label><span data-i18n="startupTimeout">Startup timeout (seconds)</span><input id="timeout" type="number" min="1" max="3600" value="120" /></label>
           <label><span data-i18n="stabilityWindow">Stability window (seconds)</span><input id="stability" type="number" min="1" max="600" value="5" /></label>
           <label><span data-i18n="concurrentEnvironments">Concurrent environments</span><input id="parallel" type="number" min="1" max="8" value="1" /></label>
         </div>
+        <p id="run-summary" class="run-summary"></p>
+        <label class="advanced-only"><span data-i18n="jdkDirectory">Managed JDK directory</span><input id="jdk-directory" type="text" /></label>
+        <label class="toggle-label trust"><input id="trust-inputs" type="checkbox" /><span data-i18n="trustInputs">I trust these local JARs and accept the Minecraft EULA.</span></label>
         <div class="actions">
           <button id="run" type="button" data-i18n="runVerification">Run verification</button>
           <button id="generate" type="button" class="secondary" data-i18n="generateConfig">Generate JSON config</button>
         </div>
+        <details id="config-editor" class="config-editor">
+          <summary data-i18n="configurationEditor">Configuration import / export</summary>
         <div class="config-tools">
           <label><span data-i18n="importConfigPath">Import existing JSON config by local path</span><input id="config-path" type="text" placeholder="C:\project\matrix.json or /home/me/matrix.json" /></label>
           <button id="import-config" type="button" class="secondary" data-i18n="import">Import</button>
         </div>
+        <label><span data-i18n="selectConfig">Select JSON configuration</span><input id="config-file" type="file" accept=".json" /></label>
         <label><span data-i18n="configuration">Generated / imported configuration</span><textarea id="configuration" rows="10" spellcheck="false"></textarea></label>
-        <button id="download-config" type="button" class="ghost" data-i18n="downloadJson">Download JSON</button>
+        <div class="actions"><button id="apply-json" type="button" class="secondary" data-i18n="applyJson">Validate &amp; apply JSON</button><button id="download-config" type="button" class="ghost" data-i18n="downloadJson">Download JSON</button></div>
+        </details>
+        <div class="config-tools"><label><span data-i18n="projectName">Project name</span><input id="project-name" type="text" maxlength="120" /></label><button id="save-project" type="button" class="secondary" data-i18n="saveProject">Save project</button></div>
       </section>
+      </div>
+
+      <div id="projects-view" class="workspace-view hidden">
+        <section class="panel"><div class="section-title"><h2 data-i18n="projectsTab">Projects &amp; history</h2><button type="button" id="refresh-history" class="secondary" data-i18n="refresh">Refresh</button></div>
+          <label><span data-i18n="searchHistory">Filter by name, version or result</span><input id="history-filter" type="search" /></label>
+          <h3 data-i18n="savedProjects">Saved projects</h3><div id="projects-list"></div>
+          <h3 data-i18n="runHistory">Run history</h3><div id="history-list"></div>
+        </section>
+      </div>
+      <div id="cache-view" class="workspace-view hidden">
+        <section class="panel"><div class="section-title"><h2 data-i18n="managedJdks">Managed Temurin JDKs</h2><button type="button" id="refresh-cache" class="secondary" data-i18n="refresh">Refresh</button></div>
+          <label><span data-i18n="jdkDirectory">Managed JDK directory</span><input id="cache-jdk-directory" type="text" /></label>
+          <div class="config-tools"><label><span data-i18n="jdkMajor">JDK major version</span><select id="jdk-major"><option>17</option><option>21</option><option>25</option><option>8</option><option>11</option><option>16</option></select></label><button id="preview-jdk" type="button" data-i18n="previewOfficial">Preview official package</button></div>
+          <div id="jdk-preview"></div>
+          <button id="install-jdk" type="button" disabled data-i18n="downloadReviewed">Download reviewed JDK</button>
+          <p id="cache-status" role="status" aria-live="polite"></p>
+          <button id="cancel-cache" class="danger hidden" type="button" data-i18n="cancelTask">Cancel task</button>
+          <div id="jdk-list"></div>
+        </section>
+        <section class="panel"><h2 data-i18n="serverCache">Server download cache</h2>
+          <div class="grid three">
+            <label><span data-i18n="provider">Provider</span><select id="cache-provider"><option>paper</option><option>purpur</option><option>folia</option></select></label>
+            <label><span data-i18n="minecraftVersion">Minecraft version</span><input id="cache-version" type="text" /></label>
+            <label><span data-i18n="build">Build</span><input id="cache-build" type="number" min="1" /></label>
+          </div>
+          <button id="download-server" type="button" data-i18n="downloadServer">Download fixed official build</button>
+          <div id="server-cache-list"></div>
+        </section>
+      </div>
 
       <section class="panel results">
         <div class="section-title">
           <div><span class="step">05</span><h2 data-i18n="progressResults">Progress &amp; results</h2></div>
           <div class="result-actions">
             <button id="rerun" type="button" class="secondary hidden" data-i18n="runAgain">Run again</button>
+            <button id="retry-failed" type="button" class="secondary hidden" data-i18n="retryFailed">Restore failed environments</button>
             <button id="cancel" type="button" class="danger hidden" disabled data-i18n="cancelTask">Cancel task</button>
           </div>
         </div>
-        <p id="status" class="status" data-i18n="noTask">No task running.</p>
         <div id="progress" class="progress-list"></div>
         <div id="result"></div>
         <div id="artifacts"></div>
@@ -113,9 +184,9 @@
           <label><span data-i18n="provider">Provider</span><select class="provider">
             <option value="paper">Paper</option><option value="purpur">Purpur</option><option value="folia">Folia</option><option value="local" data-i18n="localServer">Local server</option>
           </select></label>
-          <label><span data-i18n="minecraftVersion">Minecraft version</span><input class="minecraft" type="text" value="1.21.4" /><datalist class="version-options"></datalist></label>
+          <label><span data-i18n="minecraftVersion">Minecraft version</span><input class="minecraft" type="text" value="" placeholder="1.21.4" /><datalist class="version-options"></datalist></label>
           <label><span data-i18n="build">Build</span> <span class="hint" data-i18n="latestOrNumber">latest or number</span><input class="build" type="text" value="latest" /><datalist class="build-options"></datalist></label>
-          <label><span data-i18n="heap">Heap MiB</span><input class="heap" type="number" min="256" max="32768" value="1024" /></label>
+          <label class="advanced-only"><span data-i18n="heap">Heap MiB</span><input class="heap" type="number" min="256" max="32768" value="1024" /></label>
         </div>
         <p class="catalog-status hint" data-i18n="catalogLoading">Loading available versions…</p>
         <div class="java-row">
@@ -143,7 +214,7 @@
           <button type="button" class="remove-behavior ghost" data-i18n="remove">Remove</button>
         </div>
         <div class="grid three">
-          <label><span data-i18n="checkId">Check ID</span><input class="behavior-id" type="text" maxlength="64" value="check-1" /></label>
+          <label class="advanced-only"><span data-i18n="checkId">Check ID</span><input class="behavior-id" type="text" maxlength="64" value="check-1" /></label>
           <label><span data-i18n="checkType">Check type</span><select class="behavior-type">
             <option value="command_registered" data-i18n="typeCommandRegistered">Command registered</option>
             <option value="permission_registered" data-i18n="typePermissionRegistered">Permission registered</option>
@@ -151,7 +222,7 @@
             <option value="console_command" data-i18n="typeConsoleCommand">Console command</option>
             <option value="wait" data-i18n="typeWait">Wait</option>
           </select></label>
-          <label><span data-i18n="checkTimeout">Check timeout (seconds)</span><input class="behavior-check-timeout" type="number" min="0.1" max="30" step="0.1" value="5" /></label>
+          <label class="advanced-only"><span data-i18n="checkTimeout">Check timeout (seconds)</span><input class="behavior-check-timeout" type="number" min="0.1" max="30" step="0.1" value="5" /></label>
         </div>
         <div class="behavior-named-fields grid two">
           <label><span data-i18n="checkName">Registered name or service class</span><input class="behavior-name" type="text" maxlength="256" /></label>

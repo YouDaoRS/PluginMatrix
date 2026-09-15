@@ -2,9 +2,11 @@
 
 PluginMatrix is an early-stage local runtime verifier for Minecraft plugin JARs. It prepares an isolated server/Java environment, starts a real server, observes plugin discovery and lifecycle evidence, and writes an authoritative JSON report alongside the original `server.log` and optional static HTML.
 
-Version **0.8.0** adds bounded Behavioral Verification after the existing runtime stability window. CLI, Web, application API, JSON/HTML reports, progress events and Matrix summaries now keep the runtime verdict, behavior verdict and final result separate. There is still one Runtime Verifier and no cloud service, account system, automatic JDK installation, player bot, script engine or complete feature testing.
+Development candidate **0.9.0rc1** adds Guided Setup: choose a local JAR, inspect dependencies, select an intended Minecraft target, review an explained environment and editable checks, then run the existing verifier. The local Web UI includes guided/advanced modes, dark mode, English/简体中文, saved projects, run history and explicit managed-JDK/cache operations. There is still one Runtime Verifier and no cloud service, account system, automatic third-party plugin download, player bot, script engine or complete feature testing.
 
 The public stable release is **0.8.0**, available from [PyPI](https://pypi.org/project/pluginmatrix/0.8.0/) and the immutable [GitHub Release](https://github.com/YouDaoRS/PluginMatrix/releases/tag/v0.8.0). GitHub remains the source, release-asset and checksum channel. See [release status](docs/STATUS.md), [behavior contract](docs/BEHAVIOR_CORE.md), [publishing policy](docs/PUBLISHING.md), and [architecture](docs/ARCHITECTURE.md).
+
+The candidate is not published. Use this development checkout for v0.9. Start with the [Guided Setup user guide / 使用指南](docs/GUIDED_SETUP.md) and the [schema-2 standard example](examples/guided-standard.json).
 
 ## What `PASS` means
 
@@ -53,9 +55,11 @@ For the local Web UI, run:
 pluginmatrix web
 ```
 
-The printed URL is bound to `127.0.0.1` only and normally opens in the default browser. Use `pluginmatrix web --no-browser --port 0` to print a randomly allocated local URL without opening it. The UI accepts Paper, Purpur, Folia, and explicit local contracts; single or Matrix runs; behavior plan editing; cancellation; live runtime/behavior progress; configuration import/export and rerun; per-check status/reason/duration/structured evidence; and links to allowlisted reports, logs and behavior protocol evidence. Browser-selected JARs are copied into a session-temporary local directory and are never sent to a remote service. Enter full local paths when generating a configuration that must remain usable after the UI exits.
+The printed URL is bound to `127.0.0.1` only and normally opens in the default browser. Use `pluginmatrix web --no-browser --port 0` to print a randomly allocated local URL without opening it. The three-step wizard analyzes the selected JAR, explains the environment choice, and prepares an editable review before execution. Advanced mode exposes the full configuration. Runtime, Behavior and combined results remain separate; reports and original logs are accessible only through registered artifact IDs.
 
-The UI loads official Minecraft version/build choices through each selected Provider and stores bounded metadata under the normal cache directory. If the network is unavailable, it identifies cached or stale choices and keeps manual entry available. Installed Java/JDK candidates are discovered locally and shown with version and executable path; PluginMatrix only recommends a compatible choice and never installs or changes Java. English and Simplified Chinese can be selected in the header, and the choice is remembered by the browser.
+Browser-selected JARs initially use local session-temporary paths. **Saving a project or starting a run retains these copies under the local Web state directory**, together with configuration/input hashes and evidence. Projects and the most recent 64 run records are restored on restart. Direct local paths remain references: a changed or missing source is reported when restoring a run. Generated exports contain local absolute paths; save a project before exporting browser-selected inputs that must survive the session.
+
+The UI loads official version/build choices and identifies fresh, stale and unavailable metadata without silently replacing your target. A ready recommendation is a proposal, not a compatibility verdict. Java baselines come from the shared reviewed policy, never a browser formula. Existing Java remains usable; an explicit Temurin package preview and download can provide a managed full JDK. Installation never changes PATH, JAVA_HOME, JDK_HOME or the registry. English/简体中文 and light/dark/system appearance are remembered by the browser.
 
 The v0.8.0 Release includes PyInstaller `onedir` archives for Windows x86-64, Linux x86-64, and macOS x86-64/arm64. Every target exercises frozen CLI/Web runtime and behavior PASS before publication. A full installed JDK is still required, and no Java runtime, server JAR, or third-party plugin is bundled. The archives are unsigned and the macOS builds are not notarized.
 

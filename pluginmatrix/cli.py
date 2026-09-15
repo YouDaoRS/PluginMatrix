@@ -75,6 +75,10 @@ def build_parser() -> argparse.ArgumentParser:
     init.add_argument('--max-parallel', type=int, default=1)
     init.add_argument('--force', action='store_true', help='explicitly replace an existing JSON config, never an input JAR')
     init.add_argument('--profile', choices=['quick', 'standard', 'matrix', 'strict'])
+    init.add_argument('--dependency', action='append', type=Path, default=[])
+    init.add_argument('--jdk-dir', type=Path)
+    init.add_argument('--behavior', type=Path)
+    init.add_argument('--no-suggestions', action='store_true')
     analyze = subparsers.add_parser('analyze', help='static plugin metadata, local dependencies and editable Behavior suggestions')
     analyze.add_argument('--plugin', required=True, type=Path)
     analyze.add_argument('--dependency', action='append', type=Path, default=[])
@@ -92,7 +96,7 @@ def build_parser() -> argparse.ArgumentParser:
     recommend.add_argument('--jdk-dir', type=Path, help='also inspect matching managed JDKs in this store')
     recommend.add_argument('--json', action='store_true')
     jdk = subparsers.add_parser('jdk', help='explicit portable managed JDK operations; never changes system Java')
-    jdk.add_argument('action', choices=['list', 'preview', 'install', 'remove'])
+    jdk.add_argument('action', choices=['list', 'preview', 'install', 'verify', 'remove'])
     jdk.add_argument('--major', type=int)
     jdk.add_argument('--id', help='installed id to remove, or reviewed preview id to pin an install')
     jdk.add_argument('--directory', type=Path, default=Path('.pluginmatrix/jdks'))
@@ -313,16 +317,21 @@ def _utility(args):
             code = 0 if result['recommendation']['ready'] else 2
         elif args.action == 'list':
             result = application.inspect_managed_jdks(args.directory)
-        elif args.action == 'remove':
+        elif args.action in ('remove', 'verify'):
             if not args.id:
-                raise ValueError('jdk remove requires --id from jdk list')
-            result = application.delete_managed_jdk(args.id, root=args.directory)
+                raise ValueError(f'jdk {args.action} requires --id from jdk list')
+            result = (application.delete_managed_jdk(args.id, root=args.directory) if args.action == 'remove'
+                      else application.verify_managed_jdk(args.id, root=args.directory))
         else:
             if args.major is None:
                 raise ValueError('jdk preview/install requires --major')
             result = (application.preview_managed_jdk(args.major) if args.action == 'preview' else
                       application.install_managed_jdk(args.major, root=args.directory, expected_id=args.id))
-        sys.stdout.write(json.dumps(result, ensure_ascii=True, indent=2) + '\n')
+        if args.json:
+            sys.stdout.write(json.dumps(result, ensure_ascii=True, indent=2) + '\n')
+        else:
+            from .guided_output import render
+            render(args.command, result)
         return code
     if args.command == 'init':
         needs_local = (any(s in ('local', 'custom') for s in (args.server or []))
@@ -339,12 +348,22 @@ def _utility(args):
         if not args.plugin or not args.minecraft or not args.java:
             raise ValueError('non-interactive init requires --plugin, --minecraft and --java')
         servers = [_server(args, kind) for kind in (args.server or ['paper'])]
-        if args.profile:
+        if args.profile or args.jdk_dir or args.dependency or args.behavior or args.no_suggestions:
+            from .behavior import parse_behavior
+            from .files import read_evidence_bytes
+            from .matrix import _unique_object
+            options = {'max_parallel': args.max_parallel}
+            if args.jdk_dir:
+                options['jdk_dir'] = str(args.jdk_dir.resolve())
             prepared = application.prepare_configuration(
                 plugin=args.plugin, environments=[{'server': s.to_dict(), 'java': args.java} for s in servers],
-                source_path=args.config, profile=args.profile, options={'max_parallel': args.max_parallel})
+                source_path=args.config, profile=args.profile, options=options, dependencies=args.dependency,
+                behavior=parse_behavior(json.loads(read_evidence_bytes(args.behavior, 1024 * 1024),
+                                                   object_pairs_hook=_unique_object)).to_dict() if args.behavior else None,
+                use_suggestions=not args.no_suggestions)
             from .files import atomic_text, protect_inputs
-            protect_inputs(args.config, [args.plugin, *(s.jar for s in servers if s.jar)])
+            protect_inputs(args.config, [args.plugin, *args.dependency, *(s.jar for s in servers if s.jar),
+                                         *([args.behavior] if args.behavior else [])])
             atomic_text(args.config, json.dumps(prepared['configuration'], indent=2) + '\n', overwrite=args.force)
             path = args.config.resolve()
         else:

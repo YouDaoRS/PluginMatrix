@@ -1,4 +1,34 @@
-# PluginMatrix v0.8.0 Release Status
+# PluginMatrix Release Status
+
+## v0.9.0rc1 Product Integration（2026-09-15）
+
+开发候选为 `0.9.0rc1`，分支为 `codex/v0.9-guided-core`，基于核心提交 `776adc4`。
+公开稳定版本保持 `0.8.0`。本轮不合并 main、不创建 Tag/Release、不发布 TestPyPI/PyPI。
+
+- 已接入 Web 三步向导、明确目标与官方建议确认、简单/高级模式、深色/系统外观、双语与响应式布局。
+- schema 2、profile revision、托管 JDK ID/目录、明确 Behavior 检查和输出选项完整导入/编辑/导出；
+  Web 执行仍调用 application API，不重新计算 verdict。
+- 新增本地项目与最近 64 项运行记录恢复、输入/配置 hash、失败环境恢复和原 artifact 身份保护。
+  保存/运行会保留浏览器选择的本地 JAR 副本，不进行远程上传。
+- 增加 JDK 预览、下载、完整性校验、租约保护删除，以及固定官方服务端 JAR 缓存管理。
+  未识别文件、暂存条目、系统 Java、bootstrap runtime 与持久锁不进行递归删除。
+- CLI 提供人类可读输出与 `jdk verify`；补充 init 的本地依赖/JDK/Behavior 参数、
+  [双语使用指南](GUIDED_SETUP.md) 和四种 profile 示例。
+- 本机真实 Web Paper 1.20.1/196 已得到 Runtime PASS、两项自动建议注册检查 PASS、最终 PASS。
+  该运行使用仓库自有 Behavior fixture，记录位于
+  `C:\Users\11580\AppData\Local\Temp\pluginmatrix-v09-sol-rc1\web`。
+- 定稿浏览器验收通过：1280px English 浅色、390px 中文深色、真实结果查看、项目保存、
+  历史恢复、JSON 检查编辑、托管 ID 无静默替换和缓存页；无页面异常或横向溢出。
+  证据为同级目录 `ui-qa.json` 及截图，浏览器为 Playwright/Edge。
+- 一次完整本机 RC 离线验证共 267 项：258 passed / 9 平台型 skips；包含实际 sdist/wheel
+  构建与归档排除检查。`compileall`、JavaScript syntax 和 `git diff --check` 通过。
+  首次并发编译遇到 Windows pyc 临时锁，测试结束后单独编译通过，没有重复完整测试。
+- native 冻结验收等待开发候选提交的 hosted workflow；未完成项不记作通过。
+
+本轮沿用 Astra 已验证的 Runtime、Behavior、分析和 profile 合同，不重复完整 Provider Gate。
+新增跨平台冻结 Gate 直接验证官方托管 JDK 的下载/解压/Java/Javac/manifest、
+schema-2 CLI/Web 运行和删除，覆盖 Windows x64、Linux x64/arm64、macOS x64/arm64。
+独立包仍未签名、未 notarize；平台结论以实际 Gate 结果为准。
 
 ## v0.9 Guided Setup core development（2026-09-15）
 

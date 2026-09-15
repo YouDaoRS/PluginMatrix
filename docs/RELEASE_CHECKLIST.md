@@ -1,5 +1,19 @@
 # Release checklists
 
+## v0.9.0rc1 Candidate Gate - 2026-09-15
+
+Scope: complete product integration on `codex/v0.9-guided-core`, commit and push
+the candidate only. No Tag, Release, main merge, TestPyPI or PyPI publication.
+
+- [x] Reuse the validated guided/application/runtime core and original verdicts.
+- [x] Integrate the Web wizard, lossless schema-2 editor, profiles, managed JDK references and editable suggestions.
+- [x] Add local projects/history, failed-environment restore, immutable artifacts and explicit cache operations.
+- [x] Add readable CLI output, dual-language user documentation and owned-fixture examples.
+- [x] Finish the single final responsive/dark/bilingual browser acceptance.
+- [x] Run one complete offline RC suite, compilation, JavaScript syntax, diff checks and package audit (267 tests, 9 local platform skips).
+- [ ] Pass native frozen managed-JDK plus CLI/Web acceptance on all candidate targets.
+- [ ] Record the exact candidate commit, evidence and limitations, then push the final status update.
+
 ## v0.8.0 Final Release Gate - completed 2026-09-15
 
 Owner authorization covers the normal release commit, safe fast-forward merge to `main`, annotated `v0.8.0` tag, GitHub Release assets, TestPyPI and PyPI publication through the existing Trusted Publishing workflow. Force pushes, history rewriting, old Release changes, EnhancedFly history work and v0.9 remain excluded.
