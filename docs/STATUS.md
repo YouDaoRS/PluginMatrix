@@ -1,5 +1,12 @@
 # PluginMatrix v0.7.1 Release Status
 
+## v0.8 核心开发交接（2026-09-15）
+
+`codex/v0.8-behavior-core` 已实现有限、结构化的 Behavioral Verification，代码提交 `543076f`。
+配置、双 verdict、probe 协议、安全边界和 Sol 接续事项见 [BEHAVIOR_CORE.md](BEHAVIOR_CORE.md)。
+这不是发布声明；下方 v0.7.1 历史、包版本、Tag、Release 和 PyPI 均保持不变。
+真实核心 Gate 已验证 Paper、Purpur、Folia 和双环境并行/取消；local 首轮因 Mojang bootstrap 下载超时而正确跳过行为检查，尚无本轮 local 行为成功结论。详细证据见上述交接页。
+
 更新日期：2026-09-14。当前源码和公开稳定版本均为 **v0.7.1**。Release commit `49543d122fa3ec241f937e70b6d2cf1440705803` 已从 `codex/v0.7.1-usability` fast-forward 到 `main`；annotated tag、GitHub Release、TestPyPI 和 PyPI 发布均已完成。
 
 ## v0.7.1 Final Release

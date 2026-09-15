@@ -150,6 +150,42 @@ it builds only the project-owned `ci-fixtures/behavior` source into a temporary
 directory and retains JSON/raw logs. `--provider`, `--minecraft`, `--build`,
 `--java` and `--scenarios` select only relevant core Gate paths.
 
+### Results recorded on 2026-09-15
+
+Implementation commit: `543076f`, on top of `9bb6cef` (stable release completion
+documentation). Windows Python 3.11.9: 171 distinct related tests executed across
+the ten suites, 167 passed and 4 platform/permission-dependent skips. This
+includes 23 new behavior tests. Targeted follow-up tests were rerun after their
+corresponding fixes; no unrelated Web/standalone/release suite was run.
+`compileall` and `git diff --check` passed. The Java process inventory after the
+Gates contained only the pre-existing Eclipse language server, no Gate JVMs.
+
+| Real Gate | Result |
+| --- | --- |
+| Paper 1.20.1 / build 196 / JDK 17 | Registry assertions, command return values, exception, spoofed log, disable, hang/timeout, cancellation and missing-command outcomes matched; runtime verdict remained PASS after its successful window |
+| Paper command ownership and at-most-once execution | Built-in `stop` rejected without stopping server; `once` followed by `count-one` confirmed no duplicated invocation |
+| Paper 1.20.1/196 + 1.20.4/499, max_parallel=2 | Both environments passed independently; cancellation after both entered behavior yielded two behavior CANCELLED results with completed cleanup |
+| Purpur 1.21.4 / build 2416 / JDK 21 | Full registry, command, wait and service-unregistration plan passed; remapped target CodeSource retained |
+| Folia 1.21.4 / build 6 / JDK 21 | Registry/wait checks passed; console command explicitly UNSUPPORTED; post-health passed; no region/thread-safety claim |
+| local Paper 1.20.1, first parallel attempt | Bootstrap stayed at `Downloading mojang_1.20.1.jar`; runtime SERVER_START_TIMEOUT and behavior SKIPPED. This external prerequisite failure remains preserved, not counted as a behavior success |
+
+All raw logs, protocol files and per-environment reports are retained under
+`C:\Users\11580\AppData\Local\Temp`. Gate directories and SHA-256 of their
+`gate-summary.json` files:
+
+| Directory | Summary SHA-256 |
+| --- | --- |
+| `pluginmatrix-08-behavior-zgtbokrm` (initial Paper/local attempt) | `928540de81a5d526a9335016b2da3c90bd5fcd1997671fe663649abf421bdd5c` |
+| `pluginmatrix-08-behavior-_ihcl5tr` (ownership and parallel/cancel) | `76d229ca71533b4db7f58a7de1eb9f32628c3ac594aa52ee4e22b3e9309dd5fb` |
+| `pluginmatrix-08-behavior-jvnf1thd` (Folia) | `67a60964393549bc412ebac614b453d980b461caf6e61b219eaa68007a98060c` |
+| `pluginmatrix-08-behavior-5jdy3r1y` (Purpur) | `8f7061cfec06136454c82810f5d129c002cdf5e7b048f0a3c87e60a6cb13cb5a` |
+
+These are local validation artifacts, not source/release assets. Gate invocations
+ran during implementation; final changes after those runs concerned report
+references, cancellation boundary checks, rejected-sample retention and the Web
+import guard, validated with the corresponding offline regressions. No Java
+behavior or runtime verdict changes followed the successful final parallel Gate.
+
 Sol follow-up scope:
 
 1. Add behavior plan input/import and two-verdict presentation to the existing

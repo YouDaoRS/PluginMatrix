@@ -2,6 +2,14 @@
 
 One Runtime Verifier remains the only lifecycle/verdict implementation. Provider implementations are selected from a fixed registry; arbitrary code is not loaded from config.
 
+Development addition: [v0.8 behavior core](BEHAVIOR_CORE.md) extends the same probe
+and verifier process lifetime with a bounded sequential behavior phase after the
+runtime stability window. `behavior.py` owns plan validation, host assertions,
+timeouts and post-check health; `behavior_probe.py` generates the compile-time
+server-side allowlist. Runtime and behavior verdicts stay separate, and every
+Matrix worker owns independent behavior state. The following v0.7 architecture
+and process ownership remain the foundation.
+
 ```text
 CLI / loopback Web UI
         |
